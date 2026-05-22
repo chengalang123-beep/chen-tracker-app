@@ -5,6 +5,7 @@ const GOOGLE_SHEET_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxQbzG
 
 const resultOptions = ["PENDING", "RESOLVED", "LOST"];
 const priorityOptions = ["Normal", "High", "Urgent"];
+const specialistOptions = ["", "Nisha", "Chen", "Rick"]; 
 
 const blankForm = {
   clientName: "",
@@ -279,7 +280,7 @@ export default function App() {
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <div className="mb-1 inline-flex rounded-full bg-[#B8896A]/15 px-2.5 py-0.5 text-xs text-[#5F5147] ring-1 ring-[#B8896A]/20">Policy tracker app</div>
-              <h1 className="text-3xl font-bold tracking-tight">Eterna Retention Tracker</h1>
+              <h1 className="text-3xl font-bold tracking-tight">Chen Tracker</h1>
               <p className="mt-1 max-w-3xl text-sm text-[#6B5C52]">Track clients, policies, AP, agent assignments, specialists, pending saves, welcome calls, onboarding, rewrites, and lost cases.</p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -316,7 +317,7 @@ export default function App() {
                 <Input label="Lead status" value={form.leadStatus} onChange={(v) => updateForm("leadStatus", v)} placeholder="CWCN" />
                 <Input label="Agent name" value={form.agentName} onChange={(v) => updateForm("agentName", v)} />
               </div>
-              <Input label="Specialist name" value={form.specialistName} onChange={(v) => updateForm("specialistName", v)} />
+              <Select label="Specialist name" value={form.specialistName} onChange={(v) => updateForm("specialistName", v)} options={specialistOptions} />
               <div className="grid grid-cols-3 gap-2">
                 <Select label="Result" value={form.result} onChange={(v) => updateForm("result", v)} options={resultOptions} />
                 <Select label="Priority" value={form.priority} onChange={(v) => updateForm("priority", v)} options={priorityOptions} />

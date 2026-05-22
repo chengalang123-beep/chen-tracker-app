@@ -547,20 +547,33 @@ export default function App() {
                     <th className="w-[9%] px-2 py-3">Stage</th>
                     <th className="w-[14%] px-2 py-3">Agent</th>
                     <th className="w-[12%] px-2 py-3">Status</th>
-                    <th className="w-[17%] px-2 py-3">Action / Notes</th>
+                    <th className="w-[17%] px-2 py-3">Action</th>
                     <th className="w-[8%] px-2 py-3 text-right">Tools</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#E7D8C8]">
                   {filteredRows.map((row) => (
                     <tr key={row.id} className="align-top hover:bg-[#EFE4D6]">
-                      <td className="break-words px-3 py-3"><div className="font-semibold text-[#4F4038]">{row.clientName}</div><div className="mt-1 flex flex-wrap items-center gap-1 text-[10px] text-[#6B5C52]">{row.updatedAt}<span className={`rounded-full px-1.5 py-0.5 ${priorityClass(row.priority)}`}>{row.priority}</span></div></td>
+                      <td className="break-words px-3 py-3">
+                        <div className="group relative inline-block">
+                          <div className="font-semibold text-[#4F4038]">{row.clientName}</div>
+                          {row.notes && (
+                            <div className="pointer-events-none absolute left-0 top-full z-50 mt-2 hidden w-64 rounded-2xl bg-[#4F4038] px-3 py-2 text-xs leading-5 text-white shadow-xl group-hover:block">
+                              {row.notes}
+                            </div>
+                          )}
+                        </div>
+                        <div className="mt-1 flex flex-wrap items-center gap-1 text-[10px] text-[#6B5C52]">
+                          {row.updatedAt}
+                          <span className={`rounded-full px-1.5 py-0.5 ${priorityClass(row.priority)}`}>{row.priority}</span>
+                        </div>
+                      </td>
                       <td className="break-words px-2 py-3 font-mono text-[10px] text-[#6B5C52]">{row.policyNumber}</td>
                       <td className="break-words px-2 py-3 font-semibold">{currency(row.ap)}</td>
                       <td className="px-2 py-3"><span className="rounded-full bg-[#EFE4D6] px-1.5 py-0.5 text-[10px] font-semibold text-[#6B5C52]">{row.leadStatus || "—"}</span></td>
                       <td className="break-words px-2 py-3 text-[#5F5147]">{row.agentName || "—"}</td>
                       <td className="px-2 py-3"><span className={`inline-flex rounded-full border px-1.5 py-0.5 text-[10px] font-bold ${statusClass(row.result)}`}>{row.result}</span></td>
-                      <td className="break-words px-2 py-3"><div className="font-medium text-[#4F4038]">{row.action || "—"}</div>{row.notes && <div className="mt-0.5 text-[10px] leading-4 text-[#6B5C52]">{row.notes}</div>}</td>
+                      <td className="break-words px-2 py-3"><div className="font-medium text-[#4F4038]">{row.action || "—"}</div></td>
                       <td className="px-2 py-3"><div className="flex justify-end gap-1"><button type="button" onClick={() => quickResolve(row.id)} title="Mark resolved" className="rounded-lg px-1.5 py-1 hover:bg-[#EFE4D6]">✓</button><button type="button" onClick={() => editRow(row)} title="Edit" className="rounded-lg px-1.5 py-1 hover:bg-[#EFE4D6]">✎</button><button type="button" onClick={() => deleteRow(row.id)} title="Delete" className="rounded-lg px-1.5 py-1 text-rose-600 hover:bg-rose-50">x</button></div></td>
                     </tr>
                   ))}

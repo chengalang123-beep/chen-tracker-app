@@ -23,8 +23,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
 const STORAGE_KEY = "chen-policy-tracker-v1";
-const EOD_STORAGE_KEY = "chen-policy-tracker-eod-v1";
 const GOOGLE_SHEET_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxQbzGV243t3Tyfyzc7kcZuvNEmscoGf0lpdSRft5VhUIL1Y_ALEc3mA7HIO4WgF_x4/exec";
+const EOD_JOTFORM_URL = "<script type="text/javascript" src="https://form.jotform.com/jsform/261417629759470"></script>"; // Paste your EOD Jotform link here
 
 const starterRows = [];
 
@@ -40,20 +40,6 @@ const blankForm = {
   notes: "",
   priority: "Normal",
   updatedAt: new Date().toISOString().slice(0, 10),
-};
-
-const blankEodForm = {
-  date: new Date().toISOString().slice(0, 10),
-  specialistName: "",
-  totalDials: "",
-  totalTalkTime: "",
-  totalClientsTouched: "",
-  totalPoliciesSaved: "",
-  apSavedToday: "",
-  cancelledClientsReinstatedAp: "",
-  welcomeOnboardingCalls: "",
-  apUwResolvedPre: "",
-  uwPoliciesResolvedPending: "",
 };
 
 const resultOptions = ["PENDING", "RESOLVED", "LOST"];
@@ -183,16 +169,6 @@ export default function ChenTrackerApp() {
     }
   });
   const [form, setForm] = useState(blankForm);
-  const [eodRows, setEodRows] = useState(() => {
-    try {
-      const saved = localStorage.getItem(EOD_STORAGE_KEY);
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-  const [eodForm, setEodForm] = useState(blankEodForm);
-  const [activeEntryTab, setActiveEntryTab] = useState("case");
   const [editingId, setEditingId] = useState(null);
   const [query, setQuery] = useState("");
   const [resultFilter, setResultFilter] = useState("Status");
@@ -201,14 +177,12 @@ export default function ChenTrackerApp() {
   const [sortBy, setSortBy] = useState("updatedAt");
   const [exportStartDate, setExportStartDate] = useState("");
   const [exportEndDate, setExportEndDate] = useState("");
+  const [activeEntryTab, setActiveEntryTab] = useState("case");
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
   }, [rows]);
 
-  useEffect(() => {
-    localStorage.setItem(EOD_STORAGE_KEY, JSON.stringify(eodRows));
-  }, [eodRows]);
 
   const stats = useMemo(() => {
     const total = rows.length;
@@ -263,17 +237,9 @@ export default function ChenTrackerApp() {
     setForm((current) => ({ ...current, [field]: value }));
   }
 
-  function updateEodForm(field, value) {
-    setEodForm((current) => ({ ...current, [field]: value }));
-  }
-
   function resetForm() {
     setForm(blankForm);
     setEditingId(null);
-  }
-
-  function resetEodForm() {
-    setEodForm(blankEodForm);
   }
 
   async function sendToGoogleSheet(data) {
@@ -325,28 +291,6 @@ export default function ChenTrackerApp() {
       sendToGoogleSheet(newCase);
     }
     resetForm();
-  }
-
-  function submitEodForm(event) {
-    event.preventDefault();
-    if (!eodForm.date || !eodForm.specialistName) return;
-
-    const newEod = {
-      id: crypto.randomUUID(),
-      ...eodForm,
-      totalDials: Number(eodForm.totalDials || 0),
-      totalTalkTime: Number(eodForm.totalTalkTime || 0),
-      totalClientsTouched: Number(eodForm.totalClientsTouched || 0),
-      totalPoliciesSaved: Number(eodForm.totalPoliciesSaved || 0),
-      apSavedToday: Number(eodForm.apSavedToday || 0),
-      cancelledClientsReinstatedAp: Number(eodForm.cancelledClientsReinstatedAp || 0),
-      welcomeOnboardingCalls: Number(eodForm.welcomeOnboardingCalls || 0),
-      apUwResolvedPre: Number(eodForm.apUwResolvedPre || 0),
-      uwPoliciesResolvedPending: Number(eodForm.uwPoliciesResolvedPending || 0),
-    };
-
-    setEodRows((current) => [newEod, ...current]);
-    resetEodForm();
   }
 
   function editRow(row) {
@@ -437,6 +381,10 @@ export default function ChenTrackerApp() {
     setSortBy("updatedAt");
   }
 
+  const entryTitle = activeEntryTab === "case" ? (editingId ? "Edit case" : "Add new case") : "EOD";
+
+  const entryHelper = activeEntryTab === "case" ? "Fast entry for daily tracking." : "Fill out your EOD Jotform inside the tracker.";
+
   return (
     <div className="min-h-screen overflow-x-hidden bg-gradient-to-br from-[#FFF7ED] via-[#F8EFE3] to-[#EEDBC6] text-[#2B1A12]">
       <div className="mx-auto max-w-[1440px] px-4 py-5">
@@ -521,12 +469,8 @@ export default function ChenTrackerApp() {
                       EOD
                     </button>
                   </div>
-                  <h2 className="text-lg font-bold">
-                    {activeEntryTab === "case" ? (editingId ? "Edit case" : "Add new case") : "EOD report"}
-                  </h2>
-                  <p className="text-xs text-[#8A6A55]">
-                    {activeEntryTab === "case" ? "Fast entry for daily tracking." : "End-of-day specialist performance summary."}
-                  </p>
+                  <h2 className="text-lg font-bold">{entryTitle}</h2>
+                  <p className="text-xs text-[#8A6A55]">{entryHelper}</p>
                 </div>
                 {editingId && activeEntryTab === "case" && (
                   <Button variant="ghost" size="sm" onClick={resetForm} className="rounded-xl">
@@ -560,28 +504,25 @@ export default function ChenTrackerApp() {
                   </Button>
                 </form>
               ) : (
-                <form onSubmit={submitEodForm} className="space-y-2">
-                  <div className="grid grid-cols-2 gap-2">
-                    <Input label="Date" type="date" value={eodForm.date} onChange={(v) => updateEodForm("date", v)} required />
-                    <Select label="Specialist name" value={eodForm.specialistName} onChange={(v) => updateEodForm("specialistName", v)} options={specialistOptions} />
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Input label="Total Dials" type="number" value={eodForm.totalDials} onChange={(v) => updateEodForm("totalDials", v)} />
-                    <Input label="Total talk time (Minutes)" type="number" value={eodForm.totalTalkTime} onChange={(v) => updateEodForm("totalTalkTime", v)} />
-                  </div>
-                  <Input label="Total Clients Touched / Reached / Texts" type="number" value={eodForm.totalClientsTouched} onChange={(v) => updateEodForm("totalClientsTouched", v)} />
-                  <div className="grid grid-cols-2 gap-2">
-                    <Input label="Total Policies Saved" type="number" value={eodForm.totalPoliciesSaved} onChange={(v) => updateEodForm("totalPoliciesSaved", v)} />
-                    <Input label="Amount of AP saved today ($)" type="number" value={eodForm.apSavedToday} onChange={(v) => updateEodForm("apSavedToday", v)} />
-                  </div>
-                  <Input label="Cancelled clients Reinstated (amount) (AP)" type="number" value={eodForm.cancelledClientsReinstatedAp} onChange={(v) => updateEodForm("cancelledClientsReinstatedAp", v)} />
-                  <Input label="Total welcome / onboarding calls completed" type="number" value={eodForm.welcomeOnboardingCalls} onChange={(v) => updateEodForm("welcomeOnboardingCalls", v)} />
-                  <Input label="Amount of AP UW resolved today (pre)" type="number" value={eodForm.apUwResolvedPre} onChange={(v) => updateEodForm("apUwResolvedPre", v)} />
-                  <Input label="UW Policies resolved pending" type="number" value={eodForm.uwPoliciesResolvedPending} onChange={(v) => updateEodForm("uwPoliciesResolvedPending", v)} />
-                  <Button type="submit" className="h-11 w-full rounded-2xl bg-[#5B3320] text-white hover:bg-[#3A2417]">
-                    <Save className="mr-2 h-4 w-4" /> Save EOD
-                  </Button>
-                </form>
+                <div className="overflow-hidden rounded-2xl border border-[#E8D2BC] bg-[#FFF7ED]">
+                  {EOD_JOTFORM_URL ? (
+                    <iframe
+                      title="EOD Jotform"
+                      src={EOD_JOTFORM_URL}
+                      className="h-[720px] w-full bg-white"
+                      frameBorder="0"
+                      allowFullScreen
+                    />
+                  ) : (
+                    <div className="flex min-h-[360px] flex-col items-center justify-center px-6 text-center">
+                      <FileSpreadsheet className="mb-3 h-10 w-10 text-[#A66A3F]" />
+                      <h3 className="text-lg font-bold text-[#2B1A12]">Add your EOD Jotform link</h3>
+                      <p className="mt-2 max-w-sm text-sm text-[#8A6A55]">
+                        Paste your Jotform URL into the EOD_JOTFORM_URL constant at the top of the code to show it here.
+                      </p>
+                    </div>
+                  )}
+                </div>
               )}
             </CardContent>
           </Card>
@@ -615,23 +556,6 @@ export default function ChenTrackerApp() {
                 </div>
               </CardContent>
             </Card>
-
-            {eodRows.length > 0 && (
-              <Card className="rounded-[1.4rem] border border-[#E8D2BC] bg-[#FFFDF8] shadow-sm shadow-md lg:mr-[192px]">
-                <CardContent className="p-3">
-                  <h3 className="mb-2 text-xs font-bold text-[#5B3320]">Latest EOD reports</h3>
-                  <div className="grid gap-2 md:grid-cols-3">
-                    {eodRows.slice(0, 3).map((item) => (
-                      <div key={item.id} className="rounded-2xl border border-[#E8D2BC] bg-[#FFF7ED] p-3 text-xs">
-                        <div className="font-bold text-[#2B1A12]">{item.specialistName} • {item.date}</div>
-                        <div className="mt-1 text-[#8A6A55]">Dials: {item.totalDials} | Talk: {item.totalTalkTime} mins</div>
-                        <div className="text-[#8A6A55]">Saved: {item.totalPoliciesSaved} | AP: {currency(item.apSavedToday)}</div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
 
             <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_180px]">
               <Card className="rounded-[1.6rem] border border-[#E8D2BC] bg-[#FFFDF8] shadow-sm shadow-md">

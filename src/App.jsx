@@ -510,9 +510,9 @@ export default function App() {
                   <p className="text-[10px] leading-3 text-[#6B5C52]">Search & filter.</p>
                 </div>
                 <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search client, policy, agent, specialist, notes..." className="h-8 w-full rounded-2xl border border-[#D8C7B8] bg-[#FCF8F3] px-3 text-xs text-[#5F5147] outline-none focus:border-[#B8896A]" />
-                <MiniSelect value={resultFilter} onChange={setResultFilter} options={["Status", ...resultOptions]} />
-                <MiniSelect value={priorityFilter} onChange={setPriorityFilter} options={["Priority", ...priorityOptions]} />
-                <MiniSelect value={specialistFilter} onChange={setSpecialistFilter} options={["Specialist", "Nisha", "Chen", "Rick"]} />
+                <MiniSelect value={resultFilter} onChange={setResultFilter} options={["ALL", ...resultOptions]} />
+                <MiniSelect value={priorityFilter} onChange={setPriorityFilter} options={["ALL", ...priorityOptions]} />
+                <MiniSelect value={specialistFilter} onChange={setSpecialistFilter} options={["ALL", "Nisha", "Chen", "Rick"]} />
                 <MiniSelect value={sortBy} onChange={setSortBy} options={["updatedAt", "ap", "clientName"]} />
                 <button type="button" onClick={clearFilters} className="h-8 rounded-2xl border border-[#D8C7B8] px-2 text-xs hover:bg-[#EFE4D6]">Clear</button>
               </div>
@@ -537,7 +537,7 @@ export default function App() {
               </div>
             </aside>
 
-            <section className="overflow-hidden rounded-[1.6rem] bg-[#F7F1E8] shadow-sm lg:col-start-1 lg:-mt-44">
+            <section className="overflow-hidden rounded-[1.6rem] bg-[#F7F1E8] shadow-sm lg:col-start-1 lg:-mt-72">
               <table className="w-full table-fixed text-left text-[11px]">
                 <thead className="bg-[#EFE4D6] text-[10px] uppercase tracking-wide text-[#6B5C52]">
                   <tr>

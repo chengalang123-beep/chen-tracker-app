@@ -16,8 +16,6 @@ const actionOptions = [
   "UW Action Needed",
   "UW Resolved",
   "LOST",
-  "Hang up",
-  "Pending",
 ];
 const leadStatusOptions = ["", "NA", "NAA", "SRWT", "AS", "RTR", "CEP", "CWCC", "IUW", "UWAN", "UWAR", "UWSRWT"];
 

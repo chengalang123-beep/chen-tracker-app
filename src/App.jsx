@@ -8,6 +8,7 @@ const resultOptions = ["PENDING", "RESOLVED", "LOST"];
 const priorityOptions = ["Normal", "High", "Urgent"];
 const specialistOptions = ["", "Nisha", "Chen", "Rick"];
 const actionOptions = ["", "Save", "Pending save", "Welcome call", "Onboarding", "UW Action Needed", "UW Resolved", "LOST"];
+const leadStatusOptions = ["", "NA", "NAA", "SRWT", "AS", "RTR", "CEP", "CWCC", "IUW", "UWAN", "UWAR", "UWSRWT"]; 
 
 const blankForm = {
   clientName: "",
@@ -163,7 +164,10 @@ export default function App() {
   const [query, setQuery] = useState("");
   const [resultFilter, setResultFilter] = useState("ALL");
   const [priorityFilter, setPriorityFilter] = useState("ALL");
+  const [specialistFilter, setSpecialistFilter] = useState("ALL");
   const [sortBy, setSortBy] = useState("updatedAt");
+  const [exportStartDate, setExportStartDate] = useState("");
+  const [exportEndDate, setExportEndDate] = useState("");
 
   useEffect(() => {
     try {
@@ -222,7 +226,8 @@ export default function App() {
         return (
           (!q || searchable.includes(q)) &&
           (resultFilter === "ALL" || row.result === resultFilter) &&
-          (priorityFilter === "ALL" || row.priority === priorityFilter)
+          (priorityFilter === "ALL" || row.priority === priorityFilter) &&
+          (specialistFilter === "ALL" || row.specialistName === specialistFilter)
         );
       })
       .sort((a, b) => {
@@ -230,7 +235,7 @@ export default function App() {
         if (sortBy === "clientName") return String(a.clientName || "").localeCompare(String(b.clientName || ""));
         return String(b.updatedAt || "").localeCompare(String(a.updatedAt || ""));
       });
-  }, [rows, query, resultFilter, priorityFilter, sortBy]);
+  }, [rows, query, resultFilter, priorityFilter, specialistFilter, sortBy]);
 
   const topAgents = useMemo(() => {
     const map = new Map();
@@ -338,24 +343,40 @@ export default function App() {
     setRows((current) => current.map((row) => row.id === id ? { ...row, result: "RESOLVED", updatedAt: new Date().toISOString().slice(0, 10) } : row));
   }
 
-  function clearData() {
-    setRows([]);
-    window.localStorage.removeItem(STORAGE_KEY);
-    resetForm();
+  function clearFilters() {
+    setQuery("");
+    setResultFilter("ALL");
+    setPriorityFilter("ALL");
+    setSpecialistFilter("ALL");
+    setSortBy("updatedAt");
   }
 
   function exportAll() {
-    downloadCsv(`chen-tracker-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(rows));
+    downloadCsv(`eterna-retention-tracker-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(rows));
   }
 
   function exportToday() {
     const today = new Date().toISOString().slice(0, 10);
     const todayRows = rows.filter((row) => (row.createdAt || row.updatedAt) === today);
-    downloadCsv(`chen-tracker-added-today-${today}.csv`, toCsv(todayRows));
+    downloadCsv(`eterna-retention-tracker-added-today-${today}.csv`, toCsv(todayRows));
+  }
+
+  function exportDateRange() {
+    if (!exportStartDate || !exportEndDate) {
+      alert("Please select both a start date and an end date.");
+      return;
+    }
+
+    const rangeRows = rows.filter((row) => {
+      const rowDate = row.createdAt || row.updatedAt || "";
+      return rowDate >= exportStartDate && rowDate <= exportEndDate;
+    });
+
+    downloadCsv(`eterna-retention-tracker-${exportStartDate}-to-${exportEndDate}.csv`, toCsv(rangeRows));
   }
 
   function exportEod() {
-    downloadCsv(`chen-eod-summary-${new Date().toISOString().slice(0, 10)}.csv`, toEodCsv(eodRows));
+    downloadCsv(`eterna-retention-eod-summary-${new Date().toISOString().slice(0, 10)}.csv`, toEodCsv(eodRows));
   }
 
   return (
@@ -374,6 +395,26 @@ export default function App() {
             </div>
           </div>
         </header>
+
+        <section className="mb-3 rounded-[1.4rem] bg-[#F7F1E8] p-3 shadow-sm">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <h2 className="text-sm font-bold">Export by Date Range</h2>
+              <p className="text-xs text-[#6B5C52]">Select dates, then export only cases added or updated within that range.</p>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-[160px_160px_130px]">
+              <label className="block">
+                <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[#6B5C52]">Start date</span>
+                <input type="date" value={exportStartDate} onChange={(e) => setExportStartDate(e.target.value)} className="h-9 w-full rounded-2xl border border-[#D8C7B8] bg-[#FCF8F3] px-3 text-xs text-[#5F5147] outline-none focus:border-[#B8896A]" />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[#6B5C52]">End date</span>
+                <input type="date" value={exportEndDate} onChange={(e) => setExportEndDate(e.target.value)} className="h-9 w-full rounded-2xl border border-[#D8C7B8] bg-[#FCF8F3] px-3 text-xs text-[#5F5147] outline-none focus:border-[#B8896A]" />
+              </label>
+              <button type="button" onClick={exportDateRange} className="h-9 self-end rounded-2xl bg-[#B8896A] px-4 text-xs font-semibold text-white hover:bg-[#A8795C]">Export Range</button>
+            </div>
+          </div>
+        </section>
 
         <section className="mb-3 grid gap-3 md:grid-cols-4">
           <StatCard label="Total Cases" value={stats.total} helper={`${stats.completionRate}% resolved`} />
@@ -406,12 +447,12 @@ export default function App() {
                     <Input label="AP" type="number" value={form.ap} onChange={(v) => updateForm("ap", v)} />
                   </div>
                   <div className="grid grid-cols-2 gap-2">
-                    <Input label="Lead status" value={form.leadStatus} onChange={(v) => updateForm("leadStatus", v)} placeholder="CWCN" />
+                    <Select label="Lead status" value={form.leadStatus} onChange={(v) => updateForm("leadStatus", v)} options={leadStatusOptions} />
                     <Input label="Agent name" value={form.agentName} onChange={(v) => updateForm("agentName", v)} />
                   </div>
                   <Select label="Specialist name" value={form.specialistName} onChange={(v) => updateForm("specialistName", v)} options={specialistOptions} />
                   <div className="grid grid-cols-3 gap-2">
-                    <Select label="Status" value={form.result} onChange={(v) => updateForm("result", v)} options={resultOptions} />
+                    <Select label="Result" value={form.result} onChange={(v) => updateForm("result", v)} options={resultOptions} />
                     <Select label="Priority" value={form.priority} onChange={(v) => updateForm("priority", v)} options={priorityOptions} />
                     <Input label="Updated" type="date" value={form.updatedAt} onChange={(v) => updateForm("updatedAt", v)} />
                   </div>
@@ -463,16 +504,17 @@ export default function App() {
 
           <section className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_180px] lg:items-start">
             <div className="rounded-[1.4rem] bg-[#F7F1E8] p-2.5 shadow-sm">
-              <div className="grid items-center gap-2 lg:grid-cols-[115px_1fr_105px_105px_110px_64px]">
+              <div className="grid items-center gap-2 lg:grid-cols-[115px_1fr_105px_105px_105px_110px_64px]">
                 <div>
                   <h2 className="text-sm font-bold">Work queue</h2>
                   <p className="text-[10px] leading-3 text-[#6B5C52]">Search & filter.</p>
                 </div>
                 <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search client, policy, agent, specialist, notes..." className="h-8 w-full rounded-2xl border border-[#D8C7B8] bg-[#FCF8F3] px-3 text-xs text-[#5F5147] outline-none focus:border-[#B8896A]" />
-                <MiniSelect value={resultFilter} onChange={setResultFilter} options={["Status", ...resultOptions]} />
-                <MiniSelect value={priorityFilter} onChange={setPriorityFilter} options={["Priority", ...priorityOptions]} />
+                <MiniSelect value={resultFilter} onChange={setResultFilter} options={["ALL", ...resultOptions]} />
+                <MiniSelect value={priorityFilter} onChange={setPriorityFilter} options={["ALL", ...priorityOptions]} />
+                <MiniSelect value={specialistFilter} onChange={setSpecialistFilter} options={["ALL", "Nisha", "Chen", "Rick"]} />
                 <MiniSelect value={sortBy} onChange={setSortBy} options={["updatedAt", "ap", "clientName"]} />
-                <button type="button" onClick={clearData} className="h-8 rounded-2xl border border-[#D8C7B8] px-2 text-xs hover:bg-[#EFE4D6]">Clear</button>
+                <button type="button" onClick={clearFilters} className="h-8 rounded-2xl border border-[#D8C7B8] px-2 text-xs hover:bg-[#EFE4D6]">Clear</button>
               </div>
             </div>
 

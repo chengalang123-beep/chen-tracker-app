@@ -230,12 +230,12 @@ export default function ChenTrackerApp() {
       formData.append("ap", data.ap || "");
       formData.append("leadStatus", data.leadStatus || "");
       formData.append("agentName", data.agentName || "");
-      formData.append("specialistName", data.specialistName || "");
       formData.append("result", data.result || "");
       formData.append("action", data.action || "");
       formData.append("notes", data.notes || "");
       formData.append("priority", data.priority || "");
       formData.append("updatedAt", data.updatedAt || "");
+      formData.append("specialistName", data.specialistName || "");
 
       await fetch(GOOGLE_SHEET_WEB_APP_URL, {
         method: "POST",

@@ -24,7 +24,7 @@ import { Card, CardContent } from "@/components/ui/card";
 
 const STORAGE_KEY = "chen-policy-tracker-v1";
 const GOOGLE_SHEET_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxQbzGV243t3Tyfyzc7kcZuvNEmscoGf0lpdSRft5VhUIL1Y_ALEc3mA7HIO4WgF_x4/exec";
-const EOD_JOTFORM_URL = "https://form.jotform.com/jsform/261417629759470"; // Paste your EOD Jotform link here
+const EOD_JOTFORM_URL = "https://form.jotform.com/261417629759470";
 
 const starterRows = [];
 

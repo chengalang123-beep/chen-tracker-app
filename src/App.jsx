@@ -266,6 +266,7 @@ export default function App() {
   async function sendToGoogleSheet(data) {
     try {
       const formData = new URLSearchParams();
+      formData.append("recordType", "case");
       formData.append("createdAt", data.createdAt || "");
       formData.append("clientName", data.clientName || "");
       formData.append("policyNumber", data.policyNumber || "");
@@ -281,6 +282,27 @@ export default function App() {
       await fetch(GOOGLE_SHEET_WEB_APP_URL, { method: "POST", mode: "no-cors", body: formData });
     } catch (error) {
       console.error("Google Sheet sync failed:", error);
+    }
+  }
+
+  async function sendEodToGoogleSheet(data) {
+    try {
+      const formData = new URLSearchParams();
+      formData.append("recordType", "eod");
+      formData.append("date", data.date || "");
+      formData.append("specialistName", data.specialistName || "");
+      formData.append("totalDials", data.totalDials || "");
+      formData.append("totalTalkTime", data.totalTalkTime || "");
+      formData.append("totalClientsTouched", data.totalClientsTouched || "");
+      formData.append("totalPoliciesSaved", data.totalPoliciesSaved || "");
+      formData.append("apSavedToday", data.apSavedToday || "");
+      formData.append("cancelledClientsReinstated", data.cancelledClientsReinstated || "");
+      formData.append("welcomeOnboardingCompleted", data.welcomeOnboardingCompleted || "");
+      formData.append("apUwResolvedToday", data.apUwResolvedToday || "");
+      formData.append("uwPoliciesResolvedPending", data.uwPoliciesResolvedPending || "");
+      await fetch(GOOGLE_SHEET_WEB_APP_URL, { method: "POST", mode: "no-cors", body: formData });
+    } catch (error) {
+      console.error("Google Sheet EOD sync failed:", error);
     }
   }
 
@@ -311,8 +333,14 @@ export default function App() {
 
   function submitEod(event) {
     event.preventDefault();
+    if (!eodForm.specialistName) {
+      alert("Please select a specialist name before saving EOD.");
+      return;
+    }
+
     const newEod = { id: makeId(), ...eodForm };
     setEodRows((current) => [newEod, ...current]);
+    sendEodToGoogleSheet(newEod);
     resetEodForm();
   }
 

@@ -81,7 +81,7 @@ function priorityClasses(priority) {
 }
 
 function parseCsv(text) {
-  const lines = text.split(/\r?\n/).filter(Boolean);
+  const lines = text.split(new RegExp("\r?\n")).filter(Boolean);
   if (!lines.length) return [];
 
   const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
@@ -134,7 +134,7 @@ function toCsv(rows) {
 
   const escape = (value) => {
     const str = String(value ?? "");
-    return /[",\n]/.test(str) ? `"${str.replaceAll('"', '""')}"` : str;
+    return new RegExp('[",\n]').test(str) ? `"${str.replaceAll('"', '""')}"` : str;
   };
 
   const body = rows.map((row) =>
@@ -155,7 +155,7 @@ function toCsv(rows) {
       .join(",")
   );
 
-  return [headers.join(","), ...body].join("\n");
+  return [headers.join(","), ...body].join(String.fromCharCode(10));
 }
 
 export default function ChenTrackerApp() {
@@ -177,6 +177,9 @@ export default function ChenTrackerApp() {
   const [exportStartDate, setExportStartDate] = useState("");
   const [exportEndDate, setExportEndDate] = useState("");
   const [activeEntryTab, setActiveEntryTab] = useState("case");
+  const [reportRange, setReportRange] = useState("week");
+  const [reportStartDate, setReportStartDate] = useState("");
+  const [reportEndDate, setReportEndDate] = useState("");
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
@@ -231,31 +234,45 @@ export default function ChenTrackerApp() {
     return [...map.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
   }, [rows]);
 
-  const weekToDateStats = useMemo(() => {
+  const reportStats = useMemo(() => {
     const now = new Date();
-    const day = now.getDay();
-    const diffToMonday = day === 0 ? 6 : day - 1;
-    const monday = new Date(now);
-    monday.setDate(now.getDate() - diffToMonday);
-    const weekStart = monday.toISOString().slice(0, 10);
     const today = now.toISOString().slice(0, 10);
 
-    const weekRows = rows.filter((row) => {
+    let startDate = "";
+    let label = "Week-to-Date Report";
+    let badge = "WTD";
+
+    if (reportRange === "month") {
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+      label = "Month-to-Date Report";
+      badge = "MTD";
+    } else {
+      const day = now.getDay();
+      const diffToMonday = day === 0 ? 6 : day - 1;
+      const monday = new Date(now);
+      monday.setDate(now.getDate() - diffToMonday);
+      startDate = monday.toISOString().slice(0, 10);
+    }
+
+    const endDate = reportEndDate || today;
+    const selectedStartDate = reportStartDate || startDate;
+
+    const rangeRows = rows.filter((row) => {
       const rowDate = row.updatedAt || row.createdAt || "";
-      return rowDate >= weekStart && rowDate <= today;
+      return rowDate >= selectedStartDate && rowDate <= endDate;
     });
 
-    const totalCases = weekRows.length;
-    const pending = weekRows.filter((row) => row.result === "PENDING").length;
-    const resolved = weekRows.filter((row) => row.result === "RESOLVED").length;
-    const lost = weekRows.filter((row) => row.result === "LOST").length;
-    const totalAp = weekRows.reduce((sum, row) => sum + Number(row.ap || 0), 0);
-    const savedAp = weekRows
+    const totalCases = rangeRows.length;
+    const pending = rangeRows.filter((row) => row.result === "PENDING").length;
+    const resolved = rangeRows.filter((row) => row.result === "RESOLVED").length;
+    const lost = rangeRows.filter((row) => row.result === "LOST").length;
+    const totalAp = rangeRows.reduce((sum, row) => sum + Number(row.ap || 0), 0);
+    const savedAp = rangeRows
       .filter((row) => row.result === "RESOLVED" || row.action === "Save")
       .reduce((sum, row) => sum + Number(row.ap || 0), 0);
 
-    return { weekStart, today, totalCases, pending, resolved, lost, totalAp, savedAp };
-  }, [rows]);
+    return { startDate: selectedStartDate, today: endDate, totalCases, pending, resolved, lost, totalAp, savedAp, label, badge };
+  }, [rows, reportRange, reportStartDate, reportEndDate]);
 
   const entryTitle = activeEntryTab === "case" ? (editingId ? "Edit case" : "Add new case") : "EOD";
   const entryHelper = activeEntryTab === "case" ? "Fast entry for daily tracking." : "Fill out your EOD Jotform inside the tracker.";
@@ -383,6 +400,21 @@ export default function ChenTrackerApp() {
     const a = document.createElement("a");
     a.href = url;
     a.download = `chen-tracker-${exportStartDate}-to-${exportEndDate}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function exportReportCsv() {
+    const reportRows = rows.filter((row) => {
+      const rowDate = row.updatedAt || row.createdAt || "";
+      return rowDate >= reportStats.startDate && rowDate <= reportStats.today;
+    });
+
+    const blob = new Blob([toCsv(reportRows)], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `chen-tracker-${reportStats.badge.toLowerCase()}-${reportStats.startDate}-to-${reportStats.today}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -540,20 +572,70 @@ export default function ChenTrackerApp() {
               <div className="mt-4 rounded-[1.4rem] border border-[#E8D2BC] bg-[#FFF7ED] p-4">
                 <div className="mb-3 flex items-start justify-between gap-3">
                   <div>
-                    <h3 className="text-sm font-bold text-[#2B1A12]">Week-to-Date Report</h3>
+                    <div className="mb-2 inline-flex rounded-2xl border border-[#E8D2BC] bg-[#F8EFE3] p-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setReportRange("week");
+                          setReportStartDate("");
+                          setReportEndDate("");
+                        }}
+                        className={`rounded-xl px-3 py-1 text-[10px] font-bold ${reportRange === "week" ? "bg-[#5B3320] text-white" : "text-[#5B3320]"}`}
+                      >
+                        Week to date
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setReportRange("month");
+                          setReportStartDate("");
+                          setReportEndDate("");
+                        }}
+                        className={`rounded-xl px-3 py-1 text-[10px] font-bold ${reportRange === "month" ? "bg-[#5B3320] text-white" : "text-[#5B3320]"}`}
+                      >
+                        Month to date
+                      </button>
+                    </div>
+                    <h3 className="mt-2 text-sm font-bold text-[#2B1A12]">{reportStats.label}</h3>
                     <p className="text-[11px] text-[#8A6A55]">
-                      {weekToDateStats.weekStart} to {weekToDateStats.today}
+                      {reportStats.startDate} to {reportStats.today}
                     </p>
                   </div>
-                  <span className="rounded-full bg-[#5B3320] px-3 py-1 text-[10px] font-bold text-white">WTD</span>
+                  <div className="flex flex-col items-end gap-2">
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        onClick={exportReportCsv}
+                        className="h-8 rounded-2xl bg-[#D8913D] px-3 text-[10px] font-bold text-white hover:bg-[#B87428]"
+                      >
+                        <Download className="mr-1 h-3.5 w-3.5" /> Export CSV
+                      </Button>
+                      <span className="rounded-full bg-[#5B3320] px-3 py-1 text-[10px] font-bold text-white">{reportStats.badge}</span>
+                    </div>
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      <input
+                        type="date"
+                        value={reportStats.startDate}
+                        onChange={(e) => setReportStartDate(e.target.value)}
+                        className="h-8 rounded-2xl border border-[#E8D2BC] bg-white px-2 text-[11px] text-[#2B1A12] outline-none focus:border-[#A66A3F]"
+                      />
+                      <span className="text-[11px] font-semibold text-[#8A6A55]">to</span>
+                      <input
+                        type="date"
+                        value={reportStats.today}
+                        onChange={(e) => setReportEndDate(e.target.value)}
+                        className="h-8 rounded-2xl border border-[#E8D2BC] bg-white px-2 text-[11px] text-[#2B1A12] outline-none focus:border-[#A66A3F]"
+                      />
+                    </div>
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-xs">
-                  <ReportItem label="Total Cases" value={weekToDateStats.totalCases} />
-                  <ReportItem label="Resolved" value={weekToDateStats.resolved} />
-                  <ReportItem label="Pending" value={weekToDateStats.pending} />
-                  <ReportItem label="Lost" value={weekToDateStats.lost} />
-                  <ReportItem label="Total AP" value={currency(weekToDateStats.totalAp)} />
-                  <ReportItem label="Saved AP" value={currency(weekToDateStats.savedAp)} />
+                  <ReportItem label="Total Cases" value={reportStats.totalCases} />
+                  <ReportItem label="Resolved" value={reportStats.resolved} />
+                  <ReportItem label="Pending" value={reportStats.pending} />
+                  <ReportItem label="Lost" value={reportStats.lost} />
+                  <ReportItem label="Total AP" value={currency(reportStats.totalAp)} />
+                  <ReportItem label="Saved AP" value={currency(reportStats.savedAp)} />
                 </div>
               </div>
             </CardContent>

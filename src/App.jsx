@@ -449,7 +449,7 @@ export default function ChenTrackerApp() {
         </div>
 
         <div className="grid gap-4 xl:grid-cols-[390px_1fr]">
-          <Card className="rounded-[1.6rem] border border-[#E8D2BC] bg-[#FFFDF8] shadow-sm shadow-md">
+          <Card className="h-fit self-start rounded-[1.6rem] border border-[#E8D2BC] bg-[#FFFDF8] shadow-sm shadow-md">
             <CardContent className="p-4">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div>

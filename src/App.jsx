@@ -7,7 +7,18 @@ const GOOGLE_SHEET_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxQbzG
 const resultOptions = ["PENDING", "RESOLVED", "LOST"];
 const priorityOptions = ["Normal", "High", "Urgent"];
 const specialistOptions = ["", "Nisha", "Chen", "Rick"];
-const actionOptions = ["", "Save", "Pending save", "Welcome call", "Onboarding", "UW Action Needed", "UW Resolved", "LOST", "Hang up", "Pending"];
+const actionOptions = [
+  "",
+  "Save",
+  "Pending save",
+  "Welcome call",
+  "Onboarding",
+  "UW Action Needed",
+  "UW Resolved",
+  "LOST",
+  "Hang up",
+  "Pending",
+];
 const leadStatusOptions = ["", "NA", "NAA", "SRWT", "AS", "RTR", "CEP", "CWCC", "IUW", "UWAN", "UWAR", "UWSRWT"];
 
 const blankForm = {

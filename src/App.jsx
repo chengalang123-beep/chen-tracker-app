@@ -26,8 +26,6 @@ const STORAGE_KEY = "chen-policy-tracker-v1";
 const GOOGLE_SHEET_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxQbzGV243t3Tyfyzc7kcZuvNEmscoGf0lpdSRft5VhUIL1Y_ALEc3mA7HIO4WgF_x4/exec";
 const EOD_JOTFORM_URL = "https://form.jotform.com/261417629759470";
 
-const starterRows = [];
-
 const blankForm = {
   clientName: "",
   policyNumber: "",
@@ -109,6 +107,7 @@ function parseCsv(text) {
       ap: Number(parts[indexMap.ap] || 0),
       leadStatus: parts[indexMap.leadStatus] || "",
       agentName: parts[indexMap.agentName] || "",
+      specialistName: "",
       result: (parts[indexMap.result] || "PENDING").toUpperCase(),
       action: parts[indexMap.action] || "",
       notes: parts[indexMap.notes] || "",
@@ -163,9 +162,9 @@ export default function ChenTrackerApp() {
   const [rows, setRows] = useState(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
-      return saved ? JSON.parse(saved) : starterRows;
+      return saved ? JSON.parse(saved) : [];
     } catch {
-      return starterRows;
+      return [];
     }
   });
   const [form, setForm] = useState(blankForm);
@@ -182,7 +181,6 @@ export default function ChenTrackerApp() {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
   }, [rows]);
-
 
   const stats = useMemo(() => {
     const total = rows.length;
@@ -232,6 +230,35 @@ export default function ChenTrackerApp() {
     });
     return [...map.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
   }, [rows]);
+
+  const weekToDateStats = useMemo(() => {
+    const now = new Date();
+    const day = now.getDay();
+    const diffToMonday = day === 0 ? 6 : day - 1;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - diffToMonday);
+    const weekStart = monday.toISOString().slice(0, 10);
+    const today = now.toISOString().slice(0, 10);
+
+    const weekRows = rows.filter((row) => {
+      const rowDate = row.updatedAt || row.createdAt || "";
+      return rowDate >= weekStart && rowDate <= today;
+    });
+
+    const totalCases = weekRows.length;
+    const pending = weekRows.filter((row) => row.result === "PENDING").length;
+    const resolved = weekRows.filter((row) => row.result === "RESOLVED").length;
+    const lost = weekRows.filter((row) => row.result === "LOST").length;
+    const totalAp = weekRows.reduce((sum, row) => sum + Number(row.ap || 0), 0);
+    const savedAp = weekRows
+      .filter((row) => row.result === "RESOLVED" || row.action === "Save")
+      .reduce((sum, row) => sum + Number(row.ap || 0), 0);
+
+    return { weekStart, today, totalCases, pending, resolved, lost, totalAp, savedAp };
+  }, [rows]);
+
+  const entryTitle = activeEntryTab === "case" ? (editingId ? "Edit case" : "Add new case") : "EOD";
+  const entryHelper = activeEntryTab === "case" ? "Fast entry for daily tracking." : "Fill out your EOD Jotform inside the tracker.";
 
   function updateForm(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -294,6 +321,7 @@ export default function ChenTrackerApp() {
   }
 
   function editRow(row) {
+    setActiveEntryTab("case");
     setEditingId(row.id);
     setForm({
       clientName: row.clientName || "",
@@ -316,9 +344,7 @@ export default function ChenTrackerApp() {
 
   function quickStatus(id, result) {
     setRows((current) =>
-      current.map((row) =>
-        row.id === id ? { ...row, result, updatedAt: new Date().toISOString().slice(0, 10) } : row
-      )
+      current.map((row) => (row.id === id ? { ...row, result, updatedAt: new Date().toISOString().slice(0, 10) } : row))
     );
   }
 
@@ -380,10 +406,6 @@ export default function ChenTrackerApp() {
     setSpecialistFilter("Specialist");
     setSortBy("updatedAt");
   }
-
-  const entryTitle = activeEntryTab === "case" ? (editingId ? "Edit case" : "Add new case") : "EOD";
-
-  const entryHelper = activeEntryTab === "case" ? "Fast entry for daily tracking." : "Fill out your EOD Jotform inside the tracker.";
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-gradient-to-br from-[#FFF7ED] via-[#F8EFE3] to-[#EEDBC6] text-[#2B1A12]">
@@ -449,7 +471,7 @@ export default function ChenTrackerApp() {
         </div>
 
         <div className="grid gap-4 xl:grid-cols-[390px_1fr]">
-          <Card className="h-fit self-start rounded-[1.6rem] border border-[#E8D2BC] bg-[#FFFDF8] shadow-sm shadow-md">
+          <Card className="h-fit self-start rounded-[1.6rem] border border-[#E8D2BC] bg-[#FFFDF8] shadow-md">
             <CardContent className="p-4">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div>
@@ -498,37 +520,47 @@ export default function ChenTrackerApp() {
                   </div>
                   <Select label="Action" value={form.action} onChange={(v) => updateForm("action", v)} options={actionOptions} />
                   <Textarea label="Notes" value={form.notes} onChange={(v) => updateForm("notes", v)} placeholder="Callback time, issue, next step..." />
-                  <Button type="submit" className="h-11 w-full rounded-2xl bg-[#5B3320] text-white hover:bg-[#3A2417]">
+                  <Button type="submit" className="h-11 w-full rounded-2xl bg-[#03071A] text-white hover:bg-[#10142B]">
                     {editingId ? <Save className="mr-2 h-4 w-4" /> : <Plus className="mr-2 h-4 w-4" />}
                     {editingId ? "Save changes" : "Add case"}
                   </Button>
                 </form>
               ) : (
                 <div className="overflow-hidden rounded-2xl border border-[#E8D2BC] bg-[#FFF7ED]">
-                  {EOD_JOTFORM_URL ? (
-                    <iframe
-                      title="EOD Jotform"
-                      src={EOD_JOTFORM_URL}
-                      className="h-[720px] w-full bg-white"
-                      frameBorder="0"
-                      allowFullScreen
-                    />
-                  ) : (
-                    <div className="flex min-h-[360px] flex-col items-center justify-center px-6 text-center">
-                      <FileSpreadsheet className="mb-3 h-10 w-10 text-[#A66A3F]" />
-                      <h3 className="text-lg font-bold text-[#2B1A12]">Add your EOD Jotform link</h3>
-                      <p className="mt-2 max-w-sm text-sm text-[#8A6A55]">
-                        Paste your Jotform URL into the EOD_JOTFORM_URL constant at the top of the code to show it here.
-                      </p>
-                    </div>
-                  )}
+                  <iframe
+                    title="EOD Jotform"
+                    src={EOD_JOTFORM_URL}
+                    className="h-[720px] w-full bg-white"
+                    frameBorder="0"
+                    allowFullScreen
+                  />
                 </div>
               )}
+
+              <div className="mt-4 rounded-[1.4rem] border border-[#E8D2BC] bg-[#FFF7ED] p-4">
+                <div className="mb-3 flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-bold text-[#2B1A12]">Week-to-Date Report</h3>
+                    <p className="text-[11px] text-[#8A6A55]">
+                      {weekToDateStats.weekStart} to {weekToDateStats.today}
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-[#5B3320] px-3 py-1 text-[10px] font-bold text-white">WTD</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <ReportItem label="Total Cases" value={weekToDateStats.totalCases} />
+                  <ReportItem label="Resolved" value={weekToDateStats.resolved} />
+                  <ReportItem label="Pending" value={weekToDateStats.pending} />
+                  <ReportItem label="Lost" value={weekToDateStats.lost} />
+                  <ReportItem label="Total AP" value={currency(weekToDateStats.totalAp)} />
+                  <ReportItem label="Saved AP" value={currency(weekToDateStats.savedAp)} />
+                </div>
+              </div>
             </CardContent>
           </Card>
 
           <div className="grid gap-3">
-            <Card className="rounded-[1.4rem] border border-[#E8D2BC] bg-[#FFFDF8] shadow-sm shadow-md lg:mr-[192px]">
+            <Card className="rounded-[1.4rem] border border-[#E8D2BC] bg-[#FFFDF8] shadow-md lg:mr-[192px]">
               <CardContent className="p-2.5">
                 <div className="grid items-center gap-2 lg:grid-cols-[115px_1fr_105px_105px_110px_110px_64px]">
                   <div>
@@ -558,7 +590,7 @@ export default function ChenTrackerApp() {
             </Card>
 
             <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_180px]">
-              <Card className="rounded-[1.6rem] border border-[#E8D2BC] bg-[#FFFDF8] shadow-sm shadow-md">
+              <Card className="rounded-[1.6rem] border border-[#E8D2BC] bg-[#FFFDF8] shadow-md">
                 <CardContent className="p-0">
                   <div className="overflow-hidden rounded-[1.6rem]">
                     <table className="w-full table-fixed text-left text-[11px]">
@@ -630,7 +662,7 @@ export default function ChenTrackerApp() {
                 </CardContent>
               </Card>
 
-              <Card className="rounded-[1.4rem] border border-[#E8D2BC] bg-[#FFFDF8] shadow-sm shadow-md">
+              <Card className="rounded-[1.4rem] border border-[#E8D2BC] bg-[#FFFDF8] shadow-md">
                 <CardContent className="p-2.5">
                   <h3 className="mb-2 flex items-center gap-1.5 text-xs font-bold">
                     <BarChart3 className="h-3.5 w-3.5" /> Agent load
@@ -641,7 +673,9 @@ export default function ChenTrackerApp() {
                       return (
                         <div key={agent}>
                           <div className="mb-1 flex items-center justify-between gap-1 text-[10px]">
-                            <span className="max-w-[125px] truncate font-medium text-[#5B3320]" title={agent}>{agent}</span>
+                            <span className="max-w-[125px] truncate font-medium text-[#5B3320]" title={agent}>
+                              {agent}
+                            </span>
                             <span className="text-[#8A6A55]">{count}</span>
                           </div>
                           <div className="h-1.5 overflow-hidden rounded-full bg-[#F7E8D6]">
@@ -668,7 +702,7 @@ function StatCard({ icon, label, value, helper, tone = "slate" }) {
     emerald: "bg-[#6F8A3A] text-white",
   };
   return (
-    <Card className="rounded-[1.4rem] border border-[#E8D2BC] bg-[#FFFDF8] shadow-sm shadow-md">
+    <Card className="rounded-[1.4rem] border border-[#E8D2BC] bg-[#FFFDF8] shadow-md">
       <CardContent className="p-3.5">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -680,6 +714,15 @@ function StatCard({ icon, label, value, helper, tone = "slate" }) {
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function ReportItem({ label, value }) {
+  return (
+    <div className="rounded-2xl border border-[#E8D2BC] bg-[#FFFDF8] p-3">
+      <div className="text-[10px] font-semibold uppercase tracking-wide text-[#8A6A55]">{label}</div>
+      <div className="mt-1 text-sm font-bold text-[#2B1A12]">{value}</div>
+    </div>
   );
 }
 
@@ -723,8 +766,8 @@ function Select({ label, value, onChange, options }) {
         onChange={(e) => onChange(e.target.value)}
         className="h-9 w-full rounded-2xl border border-[#E8D2BC] bg-white px-2 text-xs outline-none focus:border-[#A66A3F]"
       >
-        {options.map((option) => (
-          <option key={option} value={option}>
+        {options.map((option, index) => (
+          <option key={`${label}-${option}-${index}`} value={option}>
             {option}
           </option>
         ))}

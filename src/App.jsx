@@ -358,8 +358,8 @@ export default function App() {
             </form>
           </section>
 
-          <section className="grid gap-3">
-            <div className="rounded-[1.4rem] bg-[#F7F1E8] p-2.5 shadow-sm lg:mr-[192px]">
+          <section className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_180px] lg:items-start">
+            <div className="rounded-[1.4rem] bg-[#F7F1E8] p-2.5 shadow-sm">
               <div className="grid items-center gap-2 lg:grid-cols-[115px_1fr_105px_105px_110px_64px]">
                 <div>
                   <h2 className="text-sm font-bold">Work queue</h2>
@@ -378,85 +378,6 @@ export default function App() {
                   Clear
                 </button>
               </div>
-            </div>
-
-            <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_180px]">
-              <section className="overflow-hidden rounded-[1.6rem] bg-[#F7F1E8] shadow-sm">
-                <table className="w-full table-fixed text-left text-[11px]">
-                  <thead className="bg-[#EFE4D6] text-[10px] uppercase tracking-wide text-[#6B5C52]">
-                    <tr>
-                      <th className="w-[17%] px-3 py-3">Client</th>
-                      <th className="w-[13%] px-2 py-3">Policy</th>
-                      <th className="w-[10%] px-2 py-3">AP</th>
-                      <th className="w-[9%] px-2 py-3">Stage</th>
-                      <th className="w-[14%] px-2 py-3">Agent</th>
-                      <th className="w-[12%] px-2 py-3">Status</th>
-                      <th className="w-[17%] px-2 py-3">Action / Notes</th>
-                      <th className="w-[8%] px-2 py-3 text-right">Tools</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#E7D8C8]">
-                    {filteredRows.map((row) => (
-                      <tr key={row.id} className="align-top hover:bg-[#EFE4D6]">
-                        <td className="break-words px-3 py-3">
-                          <div className="font-semibold text-[#4F4038]">{row.clientName}</div>
-                          <div className="mt-1 flex flex-wrap items-center gap-1 text-[10px] text-[#6B5C52]">
-                            {row.updatedAt}
-                            <span className={`rounded-full px-1.5 py-0.5 ${priorityClass(row.priority)}`}>{row.priority}</span>
-                          </div>
-                        </td>
-                        <td className="break-words px-2 py-3 font-mono text-[10px] text-[#6B5C52]">{row.policyNumber}</td>
-                        <td className="break-words px-2 py-3 font-semibold">{currency(row.ap)}</td>
-                        <td className="px-2 py-3">
-                          <span className="rounded-full bg-[#EFE4D6] px-1.5 py-0.5 text-[10px] font-semibold text-[#6B5C52]">{row.leadStatus || "—"}</span>
-                        </td>
-                        <td className="break-words px-2 py-3 text-[#5F5147]">{row.agentName || "—"}</td>
-                        <td className="px-2 py-3">
-                          <span className={`inline-flex rounded-full border px-1.5 py-0.5 text-[10px] font-bold ${statusClass(row.result)}`}>{row.result}</span>
-                        </td>
-                        <td className="break-words px-2 py-3">
-                          <div className="font-medium text-[#4F4038]">{row.action || "—"}</div>
-                          {row.notes && <div className="mt-0.5 text-[10px] leading-4 text-[#6B5C52]">{row.notes}</div>}
-                        </td>
-                        <td className="px-2 py-3">
-                          <div className="flex justify-end gap-1">
-                            <button type="button" onClick={() => quickResolve(row.id)} title="Mark resolved" className="rounded-lg px-1.5 py-1 hover:bg-[#EFE4D6]">✓</button>
-                            <button type="button" onClick={() => editRow(row)} title="Edit" className="rounded-lg px-1.5 py-1 hover:bg-[#EFE4D6]">✎</button>
-                            <button type="button" onClick={() => deleteRow(row.id)} title="Delete" className="rounded-lg px-1.5 py-1 text-rose-600 hover:bg-rose-50">x</button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {!filteredRows.length && (
-                  <div className="flex min-h-[320px] flex-col items-center justify-center bg-[#F7F1E8] px-6 text-center">
-                    <h3 className="text-lg font-bold">No cases found</h3>
-                    <p className="mt-1 text-sm text-[#6B5C52]">Try changing your search or filters.</p>
-                  </div>
-                )}
-              </section>
-
-              <aside className="rounded-[1.4rem] bg-[#F7F1E8] p-2.5 shadow-sm">
-                <h3 className="mb-2 text-xs font-bold">Agent load</h3>
-                <div className="space-y-1.5">
-                  {topAgents.map(([agent, count]) => {
-                    const width = stats.total ? Math.max(8, Math.round((count / stats.total) * 100)) : 0;
-                    return (
-                      <div key={agent}>
-                        <div className="mb-1 flex items-center justify-between gap-1 text-[10px]">
-                          <span className="max-w-[125px] truncate font-medium text-[#5F5147]" title={agent}>{agent}</span>
-                          <span className="text-[#6B5C52]">{count}</span>
-                        </div>
-                        <div className="h-1.5 overflow-hidden rounded-full bg-[#EFE4D6]">
-                          <div className="h-full rounded-full bg-[#B8896A]" style={{ width: `${width}%` }} />
-                        </div>
-                      </div>
-                    );
-                  })}
-                  {!topAgents.length && <p className="text-[11px] text-[#6B5C52]">No agent data yet.</p>}
-                </div>
-              </aside>
             </div>
           </section>
         </main>

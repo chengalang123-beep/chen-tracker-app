@@ -34,6 +34,7 @@ const blankForm = {
   ap: "",
   leadStatus: "",
   agentName: "",
+  specialistName: "",
   result: "PENDING",
   action: "",
   notes: "",
@@ -109,6 +110,7 @@ function toCsv(rows) {
     "AP",
     "LEAD STATUS (STAGE MOVED)",
     "AGENT NAME",
+    "SPECIALIST NAME",
     "PENDING OR RESOLVED?",
     "ACTION",
     "NOTES",
@@ -128,6 +130,7 @@ function toCsv(rows) {
       row.ap,
       row.leadStatus,
       row.agentName,
+      row.specialistName,
       row.result,
       row.action,
       row.notes,
@@ -180,6 +183,7 @@ export default function ChenTrackerApp() {
           row.clientName,
           row.policyNumber,
           row.agentName,
+          row.specialistName,
           row.leadStatus,
           row.result,
           row.action,
@@ -226,6 +230,7 @@ export default function ChenTrackerApp() {
       formData.append("ap", data.ap || "");
       formData.append("leadStatus", data.leadStatus || "");
       formData.append("agentName", data.agentName || "");
+      formData.append("specialistName", data.specialistName || "");
       formData.append("result", data.result || "");
       formData.append("action", data.action || "");
       formData.append("notes", data.notes || "");
@@ -253,6 +258,7 @@ export default function ChenTrackerApp() {
       policyNumber: form.policyNumber.trim(),
       leadStatus: form.leadStatus.trim().toUpperCase(),
       agentName: form.agentName.trim(),
+      specialistName: form.specialistName.trim(),
       result: form.result.toUpperCase(),
     };
 
@@ -274,6 +280,7 @@ export default function ChenTrackerApp() {
       ap: row.ap || "",
       leadStatus: row.leadStatus || "",
       agentName: row.agentName || "",
+      specialistName: row.specialistName || "",
       result: row.result || "PENDING",
       action: row.action || "",
       notes: row.notes || "",
@@ -400,6 +407,7 @@ export default function ChenTrackerApp() {
                   <Input label="Lead status" value={form.leadStatus} onChange={(v) => updateForm("leadStatus", v)} placeholder="CWCN" />
                   <Input label="Agent name" value={form.agentName} onChange={(v) => updateForm("agentName", v)} />
                 </div>
+                <Input label="Specialist name" value={form.specialistName} onChange={(v) => updateForm("specialistName", v)} />
                 <div className="grid grid-cols-3 gap-2">
                   <Select label="Result" value={form.result} onChange={(v) => updateForm("result", v)} options={resultOptions} />
                   <Select label="Priority" value={form.priority} onChange={(v) => updateForm("priority", v)} options={priorityOptions} />
@@ -430,7 +438,7 @@ export default function ChenTrackerApp() {
                     <input
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
-                      placeholder="Search client, policy, agent, notes..."
+                      placeholder="Search client, policy, agent, specialist, notes..."
                       className="h-8 w-full rounded-2xl border border-slate-200 bg-white pl-9 pr-3 text-xs outline-none focus:border-slate-400"
                     />
                   </div>

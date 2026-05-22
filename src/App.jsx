@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 
 const STORAGE_KEY = "eterna-retention-tracker-v1";
+const LEGACY_STORAGE_KEYS = ["chen-policy-tracker-v1", "eterna-retention-tracker-v1"];
 const EOD_STORAGE_KEY = "eterna-retention-eod-v1";
 const GOOGLE_SHEET_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxQbzGV243t3Tyfyzc7kcZuvNEmscoGf0lpdSRft5VhUIL1Y_ALEc3mA7HIO4WgF_x4/exec";
 
@@ -172,8 +173,18 @@ export default function App() {
 
   useEffect(() => {
     try {
-      const saved = window.localStorage.getItem(STORAGE_KEY);
-      if (saved) setRows(JSON.parse(saved));
+      let saved = window.localStorage.getItem(STORAGE_KEY);
+      if (!saved) {
+        for (const key of LEGACY_STORAGE_KEYS) {
+          saved = window.localStorage.getItem(key);
+          if (saved) break;
+        }
+      }
+      if (saved) {
+        const parsedRows = JSON.parse(saved);
+        setRows(parsedRows);
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(parsedRows));
+      }
       const savedEod = window.localStorage.getItem(EOD_STORAGE_KEY);
       if (savedEod) setEodRows(JSON.parse(savedEod));
     } catch (error) {

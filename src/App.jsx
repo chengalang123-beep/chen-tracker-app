@@ -41,7 +41,18 @@ function statusClass(status) {
 function priorityClass(priority) {
   if (priority === "Urgent") return "bg-rose-100 text-rose-700";
   if (priority === "High") return "bg-orange-100 text-orange-700";
-  return "bg-slate-100 text-slate-600";
+  return "bg-[#EFE4D6] text-[#6B5C52]";
+}
+
+function escapeCsvCell(value) {
+  const str = String(value || "");
+  const quote = String.fromCharCode(34);
+  const lineBreak = String.fromCharCode(10);
+  const carriageReturn = String.fromCharCode(13);
+  const needsQuotes = str.includes(",") || str.includes(quote) || str.includes(lineBreak) || str.includes(carriageReturn);
+
+  if (!needsQuotes) return str;
+  return quote + str.split(quote).join(quote + quote) + quote;
 }
 
 function toCsv(rows) {
@@ -59,20 +70,6 @@ function toCsv(rows) {
     "SPECIALIST NAME",
   ];
 
-  const escapeCell = (value) => {
-    const str = String(value ?? "");
-    const hasComma = str.includes(",");
-    const hasQuote = str.includes(String.fromCharCode(34));
-    const hasLineBreak = str.includes(String.fromCharCode(10)) || str.includes(String.fromCharCode(13));
-
-    if (hasComma || hasQuote || hasLineBreak) {
-      const quote = String.fromCharCode(34);
-      return quote + str.split(quote).join(quote + quote) + quote;
-    }
-
-    return str;
-  };
-
   const body = rows.map((row) => {
     return [
       row.clientName,
@@ -87,7 +84,7 @@ function toCsv(rows) {
       row.updatedAt,
       row.specialistName,
     ]
-      .map(escapeCell)
+      .map(escapeCsvCell)
       .join(",");
   });
 
@@ -115,10 +112,10 @@ export default function App() {
 
   useEffect(() => {
     try {
-      window.localStorage.removeItem(STORAGE_KEY);
-      setRows([]);
+      const saved = window.localStorage.getItem(STORAGE_KEY);
+      if (saved) setRows(JSON.parse(saved));
     } catch (error) {
-      console.error("Could not clear tracker data:", error);
+      console.error("Could not load saved tracker data:", error);
     }
   }, []);
 
@@ -292,24 +289,24 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-[#B8A89C] text-slate-950">
+    <div className="min-h-screen overflow-x-hidden bg-[#D8CBBE] text-[#5F5147]">
       <div className="mx-auto max-w-[1440px] px-4 py-5">
-        <header className="mb-3 rounded-[1.6rem] bg-[#EBD2A9] px-5 py-4 text-slate-900 shadow-lg">
+        <header className="mb-3 rounded-[1.6rem] bg-[#E8D8C3] px-5 py-4 text-[#5F5147] shadow-lg">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <div className="mb-1 inline-flex rounded-full bg-slate-900/10 px-2.5 py-0.5 text-xs text-slate-700 ring-1 ring-slate-900/10">
+              <div className="mb-1 inline-flex rounded-full bg-[#B8896A]/15 px-2.5 py-0.5 text-xs text-[#5F5147] ring-1 ring-[#B8896A]/20">
                 Policy tracker app
               </div>
               <h1 className="text-3xl font-bold tracking-tight">Eterna Retention Tracker</h1>
-              <p className="mt-1 max-w-3xl text-sm text-slate-700">
+              <p className="mt-1 max-w-3xl text-sm text-[#6B5C52]">
                 Track clients, policies, AP, agent assignments, specialists, pending saves, welcome calls, onboarding, rewrites, and lost cases.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <button type="button" onClick={exportToday} className="h-10 rounded-2xl bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800">
+              <button type="button" onClick={exportToday} className="h-10 rounded-2xl bg-[#B8896A] px-4 text-sm font-medium text-white hover:bg-[#A8795C]">
                 Export Today
               </button>
-              <button type="button" onClick={exportAll} className="h-10 rounded-2xl bg-slate-900 px-4 text-sm font-medium text-white hover:bg-slate-800">
+              <button type="button" onClick={exportAll} className="h-10 rounded-2xl bg-[#B8896A] px-4 text-sm font-medium text-white hover:bg-[#A8795C]">
                 Export All
               </button>
             </div>
@@ -324,14 +321,14 @@ export default function App() {
         </section>
 
         <main className="grid gap-4 xl:grid-cols-[390px_1fr]">
-          <section className="rounded-[1.6rem] bg-white p-4 shadow-sm">
+          <section className="rounded-[1.6rem] bg-[#F7F1E8] p-4 shadow-sm">
             <div className="mb-3 flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-bold">{editingId ? "Edit case" : "Add new case"}</h2>
-                <p className="text-xs text-slate-500">Fast entry for daily tracking.</p>
+                <p className="text-xs text-[#6B5C52]">Fast entry for daily tracking.</p>
               </div>
               {editingId && (
-                <button type="button" onClick={resetForm} className="rounded-xl px-3 py-2 text-xs font-medium hover:bg-slate-100">
+                <button type="button" onClick={resetForm} className="rounded-xl px-3 py-2 text-xs font-medium hover:bg-[#EFE4D6]">
                   Cancel
                 </button>
               )}
@@ -355,38 +352,38 @@ export default function App() {
               </div>
               <Textarea label="Action" value={form.action} onChange={(v) => updateForm("action", v)} placeholder="Pending save / Welcome call / Payment confirmation" />
               <Textarea label="Notes" value={form.notes} onChange={(v) => updateForm("notes", v)} placeholder="Callback time, issue, next step..." />
-              <button type="submit" className="h-11 w-full rounded-2xl bg-slate-950 text-sm font-semibold text-white hover:bg-slate-800">
+              <button type="submit" className="h-11 w-full rounded-2xl bg-[#B8896A] text-sm font-semibold text-white hover:bg-[#A8795C]">
                 {editingId ? "Save changes" : "Add case"}
               </button>
             </form>
           </section>
 
           <section className="grid gap-3">
-            <div className="rounded-[1.4rem] bg-white p-2.5 shadow-sm lg:mr-[192px]">
+            <div className="rounded-[1.4rem] bg-[#F7F1E8] p-2.5 shadow-sm lg:mr-[192px]">
               <div className="grid items-center gap-2 lg:grid-cols-[115px_1fr_105px_105px_110px_64px]">
                 <div>
                   <h2 className="text-sm font-bold">Work queue</h2>
-                  <p className="text-[10px] leading-3 text-slate-500">Search & filter.</p>
+                  <p className="text-[10px] leading-3 text-[#6B5C52]">Search & filter.</p>
                 </div>
                 <input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Search client, policy, agent, specialist, notes..."
-                  className="h-8 w-full rounded-2xl border border-slate-200 bg-white px-3 text-xs outline-none focus:border-slate-400"
+                  className="h-8 w-full rounded-2xl border border-[#D8C7B8] bg-[#FCF8F3] px-3 text-xs text-[#5F5147] outline-none focus:border-[#B8896A]"
                 />
                 <MiniSelect value={resultFilter} onChange={setResultFilter} options={["ALL", ...resultOptions]} />
                 <MiniSelect value={priorityFilter} onChange={setPriorityFilter} options={["ALL", ...priorityOptions]} />
                 <MiniSelect value={sortBy} onChange={setSortBy} options={["updatedAt", "ap", "clientName"]} />
-                <button type="button" onClick={clearData} className="h-8 rounded-2xl border border-slate-200 px-2 text-xs hover:bg-slate-50">
+                <button type="button" onClick={clearData} className="h-8 rounded-2xl border border-[#D8C7B8] px-2 text-xs hover:bg-[#EFE4D6]">
                   Clear
                 </button>
               </div>
             </div>
 
             <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_180px]">
-              <section className="overflow-hidden rounded-[1.6rem] bg-white shadow-sm">
+              <section className="overflow-hidden rounded-[1.6rem] bg-[#F7F1E8] shadow-sm">
                 <table className="w-full table-fixed text-left text-[11px]">
-                  <thead className="bg-slate-100 text-[10px] uppercase tracking-wide text-slate-500">
+                  <thead className="bg-[#EFE4D6] text-[10px] uppercase tracking-wide text-[#6B5C52]">
                     <tr>
                       <th className="w-[17%] px-3 py-3">Client</th>
                       <th className="w-[13%] px-2 py-3">Policy</th>
@@ -398,33 +395,33 @@ export default function App() {
                       <th className="w-[8%] px-2 py-3 text-right">Tools</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-[#E7D8C8]">
                     {filteredRows.map((row) => (
-                      <tr key={row.id} className="align-top hover:bg-slate-50">
+                      <tr key={row.id} className="align-top hover:bg-[#EFE4D6]">
                         <td className="break-words px-3 py-3">
-                          <div className="font-semibold text-slate-950">{row.clientName}</div>
-                          <div className="mt-1 flex flex-wrap items-center gap-1 text-[10px] text-slate-500">
+                          <div className="font-semibold text-[#4F4038]">{row.clientName}</div>
+                          <div className="mt-1 flex flex-wrap items-center gap-1 text-[10px] text-[#6B5C52]">
                             {row.updatedAt}
                             <span className={`rounded-full px-1.5 py-0.5 ${priorityClass(row.priority)}`}>{row.priority}</span>
                           </div>
                         </td>
-                        <td className="break-words px-2 py-3 font-mono text-[10px] text-slate-600">{row.policyNumber}</td>
+                        <td className="break-words px-2 py-3 font-mono text-[10px] text-[#6B5C52]">{row.policyNumber}</td>
                         <td className="break-words px-2 py-3 font-semibold">{currency(row.ap)}</td>
                         <td className="px-2 py-3">
-                          <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-700">{row.leadStatus || "—"}</span>
+                          <span className="rounded-full bg-[#EFE4D6] px-1.5 py-0.5 text-[10px] font-semibold text-[#6B5C52]">{row.leadStatus || "—"}</span>
                         </td>
-                        <td className="break-words px-2 py-3 text-slate-700">{row.agentName || "—"}</td>
+                        <td className="break-words px-2 py-3 text-[#5F5147]">{row.agentName || "—"}</td>
                         <td className="px-2 py-3">
                           <span className={`inline-flex rounded-full border px-1.5 py-0.5 text-[10px] font-bold ${statusClass(row.result)}`}>{row.result}</span>
                         </td>
                         <td className="break-words px-2 py-3">
-                          <div className="font-medium text-slate-800">{row.action || "—"}</div>
-                          {row.notes && <div className="mt-0.5 text-[10px] leading-4 text-slate-500">{row.notes}</div>}
+                          <div className="font-medium text-[#4F4038]">{row.action || "—"}</div>
+                          {row.notes && <div className="mt-0.5 text-[10px] leading-4 text-[#6B5C52]">{row.notes}</div>}
                         </td>
                         <td className="px-2 py-3">
                           <div className="flex justify-end gap-1">
-                            <button type="button" onClick={() => quickResolve(row.id)} title="Mark resolved" className="rounded-lg px-1.5 py-1 hover:bg-slate-100">✓</button>
-                            <button type="button" onClick={() => editRow(row)} title="Edit" className="rounded-lg px-1.5 py-1 hover:bg-slate-100">✎</button>
+                            <button type="button" onClick={() => quickResolve(row.id)} title="Mark resolved" className="rounded-lg px-1.5 py-1 hover:bg-[#EFE4D6]">✓</button>
+                            <button type="button" onClick={() => editRow(row)} title="Edit" className="rounded-lg px-1.5 py-1 hover:bg-[#EFE4D6]">✎</button>
                             <button type="button" onClick={() => deleteRow(row.id)} title="Delete" className="rounded-lg px-1.5 py-1 text-rose-600 hover:bg-rose-50">x</button>
                           </div>
                         </td>
@@ -433,14 +430,14 @@ export default function App() {
                   </tbody>
                 </table>
                 {!filteredRows.length && (
-                  <div className="flex min-h-[320px] flex-col items-center justify-center bg-white px-6 text-center">
+                  <div className="flex min-h-[320px] flex-col items-center justify-center bg-[#F7F1E8] px-6 text-center">
                     <h3 className="text-lg font-bold">No cases found</h3>
-                    <p className="mt-1 text-sm text-slate-500">Try changing your search or filters.</p>
+                    <p className="mt-1 text-sm text-[#6B5C52]">Try changing your search or filters.</p>
                   </div>
                 )}
               </section>
 
-              <aside className="rounded-[1.4rem] bg-white p-2.5 shadow-sm">
+              <aside className="rounded-[1.4rem] bg-[#F7F1E8] p-2.5 shadow-sm">
                 <h3 className="mb-2 text-xs font-bold">Agent load</h3>
                 <div className="space-y-1.5">
                   {topAgents.map(([agent, count]) => {
@@ -448,16 +445,16 @@ export default function App() {
                     return (
                       <div key={agent}>
                         <div className="mb-1 flex items-center justify-between gap-1 text-[10px]">
-                          <span className="max-w-[125px] truncate font-medium text-slate-700" title={agent}>{agent}</span>
-                          <span className="text-slate-500">{count}</span>
+                          <span className="max-w-[125px] truncate font-medium text-[#5F5147]" title={agent}>{agent}</span>
+                          <span className="text-[#6B5C52]">{count}</span>
                         </div>
-                        <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
-                          <div className="h-full rounded-full bg-slate-900" style={{ width: `${width}%` }} />
+                        <div className="h-1.5 overflow-hidden rounded-full bg-[#EFE4D6]">
+                          <div className="h-full rounded-full bg-[#B8896A]" style={{ width: `${width}%` }} />
                         </div>
                       </div>
                     );
                   })}
-                  {!topAgents.length && <p className="text-[11px] text-slate-500">No agent data yet.</p>}
+                  {!topAgents.length && <p className="text-[11px] text-[#6B5C52]">No agent data yet.</p>}
                 </div>
               </aside>
             </div>
@@ -469,14 +466,14 @@ export default function App() {
 }
 
 function StatCard({ label, value, helper, tone = "slate" }) {
-  const color = tone === "amber" ? "bg-amber-500" : tone === "emerald" ? "bg-emerald-600" : "bg-slate-950";
+  const color = tone === "amber" ? "bg-[#D9A866]" : tone === "emerald" ? "bg-[#8AA382]" : "bg-[#B8896A]";
   return (
-    <div className="rounded-[1.4rem] bg-white p-3.5 shadow-sm">
+    <div className="rounded-[1.4rem] bg-[#F7F1E8] p-3.5 shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-medium text-slate-500">{label}</p>
-          <div className="mt-1 text-xl font-bold tracking-tight">{value}</div>
-          <p className="mt-0.5 text-xs text-slate-500">{helper}</p>
+          <p className="text-xs font-medium text-[#6B5C52]">{label}</p>
+          <div className="mt-1 text-xl font-bold tracking-tight text-[#5F5147]">{value}</div>
+          <p className="mt-0.5 text-xs text-[#6B5C52]">{helper}</p>
         </div>
         <div className={`h-9 w-9 rounded-2xl ${color}`} />
       </div>
@@ -487,14 +484,14 @@ function StatCard({ label, value, helper, tone = "slate" }) {
 function Input({ label, value, onChange, type = "text", required = false, placeholder = "" }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">{label}</span>
+      <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[#6B5C52]">{label}</span>
       <input
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         required={required}
         placeholder={placeholder}
-        className="h-9 w-full rounded-2xl border border-slate-200 bg-white px-3 text-xs outline-none focus:border-slate-400"
+        className="h-9 w-full rounded-2xl border border-[#D8C7B8] bg-[#FCF8F3] px-3 text-xs text-[#5F5147] outline-none focus:border-[#B8896A]"
       />
     </label>
   );
@@ -503,13 +500,13 @@ function Input({ label, value, onChange, type = "text", required = false, placeh
 function Textarea({ label, value, onChange, placeholder = "" }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">{label}</span>
+      <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[#6B5C52]">{label}</span>
       <textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         rows={2}
-        className="w-full resize-none rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs outline-none focus:border-slate-400"
+        className="w-full resize-none rounded-2xl border border-[#D8C7B8] bg-[#FCF8F3] px-3 py-2 text-xs text-[#5F5147] outline-none focus:border-[#B8896A]"
       />
     </label>
   );
@@ -518,11 +515,11 @@ function Textarea({ label, value, onChange, placeholder = "" }) {
 function Select({ label, value, onChange, options }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">{label}</span>
+      <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[#6B5C52]">{label}</span>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-9 w-full rounded-2xl border border-slate-200 bg-white px-2 text-xs outline-none focus:border-slate-400"
+        className="h-9 w-full rounded-2xl border border-[#D8C7B8] bg-[#FCF8F3] px-2 text-xs text-[#5F5147] outline-none focus:border-[#B8896A]"
       >
         {options.map((option) => (
           <option key={option} value={option}>{option}</option>
@@ -537,7 +534,7 @@ function MiniSelect({ value, onChange, options }) {
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="h-8 rounded-2xl border border-slate-200 bg-white px-2 text-xs outline-none focus:border-slate-400"
+      className="h-8 rounded-2xl border border-[#D8C7B8] bg-[#FCF8F3] px-2 text-xs text-[#5F5147] outline-none focus:border-[#B8896A]"
     >
       {options.map((option) => (
         <option key={option} value={option}>

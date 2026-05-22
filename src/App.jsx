@@ -510,9 +510,9 @@ export default function App() {
                   <p className="text-[10px] leading-3 text-[#6B5C52]">Search & filter.</p>
                 </div>
                 <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search client, policy, agent, specialist, notes..." className="h-8 w-full rounded-2xl border border-[#D8C7B8] bg-[#FCF8F3] px-3 text-xs text-[#5F5147] outline-none focus:border-[#B8896A]" />
-                <MiniSelect value={resultFilter} onChange={setResultFilter} options={["ALL", ...resultOptions]} />
-                <MiniSelect value={priorityFilter} onChange={setPriorityFilter} options={["ALL", ...priorityOptions]} />
-                <MiniSelect value={specialistFilter} onChange={setSpecialistFilter} options={["ALL", "Nisha", "Chen", "Rick"]} />
+                <MiniSelect value={resultFilter} onChange={setResultFilter} options={["ALL", ...resultOptions]} placeholder="Status" />
+                <MiniSelect value={priorityFilter} onChange={setPriorityFilter} options={["ALL", ...priorityOptions]} placeholder="Priority" />
+                <MiniSelect value={specialistFilter} onChange={setSpecialistFilter} options={["ALL", "Nisha", "Chen", "Rick"]} placeholder="Specialist" />
                 <MiniSelect value={sortBy} onChange={setSortBy} options={["updatedAt", "ap", "clientName"]} />
                 <button type="button" onClick={clearFilters} className="h-8 rounded-2xl border border-[#D8C7B8] px-2 text-xs hover:bg-[#EFE4D6]">Clear</button>
               </div>
@@ -605,6 +605,6 @@ function Select({ label, value, onChange, options }) {
   return <label className="block"><span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[#6B5C52]">{label}</span><select value={value} onChange={(e) => onChange(e.target.value)} className="h-9 w-full rounded-2xl border border-[#D8C7B8] bg-[#FCF8F3] px-2 text-xs text-[#5F5147] outline-none focus:border-[#B8896A]">{options.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>;
 }
 
-function MiniSelect({ value, onChange, options }) {
-  return <select value={value} onChange={(e) => onChange(e.target.value)} className="h-8 rounded-2xl border border-[#D8C7B8] bg-[#FCF8F3] px-2 text-xs text-[#5F5147] outline-none focus:border-[#B8896A]">{options.map((option) => <option key={option} value={option}>{option === "updatedAt" ? "Latest" : option === "clientName" ? "A-Z" : option === "ap" ? "High AP" : option}</option>)}</select>;
+function MiniSelect({ value, onChange, options, placeholder = "ALL" }) {
+  return <select value={value} onChange={(e) => onChange(e.target.value)} className="h-8 rounded-2xl border border-[#D8C7B8] bg-[#FCF8F3] px-2 text-xs text-[#5F5147] outline-none focus:border-[#B8896A]">{options.map((option) => <option key={option} value={option}>{option === "ALL" ? placeholder : option === "updatedAt" ? "Latest" : option === "clientName" ? "A-Z" : option === "ap" ? "High AP" : option}</option>)}</select>;
 }

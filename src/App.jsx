@@ -60,6 +60,19 @@ const resultOptions = ["PENDING", "RESOLVED", "LOST"];
 const priorityOptions = ["Normal", "High", "Urgent"];
 const specialistOptions = ["", "Nisha", "Rick", "Chen"];
 const leadStatusOptions = ["", "NA", "NAA", "SRWT", "AS", "RTR", "CEP", "AYAR", "CWCC", "IUW", "UWAN", "UWAR", "UWSRWT"];
+const actionOptions = [
+  "",
+  "Pending",
+  "Pending Save",
+  "Welcome Call",
+  "Onboarding Call",
+  "Pending Agent Assist",
+  "Save",
+  "UW Action Needed",
+  "UW Action Resolved",
+  "Lost",
+  "Hang up",
+];
 
 function currency(value) {
   const amount = Number(value || 0);
@@ -539,7 +552,7 @@ export default function ChenTrackerApp() {
                     <Select label="Priority" value={form.priority} onChange={(v) => updateForm("priority", v)} options={priorityOptions} />
                     <Input label="Updated" type="date" value={form.updatedAt} onChange={(v) => updateForm("updatedAt", v)} />
                   </div>
-                  <Textarea label="Action" value={form.action} onChange={(v) => updateForm("action", v)} placeholder="Pending save / Welcome call / Payment confirmation" />
+                  <Select label="Action" value={form.action} onChange={(v) => updateForm("action", v)} options={actionOptions} />
                   <Textarea label="Notes" value={form.notes} onChange={(v) => updateForm("notes", v)} placeholder="Callback time, issue, next step..." />
                   <Button type="submit" className="h-11 w-full rounded-2xl bg-[#5B3320] text-white hover:bg-[#3A2417]">
                     {editingId ? <Save className="mr-2 h-4 w-4" /> : <Plus className="mr-2 h-4 w-4" />}

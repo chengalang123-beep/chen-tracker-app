@@ -487,7 +487,7 @@ export default function App() {
                         <span className="max-w-[125px] truncate font-medium text-[#5F5147]" title={agent}>{agent}</span>
                         <span className="text-[#6B5C52]">{count}</span>
                       </div>
-                      <div className="h-1.5 overflow-hidden rounded-full bg-[#EFE4D6]"><div className="h-full rounded-full bg-[#B8896A]" style={{ width: `${width}%` }} /></div>
+                      <div className="h-1 overflow-hidden rounded-full bg-[#EFE4D6]"><div className="h-full rounded-full bg-[#B8896A]" style={{ width: `${width}%` }} /></div>
                     </div>
                   );
                 })}

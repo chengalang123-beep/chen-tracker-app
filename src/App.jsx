@@ -5,8 +5,8 @@ const GOOGLE_SHEET_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxQbzG
 
 const resultOptions = ["PENDING", "RESOLVED", "LOST"];
 const priorityOptions = ["Normal", "High", "Urgent"];
-const specialistOptions = ["", "Nisha", "Chen", "Rick"]; 
-
+const specialistOptions = ["", "Nisha", "Chen", "Rick"];
+const actionOptions = ["", "Save", "Pending save", "Welcome call", "Onboarding", "UW Action Needed", "UW Resolved", "LOST"];
 const blankForm = {
   clientName: "",
   policyNumber: "",
@@ -323,7 +323,7 @@ export default function App() {
                 <Select label="Priority" value={form.priority} onChange={(v) => updateForm("priority", v)} options={priorityOptions} />
                 <Input label="Updated" type="date" value={form.updatedAt} onChange={(v) => updateForm("updatedAt", v)} />
               </div>
-              <Textarea label="Action" value={form.action} onChange={(v) => updateForm("action", v)} placeholder="STRICTLY PUT (SAVE, PENDING SAVE, UW ACTION NEEDED, WELCOME CALL / ONBOARDING, UW RESOLVED)" />
+              <Select label="Action" value={form.action} onChange={(v) => updateForm("action", v)} options={actionOptions} />
               <Textarea label="Notes" value={form.notes} onChange={(v) => updateForm("notes", v)} placeholder="Callback time, issue, next step..." />
               <button type="submit" className="h-11 w-full rounded-2xl bg-[#B8896A] text-sm font-semibold text-white hover:bg-[#A8795C]">{editingId ? "Save changes" : "Add case"}</button>
             </form>

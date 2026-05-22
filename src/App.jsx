@@ -26,73 +26,7 @@ import { Card, CardContent } from "@/components/ui/card";
 const STORAGE_KEY = "chen-policy-tracker-v1";
 const GOOGLE_SHEET_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxQbzGV243t3Tyfyzc7kcZuvNEmscoGf0lpdSRft5VhUIL1Y_ALEc3mA7HIO4WgF_x4/exec";
 
-const starterRows = [
-  {
-    id: crypto.randomUUID(),
-    clientName: "Breon Waters",
-    policyNumber: "BU6474124",
-    ap: 1800,
-    leadStatus: "RTRPC",
-    agentName: "Marcus Maanao",
-    result: "RESOLVED",
-    action: "ONBOARDING",
-    notes: "",
-    priority: "Normal",
-    updatedAt: "2026-03-26",
-  },
-  {
-    id: crypto.randomUUID(),
-    clientName: "Christopher Cody Monroe",
-    policyNumber: "IULA026585",
-    ap: 2212.08,
-    leadStatus: "CWCN",
-    agentName: "Brandon Mendez Alsina",
-    result: "PENDING",
-    action: "Hang up",
-    notes: "Needs callback",
-    priority: "High",
-    updatedAt: "2026-03-26",
-  },
-  {
-    id: crypto.randomUUID(),
-    clientName: "Damian Rivers",
-    policyNumber: "BU6476133",
-    ap: 4334,
-    leadStatus: "AS",
-    agentName: "Megan Rivera",
-    result: "PENDING",
-    action: "Pending Save / Payment FF / Escalation",
-    notes: "Bad agent experience",
-    priority: "Urgent",
-    updatedAt: "2026-03-26",
-  },
-  {
-    id: crypto.randomUUID(),
-    clientName: "Keshona Smith",
-    policyNumber: "PTSN008349241",
-    ap: 1076.4,
-    leadStatus: "WCNC",
-    agentName: "Michael Hampson",
-    result: "LOST",
-    action: "Client cancelled",
-    notes: "",
-    priority: "Normal",
-    updatedAt: "2026-04-01",
-  },
-  {
-    id: crypto.randomUUID(),
-    clientName: "Aviona Wurie",
-    policyNumber: "4260045980",
-    ap: 404.88,
-    leadStatus: "CWCN",
-    agentName: "Elora Dasilva",
-    result: "PENDING",
-    action: "Pending WC / Phone interview",
-    notes: "Call back at 1PM EST",
-    priority: "High",
-    updatedAt: "2026-04-02",
-  },
-];
+const starterRows = [];
 
 const blankForm = {
   clientName: "",
@@ -395,7 +329,8 @@ export default function ChenTrackerApp() {
   }
 
   function resetDemoData() {
-    setRows(starterRows.map((row) => ({ ...row, id: crypto.randomUUID() })));
+    setRows([]);
+    localStorage.removeItem(STORAGE_KEY);
     resetForm();
   }
 
@@ -503,7 +438,7 @@ export default function ChenTrackerApp() {
                   <MiniSelect value={priorityFilter} onChange={setPriorityFilter} options={["ALL", ...priorityOptions]} />
                   <MiniSelect value={sortBy} onChange={setSortBy} options={["updatedAt", "ap", "clientName"]} />
                   <Button variant="outline" size="sm" onClick={resetDemoData} className="h-8 rounded-2xl px-2 text-xs">
-                    Reset
+                    Clear
                   </Button>
                 </div>
               </CardContent>

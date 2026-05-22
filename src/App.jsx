@@ -348,7 +348,7 @@ export default function ChenTrackerApp() {
               <div className="mb-1 inline-flex items-center gap-2 rounded-full bg-white/10 px-2.5 py-0.5 text-xs text-slate-200 ring-1 ring-white/15">
                 <FileSpreadsheet className="h-3.5 w-3.5" /> Policy tracker app
               </div>
-              <h1 className="text-3xl font-bold tracking-tight">Chen Tracker</h1>
+              <h1 className="text-3xl font-bold tracking-tight">Eterna Retention Tracker</h1>
               <p className="mt-1 max-w-3xl text-sm text-slate-300">
                 Track clients, policies, AP, agent assignments, pending saves, welcome calls, onboarding, rewrites, and lost cases.
               </p>

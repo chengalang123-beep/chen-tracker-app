@@ -537,7 +537,7 @@ export default function App() {
               </div>
             </aside>
 
-            <section className="overflow-hidden rounded-[1.6rem] bg-[#F7F1E8] shadow-sm lg:col-start-1 lg:-mt-72">
+            <section className="overflow-hidden rounded-[1.6rem] bg-[#F7F1E8] shadow-sm lg:col-start-1 lg:-mt-88">
               <table className="w-full table-fixed text-left text-[11px]">
                 <thead className="bg-[#EFE4D6] text-[10px] uppercase tracking-wide text-[#6B5C52]">
                   <tr>

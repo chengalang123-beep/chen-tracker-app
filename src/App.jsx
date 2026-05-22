@@ -8,7 +8,7 @@ const resultOptions = ["PENDING", "RESOLVED", "LOST"];
 const priorityOptions = ["Normal", "High", "Urgent"];
 const specialistOptions = ["", "Nisha", "Chen", "Rick"];
 const actionOptions = ["", "Save", "Pending save", "Welcome call", "Onboarding", "UW Action Needed", "UW Resolved", "LOST"];
-const leadStatusOptions = ["", "NA", "NAA", "SRWT", "AS", "RTR", "CEP", "CWCC", "IUW", "UWAN", "UWAR", "UWSRWT"]; 
+const leadStatusOptions = ["", "NA", "NAA", "SRWT", "AS", "RTR", "CEP", "AYAR", "CWCC", "IUW", "UWAN", "UWAR", "UWSRWT"]; 
 
 const blankForm = {
   clientName: "",

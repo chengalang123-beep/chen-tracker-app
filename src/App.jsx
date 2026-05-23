@@ -185,6 +185,10 @@ export default function ChenTrackerApp() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
   }, [rows]);
 
+  useEffect(() => {
+    loadFromGoogleSheet();
+  }, []);
+
   const stats = useMemo(() => {
     const total = rows.length;
     const pending = rows.filter((r) => r.result === "PENDING").length;
@@ -309,6 +313,20 @@ export default function ChenTrackerApp() {
       });
     } catch (error) {
       console.error("Google Sheet sync failed:", error);
+    }
+  }
+
+  async function loadFromGoogleSheet() {
+    try {
+      const response = await fetch(GOOGLE_SHEET_WEB_APP_URL);
+      const data = await response.json();
+
+      if (data.success && Array.isArray(data.rows)) {
+        setRows(data.rows);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data.rows));
+      }
+    } catch (error) {
+      console.error("Failed to load Google Sheet data:", error);
     }
   }
 
@@ -493,6 +511,9 @@ export default function ChenTrackerApp() {
           <div className="border-t border-[#D4C3AD] bg-[#EFE6D8] px-5 py-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex shrink-0 flex-wrap gap-2">
+                <Button onClick={loadFromGoogleSheet} className="rounded-2xl bg-[#5C7768] text-white hover:bg-[#466153]">
+                  <Download className="mr-2 h-4 w-4" /> Refresh Data
+                </Button>
                 <Button onClick={exportTodayCsv} className="rounded-2xl bg-[#5C7768] text-white hover:bg-[#466153]">
                   <Download className="mr-2 h-4 w-4" /> Export Today
                 </Button>

@@ -18,6 +18,8 @@ import {
   Filter,
   Save,
   X,
+  RefreshCw,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -195,6 +197,9 @@ export default function ChenTrackerApp() {
   const [exportStartDate, setExportStartDate] = useState("");
   const [exportEndDate, setExportEndDate] = useState("");
   const [activeEntryTab, setActiveEntryTab] = useState("case");
+  const [isLoadingSheet, setIsLoadingSheet] = useState(false);
+  const [sheetMessage, setSheetMessage] = useState("");
+  const [lastRefreshed, setLastRefreshed] = useState("");
   const [reportRange, setReportRange] = useState("week");
   const [reportStartDate, setReportStartDate] = useState("");
   const [reportEndDate, setReportEndDate] = useState("");
@@ -383,6 +388,9 @@ export default function ChenTrackerApp() {
   }
 
   async function loadFromGoogleSheet() {
+    setIsLoadingSheet(true);
+    setSheetMessage("Refreshing data...");
+
     try {
       const response = await fetch(GOOGLE_SHEET_WEB_APP_URL);
       const data = await response.json();
@@ -391,15 +399,33 @@ export default function ChenTrackerApp() {
         const cleanRows = data.rows.filter(isRealTrackerRow);
         setRows(cleanRows);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(cleanRows));
+        setLastRefreshed(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
+        setSheetMessage("Data refreshed successfully.");
+      } else {
+        setSheetMessage("Could not refresh data from Google Sheets.");
       }
     } catch (error) {
       console.error("Failed to load Google Sheet data:", error);
+      setSheetMessage("Refresh failed. Please check the Google Sheet connection.");
+    } finally {
+      setIsLoadingSheet(false);
     }
   }
 
   function submitForm(event) {
     event.preventDefault();
     if (!form.clientName.trim()) return;
+
+    const policyNumberInput = form.policyNumber.trim().toLowerCase();
+    const duplicatePolicy = policyNumberInput && rows.some((row) => {
+      if (editingId && row.id === editingId) return false;
+      return String(row.policyNumber || "").trim().toLowerCase() === policyNumberInput;
+    });
+
+    if (duplicatePolicy) {
+      const shouldContinue = window.confirm("This policy number already exists. Continue anyway?");
+      if (!shouldContinue) return;
+    }
 
     const payload = {
       ...form,
@@ -417,8 +443,10 @@ export default function ChenTrackerApp() {
     } else {
       const newCase = { id: crypto.randomUUID(), createdAt: new Date().toISOString().slice(0, 10), ...payload };
       setRows((current) => [newCase, ...current]);
+      setSheetMessage("Case added successfully. Syncing to Google Sheets...");
       sendToGoogleSheet(newCase);
     }
+    setTimeout(() => setSheetMessage(""), 4000);
     resetForm();
   }
 
@@ -574,8 +602,7 @@ export default function ChenTrackerApp() {
           <div className="border-t border-[#D4C3AD] bg-[#EFE6D8] px-5 py-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
 
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-semibold text-[#6D6256]">Export date range</span>
+              <div className="flex w-full flex-wrap items-center gap-2">
                 <input
                   type="date"
                   value={exportStartDate}
@@ -595,6 +622,20 @@ export default function ChenTrackerApp() {
                 >
                   <Download className="mr-2 h-4 w-4" /> Export Range
                 </Button>
+                <div className="ml-auto flex justify-end">
+                  <Button
+                    onClick={loadFromGoogleSheet}
+                    disabled={isLoadingSheet}
+                    className="h-9 rounded-2xl bg-[#5C7768] px-4 text-xs text-white hover:bg-[#466153] disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    {isLoadingSheet ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                    )}
+                    {isLoadingSheet ? "Refreshing..." : "Refresh Data"}
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
@@ -638,6 +679,12 @@ export default function ChenTrackerApp() {
                 )}
               </div>
 
+              {sheetMessage && (
+                <div className="mb-3 rounded-2xl border border-[#D4C3AD] bg-[#F2E9DC] px-3 py-2 text-xs font-medium text-[#5B3320]">
+                  {sheetMessage}
+                </div>
+              )}
+
               {activeEntryTab === "case" ? (
                 <form onSubmit={submitForm} className="space-y-2">
                   <Input label="Client name" value={form.clientName} onChange={(v) => updateForm("clientName", v)} required />
@@ -657,10 +704,15 @@ export default function ChenTrackerApp() {
                   </div>
                   <Select label="Action" value={form.action} onChange={(v) => updateForm("action", v)} options={actionOptions} />
                   <Textarea label="Notes" value={form.notes} onChange={(v) => updateForm("notes", v)} placeholder="Callback time, issue, next step..." />
-                  <Button type="submit" className="h-11 w-full rounded-2xl bg-[#03071A] text-white hover:bg-[#10142B]">
-                    {editingId ? <Save className="mr-2 h-4 w-4" /> : <Plus className="mr-2 h-4 w-4" />}
-                    {editingId ? "Save changes" : "Add case"}
-                  </Button>
+                  <div className="grid grid-cols-[1fr_auto] gap-2">
+                    <Button type="submit" className="h-11 rounded-2xl bg-[#03071A] text-white hover:bg-[#10142B]">
+                      {editingId ? <Save className="mr-2 h-4 w-4" /> : <Plus className="mr-2 h-4 w-4" />}
+                      {editingId ? "Save changes" : "Add case"}
+                    </Button>
+                    <Button type="button" variant="outline" onClick={resetForm} className="h-11 rounded-2xl border-[#D4C3AD] px-4 text-xs text-[#5B3320]">
+                      Clear form
+                    </Button>
+                  </div>
                 </form>
               ) : (
                 <div className="overflow-hidden rounded-2xl border border-[#D4C3AD] bg-[#F2E9DC]">
@@ -754,7 +806,9 @@ export default function ChenTrackerApp() {
                     <h2 className="flex items-center gap-1.5 text-sm font-bold">
                       <Filter className="h-4 w-4" /> Work queue
                     </h2>
-                    <p className="text-[10px] leading-3 text-[#8A6A55]">Search & filter.</p>
+                    <p className="text-[10px] leading-3 text-[#8A6A55]">
+                      {lastRefreshed ? `Last refreshed: ${lastRefreshed}` : "Search & filter."}
+                    </p>
                   </div>
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#B28A6B]" />
@@ -954,7 +1008,7 @@ function Select({ label, value, onChange, options }) {
         className="h-9 w-full rounded-2xl border border-[#D4C3AD] bg-white px-2 text-xs outline-none focus:border-[#5C7768]"
       >
         {options.map((option, index) => (
-          <option key={`${label}-${option}-${index}`} value={option}>
+          <option key={label + "-" + option + "-" + index} value={option}>
             {option}
           </option>
         ))}
@@ -970,11 +1024,22 @@ function MiniSelect({ value, onChange, options }) {
       onChange={(e) => onChange(e.target.value)}
       className="h-8 rounded-2xl border border-[#D4C3AD] bg-white px-2 text-xs outline-none focus:border-[#5C7768]"
     >
-      {options.map((option) => (
-        <option key={option} value={option}>
-          {option === "updatedAt" ? "Latest update" : option === "clientName" ? "Client A-Z" : option === "ap" ? "Highest AP" : option}
-        </option>
-      ))}
+      {options.map((option) => {
+        const label =
+          option === "updatedAt"
+            ? "Latest update"
+            : option === "clientName"
+            ? "Client A-Z"
+            : option === "ap"
+            ? "Highest AP"
+            : option;
+
+        return (
+          <option key={option} value={option}>
+            {label}
+          </option>
+        );
+      })}
     </select>
   );
 }

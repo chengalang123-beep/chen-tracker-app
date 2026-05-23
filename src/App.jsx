@@ -478,6 +478,32 @@ export default function ChenTrackerApp() {
     );
   }
 
+  async function copyClientSummary(row) {
+    const summary = [
+      `Client: ${row.clientName || "—"}`,
+      `Policy Number: ${row.policyNumber || "—"}`,
+      `AP: ${currency(row.ap)}`,
+      `Lead Status: ${row.leadStatus || "—"}`,
+      `Agent: ${row.agentName || "—"}`,
+      `Specialist: ${row.specialistName || "—"}`,
+      `Status: ${row.result || "—"}`,
+      `Priority: ${row.priority || "—"}`,
+      `Action: ${row.action || "—"}`,
+      `Notes: ${row.notes || "—"}`,
+      `Updated At: ${row.updatedAt || "—"}`,
+    ].join("\n");
+
+    try {
+      await navigator.clipboard.writeText(summary);
+      setSheetMessage("Client summary copied.");
+      setTimeout(() => setSheetMessage(""), 2500);
+    } catch (error) {
+      console.error("Failed to copy client summary:", error);
+      setSheetMessage("Could not copy client summary.");
+      setTimeout(() => setSheetMessage(""), 2500);
+    }
+  }
+
   function exportCsv() {
     const blob = new Blob([toCsv(rows)], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -879,6 +905,9 @@ export default function ChenTrackerApp() {
                               <div className="flex justify-end gap-0.5">
                                 <Button size="icon" variant="ghost" className="h-7 w-7 rounded-xl" onClick={() => quickStatus(row.id, "RESOLVED")} title="Mark resolved">
                                   <CheckCircle2 className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button size="icon" variant="ghost" className="h-7 w-7 rounded-xl" onClick={() => copyClientSummary(row)} title="Copy summary">
+                                  <FileSpreadsheet className="h-3.5 w-3.5" />
                                 </Button>
                                 <Button size="icon" variant="ghost" className="h-7 w-7 rounded-xl" onClick={() => editRow(row)} title="Edit">
                                   <Edit3 className="h-3.5 w-3.5" />

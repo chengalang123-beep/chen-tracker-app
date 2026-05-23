@@ -158,6 +158,24 @@ function toCsv(rows) {
   return [headers.join(","), ...body].join(String.fromCharCode(10));
 }
 
+function EternaLogoMark({ className = "h-12 w-12" }) {
+  return (
+    <svg
+      viewBox="0 0 100 100"
+      className={className}
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-label="Eterna logo"
+    >
+      <g stroke="#6E8578" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round">
+        <ellipse cx="50" cy="28" rx="20" ry="26" />
+        <ellipse cx="32" cy="60" rx="20" ry="26" transform="rotate(60 32 60)" />
+        <ellipse cx="68" cy="60" rx="20" ry="26" transform="rotate(-60 68 60)" />
+      </g>
+    </svg>
+  );
+}
+
 export default function ChenTrackerApp() {
   const [rows, setRows] = useState(() => {
     try {
@@ -320,14 +338,59 @@ export default function ChenTrackerApp() {
     }
   }
 
+  function isRealTrackerRow(row) {
+    const badLabels = [
+      "save",
+      "pending save",
+      "welcome call",
+      "onboarding",
+      "onboarding call",
+      "uw action needed",
+      "uw action resolved",
+      "uw resolved",
+      "lost",
+      "daily counter",
+      "count",
+      "created at",
+      "client name",
+      "policy number",
+      "ap",
+      "lead status",
+      "agent name",
+      "result",
+      "status",
+      "action",
+      "notes",
+      "priority",
+      "updated at",
+      "specialist name",
+    ];
+
+    const clientName = String(row?.clientName || "").trim();
+    const createdAt = String(row?.createdAt || "").trim();
+    const updatedAt = String(row?.updatedAt || "").trim();
+    const specialistName = String(row?.specialistName || "").trim();
+
+    if (!clientName) return false;
+    if (badLabels.includes(clientName.toLowerCase())) return false;
+    if (badLabels.includes(createdAt.toLowerCase())) return false;
+    if (!specialistName || !["Nisha", "Rick", "Chen", "Unassigned"].includes(specialistName)) return false;
+
+    const hasValidDate = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(createdAt) || /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(updatedAt);
+    if (!hasValidDate) return false;
+
+    return true;
+  }
+
   async function loadFromGoogleSheet() {
     try {
       const response = await fetch(GOOGLE_SHEET_WEB_APP_URL);
       const data = await response.json();
 
       if (data.success && Array.isArray(data.rows)) {
-        setRows(data.rows);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data.rows));
+        const cleanRows = data.rows.filter(isRealTrackerRow);
+        setRows(cleanRows);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(cleanRows));
       }
     } catch (error) {
       console.error("Failed to load Google Sheet data:", error);
@@ -499,13 +562,9 @@ export default function ChenTrackerApp() {
               </div>
 
               <div className="hidden shrink-0 items-center gap-3 sm:flex">
-                <div className="relative flex h-12 w-12 items-center justify-center rounded-full border-2 border-[#5F7F70]">
-                  <div className="absolute h-8 w-8 rounded-full border-2 border-[#5F7F70]" />
-                  <div className="absolute h-8 w-8 rotate-60 rounded-full border-2 border-[#5F7F70]" />
-                  <div className="absolute h-8 w-8 -rotate-60 rounded-full border-2 border-[#5F7F70]" />
-                </div>
+                <EternaLogoMark className="h-14 w-14" />
                 <div className="text-right">
-                  <div className="text-2xl font-semibold tracking-[0.28em] text-[#4D6659]">ETERNA</div>
+                  <div className="text-2xl font-semibold tracking-[0.32em] text-[#4D6659]">ETERNA</div>
                   <div className="text-xs text-[#8A7A67]">Retention dashboard</div>
                 </div>
               </div>

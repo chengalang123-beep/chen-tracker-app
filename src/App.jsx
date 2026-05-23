@@ -671,7 +671,7 @@ export default function ChenTrackerApp() {
               </CardContent>
             </Card>
 
-            <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_180px]">
+            <div className="grid items-start gap-3 lg:grid-cols-[minmax(0,1fr)_180px]">
               <Card className="rounded-[1.6rem] border border-[#E8D2BC] bg-[#FFFDF8] shadow-md">
                 <CardContent className="p-0">
                   <div className="overflow-hidden rounded-[1.6rem]">
@@ -744,7 +744,7 @@ export default function ChenTrackerApp() {
                 </CardContent>
               </Card>
 
-              <Card className="rounded-[1.4rem] border border-[#E8D2BC] bg-[#FFFDF8] shadow-md">
+              <Card className="h-fit self-start rounded-[1.4rem] border border-[#E8D2BC] bg-[#FFFDF8] shadow-md">
                 <CardContent className="p-2.5">
                   <h3 className="mb-2 flex items-center gap-1.5 text-xs font-bold">
                     <BarChart3 className="h-3.5 w-3.5" /> Agent load

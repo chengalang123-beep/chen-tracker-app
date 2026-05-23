@@ -873,7 +873,7 @@ export default function ChenTrackerApp() {
                             </td>
                             <td className="break-words px-2 py-3">
                               <div className="font-medium text-[#3A2417]">{row.action || "—"}</div>
-                              {row.notes && <div className="mt-0.5 text-[10px] leading-4 text-[#8A6A55]">{row.notes}</div>}
+                              {row.notes && <NotesHover text={row.notes} />}
                             </td>
                             <td className="px-2 py-3">
                               <div className="flex justify-end gap-0.5">
@@ -955,6 +955,30 @@ function StatCard({ icon, label, value, helper, tone = "slate" }) {
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function NotesHover({ text }) {
+  function copyNotes() {
+    navigator.clipboard?.writeText(text);
+  }
+
+  return (
+    <div className="group relative mt-1 inline-block">
+      <button
+        type="button"
+        onClick={copyNotes}
+        className="rounded-full border border-[#D4C3AD] bg-[#F2E9DC] px-2 py-0.5 text-[10px] font-semibold text-[#5B3320] hover:bg-[#E9DECC]"
+        title="Hover to view. Click to copy notes."
+      >
+        Notes
+      </button>
+      <div className="pointer-events-none absolute left-0 top-full z-50 mt-2 hidden w-72 rounded-2xl border border-[#D4C3AD] bg-white p-3 text-[11px] leading-4 text-[#3A2417] shadow-xl group-hover:block">
+        <div className="mb-1 font-bold text-[#5B3320]">Notes</div>
+        <div className="whitespace-pre-wrap">{text}</div>
+        <div className="mt-2 text-[10px] font-semibold text-[#8A6A55]">Click the Notes button to copy.</div>
+      </div>
+    </div>
   );
 }
 

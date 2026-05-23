@@ -190,15 +190,19 @@ export default function ChenTrackerApp() {
   }, []);
 
   const stats = useMemo(() => {
-    const total = rows.length;
-    const pending = rows.filter((r) => r.result === "PENDING").length;
-    const resolved = rows.filter((r) => r.result === "RESOLVED").length;
-    const lost = rows.filter((r) => r.result === "LOST").length;
-    const totalAp = rows.reduce((sum, r) => sum + Number(r.ap || 0), 0);
-    const pendingAp = rows.filter((r) => r.result === "PENDING").reduce((sum, r) => sum + Number(r.ap || 0), 0);
+    const statsRows = specialistFilter === "Specialist"
+      ? rows
+      : rows.filter((row) => row.specialistName === specialistFilter);
+
+    const total = statsRows.length;
+    const pending = statsRows.filter((r) => r.result === "PENDING").length;
+    const resolved = statsRows.filter((r) => r.result === "RESOLVED").length;
+    const lost = statsRows.filter((r) => r.result === "LOST").length;
+    const totalAp = statsRows.reduce((sum, r) => sum + Number(r.ap || 0), 0);
+    const pendingAp = statsRows.filter((r) => r.result === "PENDING").reduce((sum, r) => sum + Number(r.ap || 0), 0);
     const completionRate = total ? Math.round((resolved / total) * 100) : 0;
     return { total, pending, resolved, lost, totalAp, pendingAp, completionRate };
-  }, [rows]);
+  }, [rows, specialistFilter]);
 
   const filteredRows = useMemo(() => {
     const q = query.trim().toLowerCase();

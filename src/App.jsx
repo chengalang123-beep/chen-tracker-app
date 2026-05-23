@@ -514,21 +514,6 @@ export default function ChenTrackerApp() {
 
           <div className="border-t border-[#D4C3AD] bg-[#EFE6D8] px-5 py-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex shrink-0 flex-wrap gap-2">
-                <Button onClick={loadFromGoogleSheet} className="rounded-2xl bg-[#5C7768] text-white hover:bg-[#466153]">
-                  <Download className="mr-2 h-4 w-4" /> Refresh Data
-                </Button>
-                <Button onClick={exportTodayCsv} className="rounded-2xl bg-[#5C7768] text-white hover:bg-[#466153]">
-                  <Download className="mr-2 h-4 w-4" /> Export Today
-                </Button>
-                <Button onClick={exportCsv} className="rounded-2xl bg-[#5C7768] text-white hover:bg-[#466153]">
-                  <Download className="mr-2 h-4 w-4" /> Export All
-                </Button>
-                <label className="inline-flex h-10 cursor-pointer items-center rounded-2xl bg-[#5C7768] px-4 text-sm font-medium text-white hover:bg-[#466153]">
-                  <Upload className="mr-2 h-4 w-4" /> Import CSV
-                  <input type="file" accept=".csv" className="hidden" onChange={importCsv} />
-                </label>
-              </div>
 
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs font-semibold text-[#6D6256]">Export date range</span>

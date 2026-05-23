@@ -440,58 +440,94 @@ export default function ChenTrackerApp() {
   }
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-gradient-to-br from-[#FFF7ED] via-[#F8EFE3] to-[#EEDBC6] text-[#2B1A12]">
+    <div className="min-h-screen overflow-x-hidden bg-gradient-to-br from-[#F3EEE2] via-[#E9E0D0] to-[#DCCFBB] text-[#2B1A12]">
       <div className="mx-auto max-w-[1440px] px-4 py-5">
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35 }}
-          className="mb-3 rounded-[1.6rem] bg-gradient-to-br from-[#3A2417] via-[#5B3320] to-[#A66A3F] px-5 py-4 text-white shadow-lg"
+          className="mb-3 overflow-hidden rounded-[1.8rem] border border-[#D4C3AD] bg-[#E9DECC] shadow-lg"
         >
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <div className="mb-1 inline-flex items-center gap-2 rounded-full bg-[#7A4A2A] px-2.5 py-0.5 text-xs text-[#F8E7D2] ring-1 ring-[#C99A6B]">
-                <FileSpreadsheet className="h-3.5 w-3.5" /> Policy tracker app
+          <div className="relative min-h-[150px] w-full overflow-hidden">
+            <div className="absolute inset-0 bg-[#E9DECC]" />
+
+            <div
+              className="absolute left-[-40px] top-0 h-full w-[260px] bg-[#7C9A8B]"
+              style={{ clipPath: "polygon(0 0, 75% 0, 45% 100%, 0% 100%)" }}
+            />
+            <div
+              className="absolute left-[10px] top-0 h-full w-[220px] bg-[#5F7F70]"
+              style={{ clipPath: "polygon(0 0, 72% 0, 42% 100%, 0% 100%)" }}
+            />
+            <div
+              className="absolute left-[55px] top-0 h-full w-[190px] bg-[#355F50]"
+              style={{ clipPath: "polygon(0 0, 68% 0, 38% 100%, 0% 100%)" }}
+            />
+
+            <div className="relative z-10 flex min-h-[150px] items-center justify-between gap-4 px-6 py-5">
+              <div className="max-w-2xl pl-0 md:pl-[170px]">
+                <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-[#BFAE98] bg-[#F4EEE3]/90 px-3 py-1 text-xs font-medium text-[#5A6F63]">
+                  <FileSpreadsheet className="h-3.5 w-3.5" />
+                  Policy tracker app
+                </div>
+                <h1 className="text-3xl font-bold tracking-tight text-[#2E443A]">Eterna Retention Tracker</h1>
+                <p className="mt-1 text-sm text-[#6D6256]">
+                  Track clients, policies, AP, agent assignments, pending saves, welcome calls, onboarding, rewrites, and lost cases.
+                </p>
               </div>
-              <h1 className="text-3xl font-bold tracking-tight">Eterna Retention Tracker</h1>
-              <p className="mt-1 max-w-3xl text-sm text-[#F3D9BC]">
-                Track clients, policies, AP, agent assignments, pending saves, welcome calls, onboarding, rewrites, and lost cases.
-              </p>
-            </div>
-            <div className="flex shrink-0 gap-2">
-              <Button onClick={exportTodayCsv} className="rounded-2xl bg-[#7A4A2A] text-white ring-1 ring-[#C99A6B] hover:bg-[#8B5731]">
-                <Download className="mr-2 h-4 w-4" /> Export Today
-              </Button>
-              <Button onClick={exportCsv} className="rounded-2xl bg-[#7A4A2A] text-white ring-1 ring-[#C99A6B] hover:bg-[#8B5731]">
-                <Download className="mr-2 h-4 w-4" /> Export All
-              </Button>
-              <label className="inline-flex h-10 cursor-pointer items-center rounded-2xl bg-[#7A4A2A] px-4 text-sm font-medium text-white ring-1 ring-[#C99A6B] hover:bg-[#8B5731]">
-                <Upload className="mr-2 h-4 w-4" /> Import CSV
-                <input type="file" accept=".csv" className="hidden" onChange={importCsv} />
-              </label>
+
+              <div className="hidden shrink-0 items-center gap-3 sm:flex">
+                <div className="relative flex h-12 w-12 items-center justify-center rounded-full border-2 border-[#5F7F70]">
+                  <div className="absolute h-8 w-8 rounded-full border-2 border-[#5F7F70]" />
+                  <div className="absolute h-8 w-8 rotate-60 rounded-full border-2 border-[#5F7F70]" />
+                  <div className="absolute h-8 w-8 -rotate-60 rounded-full border-2 border-[#5F7F70]" />
+                </div>
+                <div className="text-right">
+                  <div className="text-2xl font-semibold tracking-[0.28em] text-[#4D6659]">ETERNA</div>
+                  <div className="text-xs text-[#8A7A67]">Retention dashboard</div>
+                </div>
+              </div>
             </div>
           </div>
-          <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
-            <span className="text-xs font-semibold text-[#F3D9BC]">Export date range</span>
-            <input
-              type="date"
-              value={exportStartDate}
-              onChange={(e) => setExportStartDate(e.target.value)}
-              className="h-9 rounded-2xl border border-[#C99A6B] bg-[#FFFDF8] px-3 text-xs text-[#2B1A12] outline-none focus:border-[#F6D8B8]"
-            />
-            <input
-              type="date"
-              value={exportEndDate}
-              onChange={(e) => setExportEndDate(e.target.value)}
-              className="h-9 rounded-2xl border border-[#C99A6B] bg-[#FFFDF8] px-3 text-xs text-[#2B1A12] outline-none focus:border-[#F6D8B8]"
-            />
-            <Button
-              onClick={exportDateRangeCsv}
-              disabled={!exportStartDate || !exportEndDate}
-              className="h-9 rounded-2xl bg-[#D8913D] px-4 text-xs text-white hover:bg-[#B87428] disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <Download className="mr-2 h-4 w-4" /> Export Range
-            </Button>
+
+          <div className="border-t border-[#D4C3AD] bg-[#EFE6D8] px-5 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex shrink-0 flex-wrap gap-2">
+                <Button onClick={exportTodayCsv} className="rounded-2xl bg-[#5C7768] text-white hover:bg-[#466153]">
+                  <Download className="mr-2 h-4 w-4" /> Export Today
+                </Button>
+                <Button onClick={exportCsv} className="rounded-2xl bg-[#5C7768] text-white hover:bg-[#466153]">
+                  <Download className="mr-2 h-4 w-4" /> Export All
+                </Button>
+                <label className="inline-flex h-10 cursor-pointer items-center rounded-2xl bg-[#5C7768] px-4 text-sm font-medium text-white hover:bg-[#466153]">
+                  <Upload className="mr-2 h-4 w-4" /> Import CSV
+                  <input type="file" accept=".csv" className="hidden" onChange={importCsv} />
+                </label>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-semibold text-[#6D6256]">Export date range</span>
+                <input
+                  type="date"
+                  value={exportStartDate}
+                  onChange={(e) => setExportStartDate(e.target.value)}
+                  className="h-9 rounded-2xl border border-[#CDBAA3] bg-white px-3 text-xs text-[#2B1A12] outline-none focus:border-[#5C7768]"
+                />
+                <input
+                  type="date"
+                  value={exportEndDate}
+                  onChange={(e) => setExportEndDate(e.target.value)}
+                  className="h-9 rounded-2xl border border-[#CDBAA3] bg-white px-3 text-xs text-[#2B1A12] outline-none focus:border-[#5C7768]"
+                />
+                <Button
+                  onClick={exportDateRangeCsv}
+                  disabled={!exportStartDate || !exportEndDate}
+                  className="h-9 rounded-2xl bg-[#B7863B] px-4 text-xs text-white hover:bg-[#996E2E] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Download className="mr-2 h-4 w-4" /> Export Range
+                </Button>
+              </div>
+            </div>
           </div>
         </motion.div>
 
@@ -503,11 +539,11 @@ export default function ChenTrackerApp() {
         </div>
 
         <div className="grid gap-4 xl:grid-cols-[390px_1fr]">
-          <Card className="h-fit self-start rounded-[1.6rem] border border-[#E8D2BC] bg-[#FFFDF8] shadow-md">
+          <Card className="h-fit self-start rounded-[1.6rem] border border-[#D4C3AD] bg-[#F8F3EA] shadow-md">
             <CardContent className="p-4">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div>
-                  <div className="mb-2 inline-flex rounded-2xl border border-[#E8D2BC] bg-[#F8EFE3] p-1">
+                  <div className="mb-2 inline-flex rounded-2xl border border-[#D4C3AD] bg-[#EFE6D8] p-1">
                     <button
                       type="button"
                       onClick={() => setActiveEntryTab("case")}
@@ -558,7 +594,7 @@ export default function ChenTrackerApp() {
                   </Button>
                 </form>
               ) : (
-                <div className="overflow-hidden rounded-2xl border border-[#E8D2BC] bg-[#FFF7ED]">
+                <div className="overflow-hidden rounded-2xl border border-[#D4C3AD] bg-[#F2E9DC]">
                   <iframe
                     title="EOD Jotform"
                     src={EOD_JOTFORM_URL}
@@ -569,10 +605,10 @@ export default function ChenTrackerApp() {
                 </div>
               )}
 
-              <div className="mt-4 rounded-[1.4rem] border border-[#E8D2BC] bg-[#FFF7ED] p-4">
+              <div className="mt-4 rounded-[1.4rem] border border-[#D4C3AD] bg-[#F2E9DC] p-4">
                 <div className="mb-3 flex items-start justify-between gap-3">
                   <div>
-                    <div className="mb-2 inline-flex rounded-2xl border border-[#E8D2BC] bg-[#F8EFE3] p-1">
+                    <div className="mb-2 inline-flex rounded-2xl border border-[#D4C3AD] bg-[#EFE6D8] p-1">
                       <button
                         type="button"
                         onClick={() => {
@@ -617,14 +653,14 @@ export default function ChenTrackerApp() {
                         type="date"
                         value={reportStats.startDate}
                         onChange={(e) => setReportStartDate(e.target.value)}
-                        className="h-8 rounded-2xl border border-[#E8D2BC] bg-white px-2 text-[11px] text-[#2B1A12] outline-none focus:border-[#A66A3F]"
+                        className="h-8 rounded-2xl border border-[#D4C3AD] bg-white px-2 text-[11px] text-[#2B1A12] outline-none focus:border-[#5C7768]"
                       />
                       <span className="text-[11px] font-semibold text-[#8A6A55]">to</span>
                       <input
                         type="date"
                         value={reportStats.today}
                         onChange={(e) => setReportEndDate(e.target.value)}
-                        className="h-8 rounded-2xl border border-[#E8D2BC] bg-white px-2 text-[11px] text-[#2B1A12] outline-none focus:border-[#A66A3F]"
+                        className="h-8 rounded-2xl border border-[#D4C3AD] bg-white px-2 text-[11px] text-[#2B1A12] outline-none focus:border-[#5C7768]"
                       />
                     </div>
                   </div>
@@ -642,7 +678,7 @@ export default function ChenTrackerApp() {
           </Card>
 
           <div className="grid gap-3">
-            <Card className="rounded-[1.4rem] border border-[#E8D2BC] bg-[#FFFDF8] shadow-md lg:mr-[192px]">
+            <Card className="rounded-[1.4rem] border border-[#D4C3AD] bg-[#F8F3EA] shadow-md lg:mr-[192px]">
               <CardContent className="p-2.5">
                 <div className="grid items-center gap-2 lg:grid-cols-[115px_1fr_105px_105px_110px_110px_64px]">
                   <div>
@@ -657,7 +693,7 @@ export default function ChenTrackerApp() {
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
                       placeholder="Search client, policy, agent, specialist, notes..."
-                      className="h-8 w-full rounded-2xl border border-[#E8D2BC] bg-white pl-9 pr-3 text-xs outline-none focus:border-[#A66A3F]"
+                      className="h-8 w-full rounded-2xl border border-[#D4C3AD] bg-white pl-9 pr-3 text-xs outline-none focus:border-[#5C7768]"
                     />
                   </div>
                   <MiniSelect value={resultFilter} onChange={setResultFilter} options={["Status", ...resultOptions]} />
@@ -672,7 +708,7 @@ export default function ChenTrackerApp() {
             </Card>
 
             <div className="grid items-start gap-3 lg:grid-cols-[minmax(0,1fr)_180px]">
-              <Card className="rounded-[1.6rem] border border-[#E8D2BC] bg-[#FFFDF8] shadow-md">
+              <Card className="rounded-[1.6rem] border border-[#D4C3AD] bg-[#F8F3EA] shadow-md">
                 <CardContent className="p-0">
                   <div className="overflow-hidden rounded-[1.6rem]">
                     <table className="w-full table-fixed text-left text-[11px]">
@@ -690,7 +726,7 @@ export default function ChenTrackerApp() {
                       </thead>
                       <tbody className="divide-y divide-[#EEDBC6]">
                         {filteredRows.map((row) => (
-                          <tr key={row.id} className="bg-white align-top hover:bg-[#FFF7ED]">
+                          <tr key={row.id} className="bg-white align-top hover:bg-[#F2E9DC]">
                             <td className="break-words px-3 py-3">
                               <div className="font-semibold text-[#2B1A12]">{row.clientName}</div>
                               <div className="mt-1 flex items-center gap-2 text-[11px] text-[#8A6A55]">
@@ -744,7 +780,7 @@ export default function ChenTrackerApp() {
                 </CardContent>
               </Card>
 
-              <Card className="h-fit self-start rounded-[1.4rem] border border-[#E8D2BC] bg-[#FFFDF8] shadow-md">
+              <Card className="h-fit self-start rounded-[1.4rem] border border-[#D4C3AD] bg-[#F8F3EA] shadow-md">
                 <CardContent className="p-2.5">
                   <h3 className="mb-2 flex items-center gap-1.5 text-xs font-bold">
                     <BarChart3 className="h-3.5 w-3.5" /> Agent load
@@ -784,7 +820,7 @@ function StatCard({ icon, label, value, helper, tone = "slate" }) {
     emerald: "bg-[#6F8A3A] text-white",
   };
   return (
-    <Card className="rounded-[1.4rem] border border-[#E8D2BC] bg-[#FFFDF8] shadow-md">
+    <Card className="rounded-[1.4rem] border border-[#D4C3AD] bg-[#F8F3EA] shadow-md">
       <CardContent className="p-3.5">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -801,7 +837,7 @@ function StatCard({ icon, label, value, helper, tone = "slate" }) {
 
 function ReportItem({ label, value }) {
   return (
-    <div className="rounded-2xl border border-[#E8D2BC] bg-[#FFFDF8] p-3">
+    <div className="rounded-2xl border border-[#D4C3AD] bg-[#F8F3EA] p-3">
       <div className="text-[10px] font-semibold uppercase tracking-wide text-[#8A6A55]">{label}</div>
       <div className="mt-1 text-sm font-bold text-[#2B1A12]">{value}</div>
     </div>
@@ -818,7 +854,7 @@ function Input({ label, value, onChange, type = "text", required = false, placeh
         onChange={(e) => onChange(e.target.value)}
         required={required}
         placeholder={placeholder}
-        className="h-9 w-full rounded-2xl border border-[#E8D2BC] bg-white px-3 text-xs outline-none focus:border-[#A66A3F]"
+        className="h-9 w-full rounded-2xl border border-[#D4C3AD] bg-white px-3 text-xs outline-none focus:border-[#5C7768]"
       />
     </label>
   );
@@ -833,7 +869,7 @@ function Textarea({ label, value, onChange, placeholder = "" }) {
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         rows={2}
-        className="w-full resize-none rounded-2xl border border-[#E8D2BC] bg-white px-3 py-2 text-xs outline-none focus:border-[#A66A3F]"
+        className="w-full resize-none rounded-2xl border border-[#D4C3AD] bg-white px-3 py-2 text-xs outline-none focus:border-[#5C7768]"
       />
     </label>
   );
@@ -846,7 +882,7 @@ function Select({ label, value, onChange, options }) {
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-9 w-full rounded-2xl border border-[#E8D2BC] bg-white px-2 text-xs outline-none focus:border-[#A66A3F]"
+        className="h-9 w-full rounded-2xl border border-[#D4C3AD] bg-white px-2 text-xs outline-none focus:border-[#5C7768]"
       >
         {options.map((option, index) => (
           <option key={`${label}-${option}-${index}`} value={option}>
@@ -863,7 +899,7 @@ function MiniSelect({ value, onChange, options }) {
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="h-8 rounded-2xl border border-[#E8D2BC] bg-white px-2 text-xs outline-none focus:border-[#A66A3F]"
+      className="h-8 rounded-2xl border border-[#D4C3AD] bg-white px-2 text-xs outline-none focus:border-[#5C7768]"
     >
       {options.map((option) => (
         <option key={option} value={option}>

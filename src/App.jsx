@@ -838,7 +838,7 @@ export default function ChenTrackerApp() {
                 <div className="grid items-center gap-2 lg:grid-cols-[115px_1fr_105px_105px_110px_110px_64px]">
                   <div>
                     <h2 className="flex items-center gap-1.5 text-sm font-bold">
-                      <Filter className="h-4 w-4" /> Work queue
+                      <Filter className="h-4 w-4" /> Search
                     </h2>
                     <p className="text-[10px] leading-3 text-[#8A6A55]">
                       {lastRefreshed ? `Last refreshed: ${lastRefreshed}` : "Search & filter."}

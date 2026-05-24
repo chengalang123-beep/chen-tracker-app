@@ -188,6 +188,8 @@ export default function ChenTrackerApp() {
     }
   });
   const [form, setForm] = useState(blankForm);
+  const [editForm, setEditForm] = useState(blankForm);
+  const [editModalRow, setEditModalRow] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [query, setQuery] = useState("");
   const [resultFilter, setResultFilter] = useState("Status");
@@ -319,8 +321,18 @@ export default function ChenTrackerApp() {
     setForm((current) => ({ ...current, [field]: value }));
   }
 
+  function updateEditForm(field, value) {
+    setEditForm((current) => ({ ...current, [field]: value }));
+  }
+
   function resetForm() {
     setForm(blankForm);
+    setEditingId(null);
+  }
+
+  function closeEditModal() {
+    setEditModalRow(null);
+    setEditForm(blankForm);
     setEditingId(null);
   }
 
@@ -458,9 +470,9 @@ export default function ChenTrackerApp() {
   }
 
   function editRow(row) {
-    setActiveEntryTab("case");
+    setEditModalRow(row);
     setEditingId(row.id);
-    setForm({
+    setEditForm({
       clientName: row.clientName || "",
       policyNumber: row.policyNumber || "",
       ap: row.ap || "",
@@ -473,6 +485,27 @@ export default function ChenTrackerApp() {
       priority: row.priority || "Normal",
       updatedAt: row.updatedAt || new Date().toISOString().slice(0, 10),
     });
+  }
+
+  function saveEditModal(event) {
+    event.preventDefault();
+    if (!editModalRow || !editForm.clientName.trim()) return;
+
+    const payload = {
+      ...editForm,
+      ap: Number(editForm.ap || 0),
+      clientName: editForm.clientName.trim(),
+      policyNumber: editForm.policyNumber.trim(),
+      leadStatus: editForm.leadStatus.trim().toUpperCase(),
+      agentName: editForm.agentName.trim(),
+      specialistName: editForm.specialistName.trim(),
+      result: editForm.result.toUpperCase(),
+    };
+
+    setRows((current) => current.map((row) => (row.id === editModalRow.id ? { ...row, ...payload } : row)));
+    setSheetMessage("Client details updated.");
+    setTimeout(() => setSheetMessage(""), 2500);
+    closeEditModal();
   }
 
   function deleteRow(id) {
@@ -969,6 +1002,51 @@ export default function ChenTrackerApp() {
           </div>
         </div>
       </div>
+
+      {editModalRow && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 px-4 py-6">
+          <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-[1.8rem] border border-[#D4C3AD] bg-[#F8F3EA] p-5 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-bold text-[#2B1A12]">Edit client details</h2>
+                <p className="text-xs text-[#8A6A55]">Update the client information below.</p>
+              </div>
+              <Button type="button" variant="ghost" size="sm" onClick={closeEditModal} className="rounded-xl">
+                <X className="mr-1 h-4 w-4" /> Close
+              </Button>
+            </div>
+
+            <form onSubmit={saveEditModal} className="space-y-3">
+              <Input label="Client name" value={editForm.clientName} onChange={(v) => updateEditForm("clientName", v)} required />
+              <div className="grid gap-3 md:grid-cols-2">
+                <Input label="Policy number" value={editForm.policyNumber} onChange={(v) => updateEditForm("policyNumber", v)} />
+                <Input label="AP" type="number" value={editForm.ap} onChange={(v) => updateEditForm("ap", v)} />
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                <Select label="Lead status" value={editForm.leadStatus} onChange={(v) => updateEditForm("leadStatus", v)} options={leadStatusOptions} />
+                <Input label="Agent name" value={editForm.agentName} onChange={(v) => updateEditForm("agentName", v)} />
+              </div>
+              <Select label="Specialist name" value={editForm.specialistName} onChange={(v) => updateEditForm("specialistName", v)} options={specialistOptions} />
+              <div className="grid gap-3 md:grid-cols-3">
+                <Select label="Status" value={editForm.result} onChange={(v) => updateEditForm("result", v)} options={resultOptions} />
+                <Select label="Priority" value={editForm.priority} onChange={(v) => updateEditForm("priority", v)} options={priorityOptions} />
+                <Input label="Updated" type="date" value={editForm.updatedAt} onChange={(v) => updateEditForm("updatedAt", v)} />
+              </div>
+              <Select label="Action" value={editForm.action} onChange={(v) => updateEditForm("action", v)} options={actionOptions} />
+              <Textarea label="Notes" value={editForm.notes} onChange={(v) => updateEditForm("notes", v)} placeholder="Callback time, issue, next step..." />
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button type="button" variant="outline" onClick={closeEditModal} className="rounded-2xl border-[#D4C3AD] text-[#5B3320]">
+                  Cancel
+                </Button>
+                <Button type="submit" className="rounded-2xl bg-[#03071A] text-white hover:bg-[#10142B]">
+                  <Save className="mr-2 h-4 w-4" /> Save changes
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

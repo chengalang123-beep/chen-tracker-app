@@ -221,10 +221,15 @@ export default function ChenTrackerApp() {
     const pending = statsRows.filter((r) => r.result === "PENDING").length;
     const resolved = statsRows.filter((r) => r.result === "RESOLVED").length;
     const lost = statsRows.filter((r) => r.result === "LOST").length;
-    const totalAp = statsRows.reduce((sum, r) => sum + Number(r.ap || 0), 0);
     const pendingAp = statsRows.filter((r) => r.result === "PENDING").reduce((sum, r) => sum + Number(r.ap || 0), 0);
+    const pendingSaveAp = statsRows
+      .filter((r) => String(r.action || "").trim().toLowerCase() === "pending save")
+      .reduce((sum, r) => sum + Number(r.ap || 0), 0);
+    const saveAp = statsRows
+      .filter((r) => String(r.action || "").trim().toLowerCase() === "save")
+      .reduce((sum, r) => sum + Number(r.ap || 0), 0);
     const completionRate = total ? Math.round((resolved / total) * 100) : 0;
-    return { total, pending, resolved, lost, totalAp, pendingAp, completionRate };
+    return { total, pending, resolved, lost, pendingAp, pendingSaveAp, saveAp, completionRate };
   }, [rows, specialistFilter]);
 
   const filteredRows = useMemo(() => {
@@ -297,12 +302,14 @@ export default function ChenTrackerApp() {
     const pending = rangeRows.filter((row) => row.result === "PENDING").length;
     const resolved = rangeRows.filter((row) => row.result === "RESOLVED").length;
     const lost = rangeRows.filter((row) => row.result === "LOST").length;
-    const totalAp = rangeRows.reduce((sum, row) => sum + Number(row.ap || 0), 0);
-    const savedAp = rangeRows
-      .filter((row) => row.result === "RESOLVED" || row.action === "Save")
+    const pendingSaveAp = rangeRows
+      .filter((row) => String(row.action || "").trim().toLowerCase() === "pending save")
+      .reduce((sum, row) => sum + Number(row.ap || 0), 0);
+    const saveAp = rangeRows
+      .filter((row) => String(row.action || "").trim().toLowerCase() === "save")
       .reduce((sum, row) => sum + Number(row.ap || 0), 0);
 
-    return { startDate: selectedStartDate, today: endDate, totalCases, pending, resolved, lost, totalAp, savedAp, label, badge };
+    return { startDate: selectedStartDate, today: endDate, totalCases, pending, resolved, lost, pendingSaveAp, saveAp, label, badge };
   }, [rows, reportRange, reportStartDate, reportEndDate]);
 
   const entryTitle = activeEntryTab === "case" ? (editingId ? "Edit case" : "Add new case") : "EOD";
@@ -491,7 +498,7 @@ export default function ChenTrackerApp() {
       `Action: ${row.action || "—"}`,
       `Notes: ${row.notes || "—"}`,
       `Updated At: ${row.updatedAt || "—"}`,
-    ].join("\n");
+    ].join(String.fromCharCode(10));
 
     try {
       await navigator.clipboard.writeText(summary);
@@ -667,11 +674,12 @@ export default function ChenTrackerApp() {
           </div>
         </motion.div>
 
-        <div className="mb-3 grid gap-3 md:grid-cols-4">
+        <div className="mb-3 grid gap-3 md:grid-cols-5">
           <StatCard icon={<Users />} label="Total Cases" value={stats.total} helper={`${stats.completionRate}% resolved`} />
           <StatCard icon={<Clock3 />} label="Pending" value={stats.pending} helper={currency(stats.pendingAp)} tone="amber" />
           <StatCard icon={<CheckCircle2 />} label="Resolved" value={stats.resolved} helper="Completed cases" tone="emerald" />
-          <StatCard icon={<DollarSign />} label="Total AP" value={currency(stats.totalAp)} helper={`${stats.lost} lost cases`} tone="slate" />
+          <StatCard icon={<DollarSign />} label="Pending Save AP" value={currency(stats.pendingSaveAp)} helper="Action: Pending Save" tone="amber" />
+          <StatCard icon={<DollarSign />} label="Save AP" value={currency(stats.saveAp)} helper="Action: Save" tone="emerald" />
         </div>
 
         <div className="grid gap-4 xl:grid-cols-[390px_1fr]">
@@ -817,8 +825,8 @@ export default function ChenTrackerApp() {
                   <ReportItem label="Resolved" value={reportStats.resolved} />
                   <ReportItem label="Pending" value={reportStats.pending} />
                   <ReportItem label="Lost" value={reportStats.lost} />
-                  <ReportItem label="Total AP" value={currency(reportStats.totalAp)} />
-                  <ReportItem label="Saved AP" value={currency(reportStats.savedAp)} />
+                  <ReportItem label="Pending Save AP" value={currency(reportStats.pendingSaveAp)} />
+                  <ReportItem label="Save AP" value={currency(reportStats.saveAp)} />
                 </div>
               </div>
             </CardContent>

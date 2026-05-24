@@ -882,7 +882,7 @@ export default function ChenTrackerApp() {
                         Month to date
                       </button>
                     </div>
-                    <h3 className="mt-2 text-sm font-bold text-[#2B1A12]">{reportStats.label}</h3>
+                    <h3 className="text-sm font-bold text-[#2B1A12]">{reportStats.label}</h3>
                     <p className="text-[11px] text-[#8A6A55]">
                       {reportStats.startDate} to {reportStats.today}
                     </p>
@@ -892,7 +892,7 @@ export default function ChenTrackerApp() {
                       <Button
                         type="button"
                         onClick={exportReportCsv}
-                        className="h-8 rounded-2xl bg-[#D8913D] px-3 text-[10px] font-bold text-white hover:bg-[#B87428]"
+                        className="h-8 rounded-2xl bg-[#03071A] px-3 text-[10px] font-bold text-white hover:bg-[#10142B]"
                       >
                         <Download className="mr-1 h-3.5 w-3.5" /> Export CSV
                       </Button>
@@ -922,6 +922,29 @@ export default function ChenTrackerApp() {
                   <ReportItem label="Lost" value={reportStats.lost} />
                   <ReportItem label="Pending Save AP" value={currency(reportStats.pendingSaveAp)} />
                   <ReportItem label="Save AP" value={currency(reportStats.saveAp)} />
+                </div>
+              </div>
+
+              <div className="mt-4 rounded-[1.4rem] border border-[#D4C3AD] bg-[#F2E9DC] p-4">
+                <h3 className="mb-3 flex items-center gap-1.5 text-sm font-bold text-[#2B1A12]">
+                  <BarChart3 className="h-4 w-4" /> Agent load
+                </h3>
+                <div className="space-y-2">
+                  {topAgents.map(([agent, count]) => {
+                    const width = stats.total ? Math.max(8, Math.round((count / stats.total) * 100)) : 0;
+                    return (
+                      <div key={agent}>
+                        <div className="mb-1 flex items-center justify-between gap-2 text-[11px]">
+                          <span className="truncate font-semibold text-[#5B3320]" title={agent}>{agent}</span>
+                          <span className="text-[#8A6A55]">{count}</span>
+                        </div>
+                        <div className="h-1.5 overflow-hidden rounded-full bg-[#E9DECC]">
+                          <div className="h-full rounded-full bg-[#5C7768]" style={{ width: `${width}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {!topAgents.length && <p className="text-xs text-[#8A6A55]">No agent data yet.</p>}
                 </div>
               </div>
             </CardContent>
@@ -973,7 +996,7 @@ export default function ChenTrackerApp() {
               </CardContent>
             </Card>
 
-            <div className="mt-3 grid h-fit content-start items-start gap-3 self-start lg:grid-cols-[minmax(0,1fr)_180px]">
+            <div className="mt-3 grid h-fit content-start items-start gap-3 self-start">
               <Card className="h-fit self-start rounded-[1.6rem] border border-[#D4C3AD] bg-[#F8F3EA] shadow-md">
                 <CardContent className="p-0">
                   <div className="overflow-visible rounded-[1.6rem]">
@@ -1045,32 +1068,6 @@ export default function ChenTrackerApp() {
                         <p className="mt-0.5 text-xs text-[#8A6A55]">Try changing your search or filters.</p>
                       </div>
                     )}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="h-fit self-start rounded-[1.4rem] border border-[#D4C3AD] bg-[#F8F3EA] shadow-md">
-                <CardContent className="p-2.5">
-                  <h3 className="mb-2 flex items-center gap-1.5 text-xs font-bold">
-                    <BarChart3 className="h-3.5 w-3.5" /> Agent load
-                  </h3>
-                  <div className="space-y-1.5">
-                    {topAgents.map(([agent, count]) => {
-                      const width = stats.total ? Math.max(8, Math.round((count / stats.total) * 100)) : 0;
-                      return (
-                        <div key={agent}>
-                          <div className="mb-1 flex items-center justify-between gap-1 text-[10px]">
-                            <span className="max-w-[125px] truncate font-medium text-[#5B3320]" title={agent}>
-                              {agent}
-                            </span>
-                            <span className="text-[#8A6A55]">{count}</span>
-                          </div>
-                          <div className="h-1.5 overflow-hidden rounded-full bg-[#F7E8D6]">
-                            <div className="h-full rounded-full bg-[#7A4A2A]" style={{ width: `${width}%` }} />
-                          </div>
-                        </div>
-                      );
-                    })}
                   </div>
                 </CardContent>
               </Card>

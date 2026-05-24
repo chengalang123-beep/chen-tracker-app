@@ -865,7 +865,7 @@ export default function ChenTrackerApp() {
             </Card>
 
             <div className="grid items-start gap-3 lg:grid-cols-[minmax(0,1fr)_180px]">
-              <Card className="rounded-[1.6rem] border border-[#D4C3AD] bg-[#F8F3EA] shadow-md">
+              <Card className="h-fit self-start rounded-[1.6rem] border border-[#D4C3AD] bg-[#F8F3EA] shadow-md">
                 <CardContent className="p-0">
                   <div className="overflow-visible rounded-[1.6rem]">
                     <table className="w-full table-fixed text-left text-[11px]">
@@ -930,7 +930,7 @@ export default function ChenTrackerApp() {
                       </tbody>
                     </table>
                     {!filteredRows.length && (
-                      <div className="flex min-h-[320px] flex-col items-center justify-center bg-white px-6 text-center">
+                      <div className="flex min-h-[110px] flex-col items-center justify-center bg-white px-6 py-5 text-center">
                         <AlertTriangle className="mb-3 h-10 w-10 text-[#F3D9BC]" />
                         <h3 className="text-lg font-bold">No cases found</h3>
                         <p className="mt-1 text-sm text-[#8A6A55]">Try changing your search or filters.</p>

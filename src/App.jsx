@@ -682,7 +682,7 @@ export default function ChenTrackerApp() {
           <StatCard icon={<DollarSign />} label="Save AP" value={currency(stats.saveAp)} helper="Action: Save" tone="emerald" />
         </div>
 
-        <div className="grid gap-4 xl:grid-cols-[390px_1fr]">
+        <div className="grid items-start gap-4 xl:grid-cols-[390px_1fr]">
           <Card className="h-fit self-start rounded-[1.6rem] border border-[#D4C3AD] bg-[#F8F3EA] shadow-md">
             <CardContent className="p-4">
               <div className="mb-3 flex items-center justify-between gap-3">
@@ -832,8 +832,8 @@ export default function ChenTrackerApp() {
             </CardContent>
           </Card>
 
-          <div className="grid content-start items-start gap-3 self-start">
-            <Card className="h-fit self-start rounded-[1.4rem] border border-[#D4C3AD] bg-[#F8F3EA] shadow-md lg:mr-[192px]">
+          <div className="h-fit self-start">
+            <Card className="h-fit max-h-fit self-start rounded-[1.4rem] border border-[#D4C3AD] bg-[#F8F3EA] shadow-md lg:mr-[192px]">
               <CardContent className="p-2.5">
                 <div className="grid items-center gap-2 lg:grid-cols-[115px_1fr_105px_105px_110px_110px_64px]">
                   <div>
@@ -864,7 +864,7 @@ export default function ChenTrackerApp() {
               </CardContent>
             </Card>
 
-            <div className="grid h-fit content-start items-start gap-3 self-start lg:grid-cols-[minmax(0,1fr)_180px]">
+            <div className="mt-3 grid h-fit content-start items-start gap-3 self-start lg:grid-cols-[minmax(0,1fr)_180px]">
               <Card className="h-fit self-start rounded-[1.6rem] border border-[#D4C3AD] bg-[#F8F3EA] shadow-md">
                 <CardContent className="p-0">
                   <div className="overflow-visible rounded-[1.6rem]">

@@ -187,23 +187,29 @@ export default function ChenTrackerApp() {
       return [];
     }
   });
+
   const [form, setForm] = useState(blankForm);
   const [editForm, setEditForm] = useState(blankForm);
   const [editModalRow, setEditModalRow] = useState(null);
   const [editingId, setEditingId] = useState(null);
+
   const [query, setQuery] = useState("");
   const [resultFilter, setResultFilter] = useState("Status");
   const [priorityFilter, setPriorityFilter] = useState("Priority");
   const [specialistFilter, setSpecialistFilter] = useState("Specialist");
   const [sortBy, setSortBy] = useState("updatedAt");
+
   const [filterStartDate, setFilterStartDate] = useState("");
   const [filterEndDate, setFilterEndDate] = useState("");
+
   const [exportStartDate, setExportStartDate] = useState("");
   const [exportEndDate, setExportEndDate] = useState("");
+
   const [activeEntryTab, setActiveEntryTab] = useState("case");
   const [isLoadingSheet, setIsLoadingSheet] = useState(false);
   const [sheetMessage, setSheetMessage] = useState("");
   const [lastRefreshed, setLastRefreshed] = useState("");
+
   const [reportRange, setReportRange] = useState("week");
   const [reportStartDate, setReportStartDate] = useState("");
   const [reportEndDate, setReportEndDate] = useState("");
@@ -224,9 +230,11 @@ export default function ChenTrackerApp() {
     };
 
     const today = getToday();
-    const statsRows = specialistFilter === "Specialist"
-      ? rows
-      : rows.filter((row) => row.specialistName === specialistFilter);
+
+    const statsRows =
+      specialistFilter === "Specialist"
+        ? rows
+        : rows.filter((row) => row.specialistName === specialistFilter);
 
     const hasDateFilter = Boolean(filterStartDate || filterEndDate);
     const rangeStart = filterStartDate || filterEndDate || today;
@@ -247,10 +255,12 @@ export default function ChenTrackerApp() {
     const uwActionNeededRows = dateRows.filter((r) => String(r.action || "").trim().toLowerCase() === "uw action needed");
 
     const lost = displayRows.filter((r) => r.result === "LOST").length;
+
     const pendingSaveToday = pendingSaveRows.length;
     const saveToday = saveRows.length;
     const uwActionResolvedToday = uwActionResolvedRows.length;
     const uwActionNeededToday = uwActionNeededRows.length;
+
     const pendingSaveTodayAp = pendingSaveRows.reduce((sum, r) => sum + Number(r.ap || 0), 0);
     const saveTodayAp = saveRows.reduce((sum, r) => sum + Number(r.ap || 0), 0);
     const uwActionResolvedTodayAp = uwActionResolvedRows.reduce((sum, r) => sum + Number(r.ap || 0), 0);
@@ -259,6 +269,7 @@ export default function ChenTrackerApp() {
     const pendingSaveAp = displayRows
       .filter((r) => String(r.action || "").trim().toLowerCase() === "pending save")
       .reduce((sum, r) => sum + Number(r.ap || 0), 0);
+
     const saveAp = displayRows
       .filter((r) => String(r.action || "").trim().toLowerCase() === "save")
       .reduce((sum, r) => sum + Number(r.ap || 0), 0);
@@ -287,6 +298,7 @@ export default function ChenTrackerApp() {
 
   const filteredRows = useMemo(() => {
     const q = query.trim().toLowerCase();
+
     return rows
       .filter((row) => {
         const searchable = [
@@ -301,13 +313,16 @@ export default function ChenTrackerApp() {
         ]
           .join(" ")
           .toLowerCase();
+
         const matchesQuery = !q || searchable.includes(q);
         const matchesResult = resultFilter === "Status" || row.result === resultFilter;
         const matchesPriority = priorityFilter === "Priority" || row.priority === priorityFilter;
         const matchesSpecialist = specialistFilter === "Specialist" || row.specialistName === specialistFilter;
+
         const rowDate = row.updatedAt || row.createdAt || "";
         const matchesStartDate = !filterStartDate || rowDate >= filterStartDate;
         const matchesEndDate = !filterEndDate || rowDate <= filterEndDate;
+
         return matchesQuery && matchesResult && matchesPriority && matchesSpecialist && matchesStartDate && matchesEndDate;
       })
       .sort((a, b) => {
@@ -318,13 +333,20 @@ export default function ChenTrackerApp() {
   }, [rows, query, resultFilter, priorityFilter, specialistFilter, filterStartDate, filterEndDate, sortBy]);
 
   const topAgents = useMemo(() => {
+    const sourceRows =
+      specialistFilter === "Specialist"
+        ? rows
+        : rows.filter((row) => row.specialistName === specialistFilter);
+
     const map = new Map();
-    rows.forEach((row) => {
+
+    sourceRows.forEach((row) => {
       const key = row.agentName || "Unassigned";
       map.set(key, (map.get(key) || 0) + 1);
     });
+
     return [...map.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
-  }, [rows]);
+  }, [rows, specialistFilter]);
 
   const reportStats = useMemo(() => {
     const now = new Date();
@@ -349,9 +371,10 @@ export default function ChenTrackerApp() {
     const endDate = reportEndDate || today;
     const selectedStartDate = reportStartDate || startDate;
 
-    const reportSourceRows = specialistFilter === "Specialist"
-      ? rows
-      : rows.filter((row) => row.specialistName === specialistFilter);
+    const reportSourceRows =
+      specialistFilter === "Specialist"
+        ? rows
+        : rows.filter((row) => row.specialistName === specialistFilter);
 
     const rangeRows = reportSourceRows.filter((row) => {
       const rowDate = row.updatedAt || row.createdAt || "";
@@ -362,14 +385,27 @@ export default function ChenTrackerApp() {
     const pending = rangeRows.filter((row) => row.result === "PENDING").length;
     const resolved = rangeRows.filter((row) => row.result === "RESOLVED").length;
     const lost = rangeRows.filter((row) => row.result === "LOST").length;
+
     const pendingSaveAp = rangeRows
       .filter((row) => String(row.action || "").trim().toLowerCase() === "pending save")
       .reduce((sum, row) => sum + Number(row.ap || 0), 0);
+
     const saveAp = rangeRows
       .filter((row) => String(row.action || "").trim().toLowerCase() === "save")
       .reduce((sum, row) => sum + Number(row.ap || 0), 0);
 
-    return { startDate: selectedStartDate, today: endDate, totalCases, pending, resolved, lost, pendingSaveAp, saveAp, label, badge };
+    return {
+      startDate: selectedStartDate,
+      today: endDate,
+      totalCases,
+      pending,
+      resolved,
+      lost,
+      pendingSaveAp,
+      saveAp,
+      label,
+      badge,
+    };
   }, [rows, specialistFilter, reportRange, reportStartDate, reportEndDate]);
 
   const entryTitle = activeEntryTab === "case" ? (editingId ? "Edit case" : "Add new case") : "EOD";
@@ -494,10 +530,12 @@ export default function ChenTrackerApp() {
     if (!form.clientName.trim()) return;
 
     const policyNumberInput = form.policyNumber.trim().toLowerCase();
-    const duplicatePolicy = policyNumberInput && rows.some((row) => {
-      if (editingId && row.id === editingId) return false;
-      return String(row.policyNumber || "").trim().toLowerCase() === policyNumberInput;
-    });
+    const duplicatePolicy =
+      policyNumberInput &&
+      rows.some((row) => {
+        if (editingId && row.id === editingId) return false;
+        return String(row.policyNumber || "").trim().toLowerCase() === policyNumberInput;
+      });
 
     if (duplicatePolicy) {
       const shouldContinue = window.confirm("This policy number already exists. Continue anyway?");
@@ -518,11 +556,17 @@ export default function ChenTrackerApp() {
     if (editingId) {
       setRows((current) => current.map((row) => (row.id === editingId ? { ...row, ...payload } : row)));
     } else {
-      const newCase = { id: crypto.randomUUID(), createdAt: new Date().toISOString().slice(0, 10), ...payload };
+      const newCase = {
+        id: crypto.randomUUID(),
+        createdAt: new Date().toISOString().slice(0, 10),
+        ...payload,
+      };
+
       setRows((current) => [newCase, ...current]);
       setSheetMessage("Case added successfully. Syncing to Google Sheets...");
       sendToGoogleSheet(newCase);
     }
+
     setTimeout(() => setSheetMessage(""), 4000);
     resetForm();
   }
@@ -572,7 +616,15 @@ export default function ChenTrackerApp() {
 
   function quickStatus(id, result) {
     setRows((current) =>
-      current.map((row) => (row.id === id ? { ...row, result, updatedAt: new Date().toISOString().slice(0, 10) } : row))
+      current.map((row) =>
+        row.id === id
+          ? {
+              ...row,
+              result,
+              updatedAt: new Date().toISOString().slice(0, 10),
+            }
+          : row
+      )
     );
   }
 
@@ -606,9 +658,11 @@ export default function ChenTrackerApp() {
     const blob = new Blob([toCsv(rows)], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
+
     a.href = url;
     a.download = `chen-tracker-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
+
     URL.revokeObjectURL(url);
   }
 
@@ -618,9 +672,11 @@ export default function ChenTrackerApp() {
     const blob = new Blob([toCsv(todayRows)], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
+
     a.href = url;
     a.download = `chen-tracker-added-today-${today}.csv`;
     a.click();
+
     URL.revokeObjectURL(url);
   }
 
@@ -635,9 +691,11 @@ export default function ChenTrackerApp() {
     const blob = new Blob([toCsv(rangeRows)], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
+
     a.href = url;
     a.download = `chen-tracker-${exportStartDate}-to-${exportEndDate}.csv`;
     a.click();
+
     URL.revokeObjectURL(url);
   }
 
@@ -650,20 +708,25 @@ export default function ChenTrackerApp() {
     const blob = new Blob([toCsv(reportRows)], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
+
     a.href = url;
     a.download = `chen-tracker-${reportStats.badge.toLowerCase()}-${reportStats.startDate}-to-${reportStats.today}.csv`;
     a.click();
+
     URL.revokeObjectURL(url);
   }
 
   function importCsv(event) {
     const file = event.target.files?.[0];
     if (!file) return;
+
     const reader = new FileReader();
+
     reader.onload = () => {
       const imported = parseCsv(String(reader.result || ""));
       if (imported.length) setRows((current) => [...imported, ...current]);
     };
+
     reader.readAsText(file);
     event.target.value = "";
   }
@@ -692,15 +755,21 @@ export default function ChenTrackerApp() {
 
             <div
               className="absolute left-[-40px] top-0 h-full w-[260px] bg-[#7C9A8B]"
-              style={{ clipPath: "polygon(0 0, 75% 0, 45% 100%, 0% 100%)" }}
+              style={{
+                clipPath: "polygon(0 0, 75% 0, 45% 100%, 0% 100%)",
+              }}
             />
             <div
               className="absolute left-[10px] top-0 h-full w-[220px] bg-[#5F7F70]"
-              style={{ clipPath: "polygon(0 0, 72% 0, 42% 100%, 0% 100%)" }}
+              style={{
+                clipPath: "polygon(0 0, 72% 0, 42% 100%, 0% 100%)",
+              }}
             />
             <div
               className="absolute left-[55px] top-0 h-full w-[190px] bg-[#355F50]"
-              style={{ clipPath: "polygon(0 0, 68% 0, 38% 100%, 0% 100%)" }}
+              style={{
+                clipPath: "polygon(0 0, 68% 0, 38% 100%, 0% 100%)",
+              }}
             />
 
             <div className="relative z-10 flex min-h-[150px] items-center justify-between gap-4 px-6 py-5">
@@ -709,7 +778,9 @@ export default function ChenTrackerApp() {
                   <FileSpreadsheet className="h-3.5 w-3.5" />
                   Policy tracker app
                 </div>
+
                 <h1 className="text-3xl font-bold tracking-tight text-[#2E443A]">Eterna Retention Tracker</h1>
+
                 <p className="mt-1 text-sm text-[#6D6256]">
                   Track clients, policies, AP, agent assignments, pending saves, welcome calls, onboarding, rewrites, and lost cases.
                 </p>
@@ -717,6 +788,7 @@ export default function ChenTrackerApp() {
 
               <div className="hidden shrink-0 items-center gap-3 sm:flex">
                 <EternaLogoMark className="h-14 w-14" />
+
                 <div className="text-right">
                   <div className="text-2xl font-semibold tracking-[0.32em] text-[#4D6659]">ETERNA</div>
                   <div className="text-xs text-[#8A7A67]">Retention dashboard</div>
@@ -727,7 +799,6 @@ export default function ChenTrackerApp() {
 
           <div className="border-t border-[#D4C3AD] bg-[#EFE6D8] px-5 py-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
-
               <div className="flex w-full flex-wrap items-center gap-2">
                 <input
                   type="date"
@@ -735,12 +806,14 @@ export default function ChenTrackerApp() {
                   onChange={(e) => setExportStartDate(e.target.value)}
                   className="h-9 rounded-2xl border border-[#CDBAA3] bg-white px-3 text-xs text-[#2B1A12] outline-none focus:border-[#5C7768]"
                 />
+
                 <input
                   type="date"
                   value={exportEndDate}
                   onChange={(e) => setExportEndDate(e.target.value)}
                   className="h-9 rounded-2xl border border-[#CDBAA3] bg-white px-3 text-xs text-[#2B1A12] outline-none focus:border-[#5C7768]"
                 />
+
                 <Button
                   onClick={exportDateRangeCsv}
                   disabled={!exportStartDate || !exportEndDate}
@@ -748,17 +821,14 @@ export default function ChenTrackerApp() {
                 >
                   <Download className="mr-2 h-4 w-4" /> Export Range
                 </Button>
+
                 <div className="ml-auto flex justify-end">
                   <Button
                     onClick={loadFromGoogleSheet}
                     disabled={isLoadingSheet}
                     className="h-9 rounded-2xl bg-[#5C7768] px-4 text-xs text-white hover:bg-[#466153] disabled:cursor-not-allowed disabled:opacity-70"
                   >
-                    {isLoadingSheet ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <RefreshCw className="mr-2 h-4 w-4" />
-                    )}
+                    {isLoadingSheet ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
                     {isLoadingSheet ? "Refreshing..." : "Refresh Data"}
                   </Button>
                 </div>
@@ -786,21 +856,28 @@ export default function ChenTrackerApp() {
                     <button
                       type="button"
                       onClick={() => setActiveEntryTab("case")}
-                      className={`rounded-xl px-3 py-1.5 text-xs font-bold ${activeEntryTab === "case" ? "bg-[#5B3320] text-white" : "text-[#5B3320]"}`}
+                      className={`rounded-xl px-3 py-1.5 text-xs font-bold ${
+                        activeEntryTab === "case" ? "bg-[#5B3320] text-white" : "text-[#5B3320]"
+                      }`}
                     >
                       Add new case
                     </button>
+
                     <button
                       type="button"
                       onClick={() => setActiveEntryTab("eod")}
-                      className={`rounded-xl px-3 py-1.5 text-xs font-bold ${activeEntryTab === "eod" ? "bg-[#5B3320] text-white" : "text-[#5B3320]"}`}
+                      className={`rounded-xl px-3 py-1.5 text-xs font-bold ${
+                        activeEntryTab === "eod" ? "bg-[#5B3320] text-white" : "text-[#5B3320]"
+                      }`}
                     >
                       EOD
                     </button>
                   </div>
+
                   <h2 className="text-lg font-bold">{entryTitle}</h2>
                   <p className="text-xs text-[#8A6A55]">{entryHelper}</p>
                 </div>
+
                 {editingId && activeEntryTab === "case" && (
                   <Button variant="ghost" size="sm" onClick={resetForm} className="rounded-xl">
                     <X className="mr-1 h-4 w-4" /> Cancel
@@ -817,27 +894,34 @@ export default function ChenTrackerApp() {
               {activeEntryTab === "case" ? (
                 <form onSubmit={submitForm} className="space-y-2">
                   <Input label="Client name" value={form.clientName} onChange={(v) => updateForm("clientName", v)} required />
+
                   <div className="grid grid-cols-2 gap-2">
                     <Input label="Policy number" value={form.policyNumber} onChange={(v) => updateForm("policyNumber", v)} />
                     <Input label="AP" type="number" value={form.ap} onChange={(v) => updateForm("ap", v)} />
                   </div>
+
                   <div className="grid grid-cols-2 gap-2">
                     <Select label="Lead status" value={form.leadStatus} onChange={(v) => updateForm("leadStatus", v)} options={leadStatusOptions} />
                     <Input label="Agent name" value={form.agentName} onChange={(v) => updateForm("agentName", v)} />
                   </div>
+
                   <Select label="Specialist name" value={form.specialistName} onChange={(v) => updateForm("specialistName", v)} options={specialistOptions} />
+
                   <div className="grid grid-cols-3 gap-2">
                     <Select label="Status" value={form.result} onChange={(v) => updateForm("result", v)} options={resultOptions} />
                     <Select label="Priority" value={form.priority} onChange={(v) => updateForm("priority", v)} options={priorityOptions} />
                     <Input label="Updated" type="date" value={form.updatedAt} onChange={(v) => updateForm("updatedAt", v)} />
                   </div>
+
                   <Select label="Action" value={form.action} onChange={(v) => updateForm("action", v)} options={actionOptions} />
                   <Textarea label="Notes" value={form.notes} onChange={(v) => updateForm("notes", v)} placeholder="Callback time, issue, next step..." />
+
                   <div className="grid grid-cols-[1fr_auto] gap-2">
                     <Button type="submit" className="h-11 rounded-2xl bg-[#03071A] text-white hover:bg-[#10142B]">
                       {editingId ? <Save className="mr-2 h-4 w-4" /> : <Plus className="mr-2 h-4 w-4" />}
                       {editingId ? "Save changes" : "Add case"}
                     </Button>
+
                     <Button type="button" variant="outline" onClick={resetForm} className="h-11 rounded-2xl border-[#D4C3AD] px-4 text-xs text-[#5B3320]">
                       Clear form
                     </Button>
@@ -845,13 +929,7 @@ export default function ChenTrackerApp() {
                 </form>
               ) : (
                 <div className="overflow-hidden rounded-2xl border border-[#D4C3AD] bg-[#F2E9DC]">
-                  <iframe
-                    title="EOD Jotform"
-                    src={EOD_JOTFORM_URL}
-                    className="h-[720px] w-full bg-white"
-                    frameBorder="0"
-                    allowFullScreen
-                  />
+                  <iframe title="EOD Jotform" src={EOD_JOTFORM_URL} className="h-[720px] w-full bg-white" frameBorder="0" allowFullScreen />
                 </div>
               )}
 
@@ -866,10 +944,13 @@ export default function ChenTrackerApp() {
                           setReportStartDate("");
                           setReportEndDate("");
                         }}
-                        className={`rounded-xl px-3 py-1 text-[10px] font-bold ${reportRange === "week" ? "bg-[#5B3320] text-white" : "text-[#5B3320]"}`}
+                        className={`rounded-xl px-3 py-1 text-[10px] font-bold ${
+                          reportRange === "week" ? "bg-[#5B3320] text-white" : "text-[#5B3320]"
+                        }`}
                       >
                         Week to date
                       </button>
+
                       <button
                         type="button"
                         onClick={() => {
@@ -877,16 +958,21 @@ export default function ChenTrackerApp() {
                           setReportStartDate("");
                           setReportEndDate("");
                         }}
-                        className={`rounded-xl px-3 py-1 text-[10px] font-bold ${reportRange === "month" ? "bg-[#5B3320] text-white" : "text-[#5B3320]"}`}
+                        className={`rounded-xl px-3 py-1 text-[10px] font-bold ${
+                          reportRange === "month" ? "bg-[#5B3320] text-white" : "text-[#5B3320]"
+                        }`}
                       >
                         Month to date
                       </button>
                     </div>
+
                     <h3 className="text-sm font-bold text-[#2B1A12]">{reportStats.label}</h3>
+
                     <p className="text-[11px] text-[#8A6A55]">
                       {reportStats.startDate} to {reportStats.today}
                     </p>
                   </div>
+
                   <div className="flex flex-col items-end gap-2">
                     <div className="flex items-center gap-2">
                       <Button
@@ -896,8 +982,10 @@ export default function ChenTrackerApp() {
                       >
                         <Download className="mr-1 h-3.5 w-3.5" /> Export CSV
                       </Button>
+
                       <span className="rounded-full bg-[#5B3320] px-3 py-1 text-[10px] font-bold text-white">{reportStats.badge}</span>
                     </div>
+
                     <div className="flex flex-wrap items-center justify-end gap-2">
                       <input
                         type="date"
@@ -905,7 +993,9 @@ export default function ChenTrackerApp() {
                         onChange={(e) => setReportStartDate(e.target.value)}
                         className="h-8 rounded-2xl border border-[#D4C3AD] bg-white px-2 text-[11px] text-[#2B1A12] outline-none focus:border-[#5C7768]"
                       />
+
                       <span className="text-[11px] font-semibold text-[#8A6A55]">to</span>
+
                       <input
                         type="date"
                         value={reportStats.today}
@@ -915,6 +1005,7 @@ export default function ChenTrackerApp() {
                     </div>
                   </div>
                 </div>
+
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   <ReportItem label="Total Cases" value={reportStats.totalCases} />
                   <ReportItem label="Resolved" value={reportStats.resolved} />
@@ -929,21 +1020,27 @@ export default function ChenTrackerApp() {
                 <h3 className="mb-3 flex items-center gap-1.5 text-sm font-bold text-[#2B1A12]">
                   <BarChart3 className="h-4 w-4" /> Agent load
                 </h3>
+
                 <div className="space-y-2">
                   {topAgents.map(([agent, count]) => {
                     const width = stats.total ? Math.max(8, Math.round((count / stats.total) * 100)) : 0;
+
                     return (
                       <div key={agent}>
                         <div className="mb-1 flex items-center justify-between gap-2 text-[11px]">
-                          <span className="truncate font-semibold text-[#5B3320]" title={agent}>{agent}</span>
+                          <span className="truncate font-semibold text-[#5B3320]" title={agent}>
+                            {agent}
+                          </span>
                           <span className="text-[#8A6A55]">{count}</span>
                         </div>
+
                         <div className="h-1.5 overflow-hidden rounded-full bg-[#E9DECC]">
                           <div className="h-full rounded-full bg-[#5C7768]" style={{ width: `${width}%` }} />
                         </div>
                       </div>
                     );
                   })}
+
                   {!topAgents.length && <p className="text-xs text-[#8A6A55]">No agent data yet.</p>}
                 </div>
               </div>
@@ -958,12 +1055,15 @@ export default function ChenTrackerApp() {
                     <h2 className="flex items-center gap-1.5 text-sm font-bold">
                       <Filter className="h-4 w-4" /> Search
                     </h2>
+
                     <p className="text-[10px] leading-3 text-[#8A6A55]">
                       {lastRefreshed ? `Last refreshed: ${lastRefreshed}` : "Search & filter."}
                     </p>
                   </div>
+
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#B28A6B]" />
+
                     <input
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
@@ -971,10 +1071,12 @@ export default function ChenTrackerApp() {
                       className="h-8 w-full rounded-2xl border border-[#D4C3AD] bg-white pl-9 pr-3 text-xs outline-none focus:border-[#5C7768]"
                     />
                   </div>
+
                   <MiniSelect value={resultFilter} onChange={setResultFilter} options={["Status", ...resultOptions]} />
                   <MiniSelect value={priorityFilter} onChange={setPriorityFilter} options={["Priority", ...priorityOptions]} />
                   <MiniSelect value={specialistFilter} onChange={setSpecialistFilter} options={["Specialist", "Nisha", "Rick", "Chen"]} />
                   <MiniSelect value={sortBy} onChange={setSortBy} options={["updatedAt", "ap", "clientName"]} />
+
                   <input
                     type="date"
                     value={filterStartDate}
@@ -982,6 +1084,7 @@ export default function ChenTrackerApp() {
                     className="h-8 rounded-2xl border border-[#D4C3AD] bg-white px-2 text-xs outline-none focus:border-[#5C7768]"
                     title="From date"
                   />
+
                   <input
                     type="date"
                     value={filterEndDate}
@@ -989,6 +1092,7 @@ export default function ChenTrackerApp() {
                     className="h-8 rounded-2xl border border-[#D4C3AD] bg-white px-2 text-xs outline-none focus:border-[#5C7768]"
                     title="To date"
                   />
+
                   <Button variant="outline" size="sm" onClick={clearFilters} className="h-8 rounded-2xl px-2 text-xs">
                     Clear
                   </Button>
@@ -1013,22 +1117,30 @@ export default function ChenTrackerApp() {
                           <th className="w-[8%] px-2 py-3 text-right">Tools</th>
                         </tr>
                       </thead>
+
                       <tbody className="divide-y divide-[#EEDBC6]">
                         {filteredRows.map((row) => (
                           <tr key={row.id} className="bg-white align-top hover:bg-[#F2E9DC]">
                             <td className="break-words px-3 py-3">
                               <div className="font-semibold text-[#2B1A12]">{row.clientName}</div>
+
                               <div className="mt-1 flex items-center gap-2 text-[11px] text-[#8A6A55]">
                                 {row.updatedAt}
                                 <span className={`rounded-full px-2 py-0.5 ${priorityClasses(row.priority)}`}>{row.priority}</span>
                               </div>
                             </td>
+
                             <td className="break-words px-2 py-3 font-mono text-[10px] text-[#6F4A33]">{row.policyNumber}</td>
                             <td className="break-words px-2 py-3 font-semibold">{currency(row.ap)}</td>
+
                             <td className="px-2 py-3">
-                              <span className="rounded-full bg-[#F7E8D6] px-1.5 py-0.5 text-[10px] font-semibold text-[#5B3320]">{row.leadStatus || "—"}</span>
+                              <span className="rounded-full bg-[#F7E8D6] px-1.5 py-0.5 text-[10px] font-semibold text-[#5B3320]">
+                                {row.leadStatus || "—"}
+                              </span>
                             </td>
+
                             <td className="break-words px-2 py-3 text-[#5B3320]">{row.agentName || "—"}</td>
+
                             <td className="px-2 py-3">
                               <span className={`inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-bold ${statusClasses(row.result)}`}>
                                 {row.result === "RESOLVED" && <CheckCircle2 className="mr-1 h-3 w-3" />}
@@ -1037,21 +1149,26 @@ export default function ChenTrackerApp() {
                                 {row.result}
                               </span>
                             </td>
+
                             <td className="break-words px-2 py-3">
                               <div className="font-medium text-[#3A2417]">{row.action || "—"}</div>
                               {row.notes && <NotesHover text={row.notes} />}
                             </td>
+
                             <td className="px-2 py-3">
                               <div className="flex justify-end gap-0.5">
                                 <Button size="icon" variant="ghost" className="h-7 w-7 rounded-xl" onClick={() => quickStatus(row.id, "RESOLVED")} title="Mark resolved">
                                   <CheckCircle2 className="h-3.5 w-3.5" />
                                 </Button>
+
                                 <Button size="icon" variant="ghost" className="h-7 w-7 rounded-xl" onClick={() => copyClientSummary(row)} title="Copy summary">
                                   <FileSpreadsheet className="h-3.5 w-3.5" />
                                 </Button>
+
                                 <Button size="icon" variant="ghost" className="h-7 w-7 rounded-xl" onClick={() => editRow(row)} title="Edit">
                                   <Edit3 className="h-3.5 w-3.5" />
                                 </Button>
+
                                 <Button size="icon" variant="ghost" className="h-8 w-8 rounded-xl text-[#B44A2B] hover:text-[#8F321D]" onClick={() => deleteRow(row.id)} title="Delete">
                                   <Trash2 className="h-3.5 w-3.5" />
                                 </Button>
@@ -1061,6 +1178,7 @@ export default function ChenTrackerApp() {
                         ))}
                       </tbody>
                     </table>
+
                     {!filteredRows.length && (
                       <div className="flex h-auto flex-col items-center justify-center bg-white px-6 py-3 text-center">
                         <AlertTriangle className="mb-1 h-5 w-5 text-[#F3D9BC]" />
@@ -1084,6 +1202,7 @@ export default function ChenTrackerApp() {
                 <h2 className="text-xl font-bold text-[#2B1A12]">Edit client details</h2>
                 <p className="text-xs text-[#8A6A55]">Update the client information below.</p>
               </div>
+
               <Button type="button" variant="ghost" size="sm" onClick={closeEditModal} className="rounded-xl">
                 <X className="mr-1 h-4 w-4" /> Close
               </Button>
@@ -1091,20 +1210,25 @@ export default function ChenTrackerApp() {
 
             <form onSubmit={saveEditModal} className="space-y-3">
               <Input label="Client name" value={editForm.clientName} onChange={(v) => updateEditForm("clientName", v)} required />
+
               <div className="grid gap-3 md:grid-cols-2">
                 <Input label="Policy number" value={editForm.policyNumber} onChange={(v) => updateEditForm("policyNumber", v)} />
                 <Input label="AP" type="number" value={editForm.ap} onChange={(v) => updateEditForm("ap", v)} />
               </div>
+
               <div className="grid gap-3 md:grid-cols-2">
                 <Select label="Lead status" value={editForm.leadStatus} onChange={(v) => updateEditForm("leadStatus", v)} options={leadStatusOptions} />
                 <Input label="Agent name" value={editForm.agentName} onChange={(v) => updateEditForm("agentName", v)} />
               </div>
+
               <Select label="Specialist name" value={editForm.specialistName} onChange={(v) => updateEditForm("specialistName", v)} options={specialistOptions} />
+
               <div className="grid gap-3 md:grid-cols-3">
                 <Select label="Status" value={editForm.result} onChange={(v) => updateEditForm("result", v)} options={resultOptions} />
                 <Select label="Priority" value={editForm.priority} onChange={(v) => updateEditForm("priority", v)} options={priorityOptions} />
                 <Input label="Updated" type="date" value={editForm.updatedAt} onChange={(v) => updateEditForm("updatedAt", v)} />
               </div>
+
               <Select label="Action" value={editForm.action} onChange={(v) => updateEditForm("action", v)} options={actionOptions} />
               <Textarea label="Notes" value={editForm.notes} onChange={(v) => updateEditForm("notes", v)} placeholder="Callback time, issue, next step..." />
 
@@ -1112,6 +1236,7 @@ export default function ChenTrackerApp() {
                 <Button type="button" variant="outline" onClick={closeEditModal} className="rounded-2xl border-[#D4C3AD] text-[#5B3320]">
                   Cancel
                 </Button>
+
                 <Button type="submit" className="rounded-2xl bg-[#03071A] text-white hover:bg-[#10142B]">
                   <Save className="mr-2 h-4 w-4" /> Save changes
                 </Button>
@@ -1130,6 +1255,7 @@ function StatCard({ icon, label, value, helper, tone = "slate" }) {
     amber: "bg-[#D8913D] text-white",
     emerald: "bg-[#6F8A3A] text-white",
   };
+
   return (
     <Card className="rounded-[1.4rem] border border-[#D4C3AD] bg-[#F8F3EA] shadow-md">
       <CardContent className="p-3.5">
@@ -1139,6 +1265,7 @@ function StatCard({ icon, label, value, helper, tone = "slate" }) {
             <div className="mt-1 text-xl font-bold tracking-tight">{value}</div>
             <p className="mt-0.5 text-xs text-[#8A6A55]">{helper}</p>
           </div>
+
           <div className={`rounded-2xl p-2.5 ${tones[tone]}`}>{React.cloneElement(icon, { className: "h-4 w-4" })}</div>
         </div>
       </CardContent>
@@ -1255,10 +1382,10 @@ function MiniSelect({ value, onChange, options }) {
           option === "updatedAt"
             ? "Latest update"
             : option === "clientName"
-            ? "Client A-Z"
-            : option === "ap"
-            ? "Highest AP"
-            : option;
+              ? "Client A-Z"
+              : option === "ap"
+                ? "Highest AP"
+                : option;
 
         return (
           <option key={option} value={option}>

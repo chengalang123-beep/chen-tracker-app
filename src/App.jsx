@@ -748,7 +748,7 @@ export default function ChenTrackerApp() {
           <StatCard icon={<Clock3 />} label="Pending Save Today" value={stats.pendingSaveToday} helper={currency(stats.pendingSaveTodayAp)} tone="amber" />
           <StatCard icon={<CheckCircle2 />} label="Save Today" value={stats.saveToday} helper={currency(stats.saveTodayAp)} tone="emerald" />
           <StatCard icon={<CheckCircle2 />} label="UW Resolved Today" value={stats.uwActionResolvedToday} helper={currency(stats.uwActionResolvedTodayAp)} tone="emerald" />
-          <StatCard icon={<AlertTriangle />} label="UW Needed Today" value={stats.uwActionNeededToday} helper={currency(stats.uwActionNeededTodayAp)} tone="amber" />
+          <StatCard icon={<AlertTriangle />} label="UW Action Needed" value={stats.uwActionNeededToday} helper={currency(stats.uwActionNeededTodayAp)} tone="amber" />
           <StatCard icon={<DollarSign />} label="Pending Save AP" value={currency(stats.pendingSaveAp)} helper="Action: Pending Save" tone="amber" />
           <StatCard icon={<DollarSign />} label="Save AP" value={currency(stats.saveAp)} helper="Action: Save" tone="emerald" />
         </div>

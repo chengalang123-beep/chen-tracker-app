@@ -228,32 +228,44 @@ export default function ChenTrackerApp() {
       ? rows
       : rows.filter((row) => row.specialistName === specialistFilter);
 
-    const todayRows = statsRows.filter((row) => {
+    const hasDateFilter = Boolean(filterStartDate || filterEndDate);
+    const rangeStart = filterStartDate || filterEndDate || today;
+    const rangeEnd = filterEndDate || filterStartDate || today;
+
+    const dateRows = statsRows.filter((row) => {
       const rowDate = row.updatedAt || row.createdAt || "";
+      if (hasDateFilter) return rowDate >= rangeStart && rowDate <= rangeEnd;
       return rowDate === today;
     });
 
-    const total = statsRows.length;
-    const pendingSaveTodayRows = todayRows.filter((r) => String(r.action || "").trim().toLowerCase() === "pending save");
-    const saveTodayRows = todayRows.filter((r) => String(r.action || "").trim().toLowerCase() === "save");
-    const uwActionResolvedTodayRows = todayRows.filter((r) => String(r.action || "").trim().toLowerCase() === "uw action resolved");
-    const uwActionNeededTodayRows = todayRows.filter((r) => String(r.action || "").trim().toLowerCase() === "uw action needed");
-    const lost = statsRows.filter((r) => r.result === "LOST").length;
-    const pendingSaveToday = pendingSaveTodayRows.length;
-    const saveToday = saveTodayRows.length;
-    const uwActionResolvedToday = uwActionResolvedTodayRows.length;
-    const uwActionNeededToday = uwActionNeededTodayRows.length;
-    const pendingSaveTodayAp = pendingSaveTodayRows.reduce((sum, r) => sum + Number(r.ap || 0), 0);
-    const saveTodayAp = saveTodayRows.reduce((sum, r) => sum + Number(r.ap || 0), 0);
-    const uwActionResolvedTodayAp = uwActionResolvedTodayRows.reduce((sum, r) => sum + Number(r.ap || 0), 0);
-    const uwActionNeededTodayAp = uwActionNeededTodayRows.reduce((sum, r) => sum + Number(r.ap || 0), 0);
-    const pendingSaveAp = statsRows
+    const displayRows = hasDateFilter ? dateRows : statsRows;
+    const total = displayRows.length;
+
+    const pendingSaveRows = dateRows.filter((r) => String(r.action || "").trim().toLowerCase() === "pending save");
+    const saveRows = dateRows.filter((r) => String(r.action || "").trim().toLowerCase() === "save");
+    const uwActionResolvedRows = dateRows.filter((r) => String(r.action || "").trim().toLowerCase() === "uw action resolved");
+    const uwActionNeededRows = dateRows.filter((r) => String(r.action || "").trim().toLowerCase() === "uw action needed");
+
+    const lost = displayRows.filter((r) => r.result === "LOST").length;
+    const pendingSaveToday = pendingSaveRows.length;
+    const saveToday = saveRows.length;
+    const uwActionResolvedToday = uwActionResolvedRows.length;
+    const uwActionNeededToday = uwActionNeededRows.length;
+    const pendingSaveTodayAp = pendingSaveRows.reduce((sum, r) => sum + Number(r.ap || 0), 0);
+    const saveTodayAp = saveRows.reduce((sum, r) => sum + Number(r.ap || 0), 0);
+    const uwActionResolvedTodayAp = uwActionResolvedRows.reduce((sum, r) => sum + Number(r.ap || 0), 0);
+    const uwActionNeededTodayAp = uwActionNeededRows.reduce((sum, r) => sum + Number(r.ap || 0), 0);
+
+    const pendingSaveAp = displayRows
       .filter((r) => String(r.action || "").trim().toLowerCase() === "pending save")
       .reduce((sum, r) => sum + Number(r.ap || 0), 0);
-    const saveAp = statsRows
+    const saveAp = displayRows
       .filter((r) => String(r.action || "").trim().toLowerCase() === "save")
       .reduce((sum, r) => sum + Number(r.ap || 0), 0);
+
     const completionRate = total ? Math.round((saveToday / total) * 100) : 0;
+    const dateLabel = hasDateFilter ? `${rangeStart} to ${rangeEnd}` : today;
+
     return {
       total,
       pendingSaveToday,
@@ -269,8 +281,9 @@ export default function ChenTrackerApp() {
       saveAp,
       completionRate,
       today,
+      dateLabel,
     };
-  }, [rows, specialistFilter]);
+  }, [rows, specialistFilter, filterStartDate, filterEndDate]);
 
   const filteredRows = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -751,10 +764,10 @@ export default function ChenTrackerApp() {
         </motion.div>
 
         <div className="mb-3 grid gap-3 md:grid-cols-2 xl:grid-cols-7">
-          <StatCard icon={<Users />} label="Total Cases" value={stats.total} helper={`${stats.completionRate}% resolved`} />
-          <StatCard icon={<Clock3 />} label="Pending Save Today" value={stats.pendingSaveToday} helper={currency(stats.pendingSaveTodayAp)} tone="amber" />
-          <StatCard icon={<CheckCircle2 />} label="Save Today" value={stats.saveToday} helper={currency(stats.saveTodayAp)} tone="emerald" />
-          <StatCard icon={<CheckCircle2 />} label="UW Resolved Today" value={stats.uwActionResolvedToday} helper={currency(stats.uwActionResolvedTodayAp)} tone="emerald" />
+          <StatCard icon={<Users />} label="Total Cases" value={stats.total} helper={stats.dateLabel} />
+          <StatCard icon={<Clock3 />} label="Pending Save" value={stats.pendingSaveToday} helper={currency(stats.pendingSaveTodayAp)} tone="amber" />
+          <StatCard icon={<CheckCircle2 />} label="Save" value={stats.saveToday} helper={currency(stats.saveTodayAp)} tone="emerald" />
+          <StatCard icon={<CheckCircle2 />} label="UW Action Resolved" value={stats.uwActionResolvedToday} helper={currency(stats.uwActionResolvedTodayAp)} tone="emerald" />
           <StatCard icon={<AlertTriangle />} label="UW Action Needed" value={stats.uwActionNeededToday} helper={currency(stats.uwActionNeededTodayAp)} tone="amber" />
           <StatCard icon={<DollarSign />} label="Pending Save AP" value={currency(stats.pendingSaveAp)} helper="Action: Pending Save" tone="amber" />
           <StatCard icon={<DollarSign />} label="Save AP" value={currency(stats.saveAp)} helper="Action: Save" tone="emerald" />

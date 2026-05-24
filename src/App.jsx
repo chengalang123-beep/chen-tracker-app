@@ -349,7 +349,11 @@ export default function ChenTrackerApp() {
     const endDate = reportEndDate || today;
     const selectedStartDate = reportStartDate || startDate;
 
-    const rangeRows = rows.filter((row) => {
+    const reportSourceRows = specialistFilter === "Specialist"
+      ? rows
+      : rows.filter((row) => row.specialistName === specialistFilter);
+
+    const rangeRows = reportSourceRows.filter((row) => {
       const rowDate = row.updatedAt || row.createdAt || "";
       return rowDate >= selectedStartDate && rowDate <= endDate;
     });
@@ -366,7 +370,7 @@ export default function ChenTrackerApp() {
       .reduce((sum, row) => sum + Number(row.ap || 0), 0);
 
     return { startDate: selectedStartDate, today: endDate, totalCases, pending, resolved, lost, pendingSaveAp, saveAp, label, badge };
-  }, [rows, reportRange, reportStartDate, reportEndDate]);
+  }, [rows, specialistFilter, reportRange, reportStartDate, reportEndDate]);
 
   const entryTitle = activeEntryTab === "case" ? (editingId ? "Edit case" : "Add new case") : "EOD";
   const entryHelper = activeEntryTab === "case" ? "Fast entry for daily tracking." : "Fill out your EOD Jotform inside the tracker.";

@@ -196,6 +196,8 @@ export default function ChenTrackerApp() {
   const [priorityFilter, setPriorityFilter] = useState("Priority");
   const [specialistFilter, setSpecialistFilter] = useState("Specialist");
   const [sortBy, setSortBy] = useState("updatedAt");
+  const [filterStartDate, setFilterStartDate] = useState("");
+  const [filterEndDate, setFilterEndDate] = useState("");
   const [exportStartDate, setExportStartDate] = useState("");
   const [exportEndDate, setExportEndDate] = useState("");
   const [activeEntryTab, setActiveEntryTab] = useState("case");
@@ -290,14 +292,17 @@ export default function ChenTrackerApp() {
         const matchesResult = resultFilter === "Status" || row.result === resultFilter;
         const matchesPriority = priorityFilter === "Priority" || row.priority === priorityFilter;
         const matchesSpecialist = specialistFilter === "Specialist" || row.specialistName === specialistFilter;
-        return matchesQuery && matchesResult && matchesPriority && matchesSpecialist;
+        const rowDate = row.updatedAt || row.createdAt || "";
+        const matchesStartDate = !filterStartDate || rowDate >= filterStartDate;
+        const matchesEndDate = !filterEndDate || rowDate <= filterEndDate;
+        return matchesQuery && matchesResult && matchesPriority && matchesSpecialist && matchesStartDate && matchesEndDate;
       })
       .sort((a, b) => {
         if (sortBy === "ap") return Number(b.ap || 0) - Number(a.ap || 0);
         if (sortBy === "clientName") return a.clientName.localeCompare(b.clientName);
         return String(b.updatedAt || "").localeCompare(String(a.updatedAt || ""));
       });
-  }, [rows, query, resultFilter, priorityFilter, specialistFilter, sortBy]);
+  }, [rows, query, resultFilter, priorityFilter, specialistFilter, filterStartDate, filterEndDate, sortBy]);
 
   const topAgents = useMemo(() => {
     const map = new Map();
@@ -652,6 +657,8 @@ export default function ChenTrackerApp() {
     setPriorityFilter("Priority");
     setSpecialistFilter("Specialist");
     setSortBy("updatedAt");
+    setFilterStartDate("");
+    setFilterEndDate("");
   }
 
   return (
@@ -906,7 +913,7 @@ export default function ChenTrackerApp() {
           <div className="h-fit self-start">
             <Card className="h-fit max-h-fit self-start rounded-[1.4rem] border border-[#D4C3AD] bg-[#F8F3EA] shadow-md lg:mr-[192px]">
               <CardContent className="p-2.5">
-                <div className="grid items-center gap-2 lg:grid-cols-[115px_1fr_105px_105px_110px_110px_64px]">
+                <div className="grid items-center gap-2 lg:grid-cols-[115px_1fr_105px_105px_110px_110px_112px_112px_64px]">
                   <div>
                     <h2 className="flex items-center gap-1.5 text-sm font-bold">
                       <Filter className="h-4 w-4" /> Search
@@ -928,6 +935,20 @@ export default function ChenTrackerApp() {
                   <MiniSelect value={priorityFilter} onChange={setPriorityFilter} options={["Priority", ...priorityOptions]} />
                   <MiniSelect value={specialistFilter} onChange={setSpecialistFilter} options={["Specialist", "Nisha", "Rick", "Chen"]} />
                   <MiniSelect value={sortBy} onChange={setSortBy} options={["updatedAt", "ap", "clientName"]} />
+                  <input
+                    type="date"
+                    value={filterStartDate}
+                    onChange={(e) => setFilterStartDate(e.target.value)}
+                    className="h-8 rounded-2xl border border-[#D4C3AD] bg-white px-2 text-xs outline-none focus:border-[#5C7768]"
+                    title="From date"
+                  />
+                  <input
+                    type="date"
+                    value={filterEndDate}
+                    onChange={(e) => setFilterEndDate(e.target.value)}
+                    className="h-8 rounded-2xl border border-[#D4C3AD] bg-white px-2 text-xs outline-none focus:border-[#5C7768]"
+                    title="To date"
+                  />
                   <Button variant="outline" size="sm" onClick={clearFilters} className="h-8 rounded-2xl px-2 text-xs">
                     Clear
                   </Button>

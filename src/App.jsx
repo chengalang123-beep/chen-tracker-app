@@ -679,8 +679,17 @@ export default function ChenTrackerApp() {
   }
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-gradient-to-br from-[#F3EEE2] via-[#E9E0D0] to-[#DCCFBB] text-[#2B1A12]">
-      <div className="mx-auto max-w-[1440px] px-4 py-5">
+    <div className="relative min-h-screen overflow-x-hidden bg-[#EEE4D4] text-[#2B1A12]">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_#F7F1E8_0%,_#E9DECC_38%,_#DDD0BB_100%)]" />
+        <div className="absolute -left-24 top-10 h-72 w-72 rounded-full bg-[#9EB3A6]/30 blur-3xl" />
+        <div className="absolute right-[-80px] top-24 h-80 w-80 rounded-full bg-[#D7B98B]/25 blur-3xl" />
+        <div className="absolute left-1/3 top-1/2 h-72 w-72 rounded-full bg-[#8F6A53]/12 blur-3xl" />
+        <div className="absolute bottom-[-60px] right-1/4 h-96 w-96 rounded-full bg-[#B9C8BE]/20 blur-3xl" />
+        <div className="absolute inset-0 opacity-[0.06] [background-image:linear-gradient(to_right,#6E8578_1px,transparent_1px),linear-gradient(to_bottom,#6E8578_1px,transparent_1px)] [background-size:36px_36px]" />
+      </div>
+
+      <div className="relative z-10 mx-auto max-w-[1440px] px-4 py-5">
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -778,7 +787,7 @@ export default function ChenTrackerApp() {
         </div>
 
         <div className="grid items-start gap-4 xl:grid-cols-[390px_1fr]">
-          <Card className="h-fit self-start rounded-[1.6rem] border border-[#D4C3AD] bg-[#F8F3EA] shadow-md">
+          <Card className="h-fit self-start rounded-[1.6rem] border border-[#D4C3AD] bg-[#FCF8F2] shadow-md">
             <CardContent className="p-4">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <div>
@@ -809,7 +818,7 @@ export default function ChenTrackerApp() {
               </div>
 
               {sheetMessage && (
-                <div className="mb-3 rounded-2xl border border-[#D4C3AD] bg-[#F2E9DC] px-3 py-2 text-xs font-medium text-[#5B3320]">
+                <div className="mb-3 rounded-2xl border border-[#D4C3AD] bg-[#F6EEE3] px-3 py-2 text-xs font-medium text-[#5B3320]">
                   {sheetMessage}
                 </div>
               )}
@@ -844,7 +853,7 @@ export default function ChenTrackerApp() {
                   </div>
                 </form>
               ) : (
-                <div className="overflow-hidden rounded-2xl border border-[#D4C3AD] bg-[#F2E9DC]">
+                <div className="overflow-hidden rounded-2xl border border-[#D4C3AD] bg-[#F6EEE3]">
                   <iframe
                     title="EOD Jotform"
                     src={EOD_JOTFORM_URL}
@@ -855,7 +864,7 @@ export default function ChenTrackerApp() {
                 </div>
               )}
 
-              <div className="mt-4 rounded-[1.4rem] border border-[#D4C3AD] bg-[#F2E9DC] p-4">
+              <div className="mt-4 rounded-[1.4rem] border border-[#D4C3AD] bg-[#F6EEE3] p-4">
                 <div className="mb-3 flex items-start justify-between gap-3">
                   <div>
                     <div className="mb-2 inline-flex rounded-2xl border border-[#D4C3AD] bg-[#EFE6D8] p-1">
@@ -925,7 +934,7 @@ export default function ChenTrackerApp() {
                 </div>
               </div>
 
-              <div className="mt-4 rounded-[1.4rem] border border-[#D4C3AD] bg-[#F2E9DC] p-4">
+              <div className="mt-4 rounded-[1.4rem] border border-[#D4C3AD] bg-[#F6EEE3] p-4">
                 <h3 className="mb-3 flex items-center gap-1.5 text-sm font-bold text-[#2B1A12]">
                   <BarChart3 className="h-4 w-4" /> Agent load
                 </h3>
@@ -951,7 +960,7 @@ export default function ChenTrackerApp() {
           </Card>
 
           <div className="h-fit min-w-0 self-start">
-            <Card className="h-fit max-h-fit min-w-0 self-start rounded-[1.4rem] border border-[#D4C3AD] bg-[#F8F3EA] shadow-md">
+            <Card className="h-fit max-h-fit min-w-0 self-start rounded-[1.4rem] border border-[#D4C3AD] bg-[#FCF8F2] shadow-md">
               <CardContent className="p-2.5">
                 <div className="grid items-center gap-2 lg:grid-cols-[115px_1fr_105px_105px_110px_110px_112px_112px_64px]">
                   <div>
@@ -997,7 +1006,7 @@ export default function ChenTrackerApp() {
             </Card>
 
             <div className="mt-3 grid h-fit content-start items-start gap-3 self-start">
-              <Card className="h-fit min-w-0 self-start rounded-[1.6rem] border border-[#D4C3AD] bg-[#F8F3EA] shadow-md">
+              <Card className="h-fit min-w-0 self-start rounded-[1.6rem] border border-[#D4C3AD] bg-[#FCF8F2] shadow-md">
                 <CardContent className="p-0">
                   <div className="w-full overflow-x-auto rounded-[1.6rem]">
                     <table className="w-full min-w-[920px] table-fixed text-left text-[11px]">
@@ -1015,7 +1024,7 @@ export default function ChenTrackerApp() {
                       </thead>
                       <tbody className="divide-y divide-[#EEDBC6]">
                         {filteredRows.map((row) => (
-                          <tr key={row.id} className="bg-white align-top hover:bg-[#F2E9DC]">
+                          <tr key={row.id} className="bg-white align-top hover:bg-[#F6EEE3]">
                             <td className="break-words px-3 py-3">
                               <div className="font-semibold text-[#2B1A12]">{row.clientName}</div>
                               <div className="mt-1 flex items-center gap-2 text-[11px] text-[#8A6A55]">
@@ -1078,7 +1087,7 @@ export default function ChenTrackerApp() {
 
       {editModalRow && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 px-4 py-6">
-          <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-[1.8rem] border border-[#D4C3AD] bg-[#F8F3EA] p-5 shadow-2xl">
+          <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-[1.8rem] border border-[#D4C3AD] bg-[#FCF8F2] p-5 shadow-2xl">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-xl font-bold text-[#2B1A12]">Edit client details</h2>
@@ -1131,7 +1140,7 @@ function StatCard({ icon, label, value, helper, tone = "slate" }) {
     emerald: "bg-[#6F8A3A] text-white",
   };
   return (
-    <Card className="rounded-[1.4rem] border border-[#D4C3AD] bg-[#F8F3EA] shadow-md">
+    <Card className="rounded-[1.4rem] border border-[#D4C3AD] bg-[#FCF8F2] shadow-md">
       <CardContent className="p-3.5">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -1160,7 +1169,7 @@ function NotesHover({ text }) {
       <button
         type="button"
         onClick={copyNotes}
-        className="rounded-full border border-[#D4C3AD] bg-[#F2E9DC] px-2 py-0.5 text-[10px] font-semibold text-[#5B3320] hover:bg-[#E9DECC]"
+        className="rounded-full border border-[#D4C3AD] bg-[#F6EEE3] px-2 py-0.5 text-[10px] font-semibold text-[#5B3320] hover:bg-[#E9DECC]"
         title="Hover to view notes. Click to copy."
       >
         Notes
@@ -1174,7 +1183,7 @@ function NotesHover({ text }) {
           <button
             type="button"
             onClick={copyNotes}
-            className="rounded-lg border border-[#D4C3AD] bg-[#F2E9DC] px-2 py-1 text-[10px] font-semibold text-[#5B3320] hover:bg-[#E9DECC]"
+            className="rounded-lg border border-[#D4C3AD] bg-[#F6EEE3] px-2 py-1 text-[10px] font-semibold text-[#5B3320] hover:bg-[#E9DECC]"
           >
             Copy
           </button>
@@ -1186,7 +1195,7 @@ function NotesHover({ text }) {
 
 function ReportItem({ label, value }) {
   return (
-    <div className="rounded-2xl border border-[#D4C3AD] bg-[#F8F3EA] p-3">
+    <div className="rounded-2xl border border-[#D4C3AD] bg-[#FCF8F2] p-3">
       <div className="text-[10px] font-semibold uppercase tracking-wide text-[#8A6A55]">{label}</div>
       <div className="mt-1 text-sm font-bold text-[#2B1A12]">{value}</div>
     </div>

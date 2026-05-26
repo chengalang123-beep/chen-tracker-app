@@ -20,6 +20,8 @@ import {
   X,
   RefreshCw,
   Loader2,
+  Moon,
+  Sun,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -204,6 +206,7 @@ export default function ChenTrackerApp() {
   const [isLoadingSheet, setIsLoadingSheet] = useState(false);
   const [sheetMessage, setSheetMessage] = useState("");
   const [lastRefreshed, setLastRefreshed] = useState("");
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const [reportRange, setReportRange] = useState("week");
   const [reportStartDate, setReportStartDate] = useState("");
   const [reportEndDate, setReportEndDate] = useState("");
@@ -679,14 +682,23 @@ export default function ChenTrackerApp() {
   }
 
   return (
-    <div className="relative min-h-screen overflow-x-hidden bg-[#EEE4D4] text-[#2B1A12]">
+    <div className={isDarkMode ? "relative min-h-screen overflow-x-hidden bg-[#111A16] text-[#F8F3EA]" : "relative min-h-screen overflow-x-hidden bg-[#EDE5D7] text-[#2B1A12]"}>
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_#F7F1E8_0%,_#E9DECC_38%,_#DDD0BB_100%)]" />
-        <div className="absolute -left-24 top-10 h-72 w-72 rounded-full bg-[#9EB3A6]/30 blur-3xl" />
-        <div className="absolute right-[-80px] top-24 h-80 w-80 rounded-full bg-[#D7B98B]/25 blur-3xl" />
-        <div className="absolute left-1/3 top-1/2 h-72 w-72 rounded-full bg-[#8F6A53]/12 blur-3xl" />
-        <div className="absolute bottom-[-60px] right-1/4 h-96 w-96 rounded-full bg-[#B9C8BE]/20 blur-3xl" />
-        <div className="absolute inset-0 opacity-[0.06] [background-image:linear-gradient(to_right,#6E8578_1px,transparent_1px),linear-gradient(to_bottom,#6E8578_1px,transparent_1px)] [background-size:36px_36px]" />
+        {isDarkMode ? (
+          <>
+            <div className="absolute inset-0 bg-[linear-gradient(135deg,_#111A16_0%,_#1E2D26_48%,_#2A2119_100%)]" />
+            <div className="absolute -left-28 top-0 h-96 w-96 rounded-full bg-[#6E8578]/20 blur-3xl" />
+            <div className="absolute right-[-120px] bottom-[-60px] h-[420px] w-[420px] rounded-full bg-[#B7863B]/12 blur-3xl" />
+            <div className="absolute left-1/2 top-24 h-64 w-64 rounded-full bg-[#A7B9AD]/10 blur-3xl" />
+          </>
+        ) : (
+          <>
+            <div className="absolute inset-0 bg-[linear-gradient(135deg,_#F6EFE4_0%,_#E7DCCB_45%,_#D6C8B5_100%)]" />
+            <div className="absolute -left-28 top-0 h-96 w-96 rounded-full bg-[#6E8578]/28 blur-3xl" />
+            <div className="absolute right-[-120px] bottom-[-60px] h-[420px] w-[420px] rounded-full bg-[#A7B9AD]/25 blur-3xl" />
+            <div className="absolute left-1/2 top-24 h-64 w-64 rounded-full bg-[#B7863B]/12 blur-3xl" />
+          </>
+        )}
       </div>
 
       <div className="relative z-10 mx-auto max-w-[1440px] px-4 py-5">
@@ -738,6 +750,27 @@ export default function ChenTrackerApp() {
             <div className="flex flex-wrap items-center justify-between gap-3">
 
               <div className="flex w-full flex-wrap items-center gap-2">
+                <select
+                  value={specialistFilter}
+                  onChange={(e) => setSpecialistFilter(e.target.value)}
+                  className="h-9 rounded-2xl border border-[#CDBAA3] bg-white px-3 text-xs text-[#2B1A12] outline-none focus:border-[#5C7768]"
+                  title="Select user"
+                >
+                  <option value="Specialist">All Users</option>
+                  <option value="Nisha">Nisha</option>
+                  <option value="Rick">Rick</option>
+                  <option value="Chen">Chen</option>
+                </select>
+
+                <Button
+                  type="button"
+                  onClick={() => setIsDarkMode((current) => !current)}
+                  className="h-9 rounded-2xl bg-[#03071A] px-4 text-xs text-white hover:bg-[#10142B]"
+                >
+                  {isDarkMode ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
+                  {isDarkMode ? "Light Mode" : "Dark Mode"}
+                </Button>
+
                 <input
                   type="date"
                   value={exportStartDate}
@@ -948,7 +981,7 @@ export default function ChenTrackerApp() {
                           <span className="text-[#8A6A55]">{count}</span>
                         </div>
                         <div className="h-1.5 overflow-hidden rounded-full bg-[#E9DECC]">
-                          <div className="h-full rounded-full bg-[#5C7768]" style={{ width: `${width}%` }} />
+                          <div className="h-full rounded-full bg-[#5C7768]" style={{ width: String(width) + "%" }} />
                         </div>
                       </div>
                     );

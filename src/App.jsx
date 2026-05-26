@@ -810,13 +810,13 @@ export default function ChenTrackerApp() {
         </motion.div>
 
         <div className="mb-3 grid gap-3 md:grid-cols-2 xl:grid-cols-7">
-          <StatCard icon={<Users />} label="Total Cases" value={stats.total} helper={stats.dateLabel} />
-          <StatCard icon={<Clock3 />} label="Pending Save" value={stats.pendingSaveToday} helper={currency(stats.pendingSaveTodayAp)} tone="amber" />
-          <StatCard icon={<CheckCircle2 />} label="Save" value={stats.saveToday} helper={currency(stats.saveTodayAp)} tone="emerald" />
-          <StatCard icon={<CheckCircle2 />} label="UW Action Resolved" value={stats.uwActionResolvedToday} helper={currency(stats.uwActionResolvedTodayAp)} tone="emerald" />
-          <StatCard icon={<AlertTriangle />} label="UW Action Needed" value={stats.uwActionNeededToday} helper={currency(stats.uwActionNeededTodayAp)} tone="amber" />
-          <StatCard icon={<DollarSign />} label="Pending Save AP" value={currency(stats.pendingSaveAp)} helper="Action: Pending Save" tone="amber" />
-          <StatCard icon={<DollarSign />} label="Save AP" value={currency(stats.saveAp)} helper="Action: Save" tone="emerald" />
+          <StatCard icon={<Users />} label="Total Cases" value={stats.total} helper={stats.dateLabel} isDarkMode={isDarkMode} />
+          <StatCard icon={<Clock3 />} label="Pending Save" value={stats.pendingSaveToday} helper={currency(stats.pendingSaveTodayAp)} tone="amber" isDarkMode={isDarkMode} />
+          <StatCard icon={<CheckCircle2 />} label="Save" value={stats.saveToday} helper={currency(stats.saveTodayAp)} tone="emerald" isDarkMode={isDarkMode} />
+          <StatCard icon={<CheckCircle2 />} label="UW Action Resolved" value={stats.uwActionResolvedToday} helper={currency(stats.uwActionResolvedTodayAp)} tone="emerald" isDarkMode={isDarkMode} />
+          <StatCard icon={<AlertTriangle />} label="UW Action Needed" value={stats.uwActionNeededToday} helper={currency(stats.uwActionNeededTodayAp)} tone="amber" isDarkMode={isDarkMode} />
+          <StatCard icon={<DollarSign />} label="Pending Save AP" value={currency(stats.pendingSaveAp)} helper="Action: Pending Save" tone="amber" isDarkMode={isDarkMode} />
+          <StatCard icon={<DollarSign />} label="Save AP" value={currency(stats.saveAp)} helper="Action: Save" tone="emerald" isDarkMode={isDarkMode} />
         </div>
 
         <div className="grid items-start gap-4 xl:grid-cols-[390px_1fr]">
@@ -1166,21 +1166,27 @@ export default function ChenTrackerApp() {
   );
 }
 
-function StatCard({ icon, label, value, helper, tone = "slate" }) {
+function StatCard({ icon, label, value, helper, tone = "slate", isDarkMode = false }) {
   const tones = {
     slate: "bg-[#5B3320] text-white",
     amber: "bg-[#D8913D] text-white",
     emerald: "bg-[#6F8A3A] text-white",
   };
+
   return (
-    <Card className="rounded-[1.4rem] border border-[#D4C3AD] bg-[#FCF8F2] shadow-md">
+    <Card
+      className={`rounded-[1.4rem] border shadow-md ${
+        isDarkMode ? "border-[#31463C] bg-[#FCF8F2]" : "border-[#D4C3AD] bg-[#FCF8F2]"
+      }`}
+    >
       <CardContent className="p-3.5">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-medium text-[#8A6A55]">{label}</p>
-            <div className="mt-1 text-xl font-bold tracking-tight">{value}</div>
-            <p className="mt-0.5 text-xs text-[#8A6A55]">{helper}</p>
+            <p className={isDarkMode ? "text-xs font-medium text-[#7C5A45]" : "text-xs font-medium text-[#8A6A55]"}>{label}</p>
+            <div className="mt-1 text-xl font-bold tracking-tight text-[#2B1A12]">{value}</div>
+            <p className={isDarkMode ? "mt-0.5 text-xs text-[#7C5A45]" : "mt-0.5 text-xs text-[#8A6A55]"}>{helper}</p>
           </div>
+
           <div className={`rounded-2xl p-2.5 ${tones[tone]}`}>{React.cloneElement(icon, { className: "h-4 w-4" })}</div>
         </div>
       </CardContent>

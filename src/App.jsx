@@ -682,7 +682,7 @@ export default function ChenTrackerApp() {
   }
 
   return (
-    <div className={isDarkMode ? "relative min-h-screen overflow-x-hidden bg-[#111A16] text-[#F8F3EA]" : "relative min-h-screen overflow-x-hidden bg-[#EDE5D7] text-[#2B1A12]"}>
+    <div className={isDarkMode ? "relative min-h-screen overflow-x-hidden bg-[#111A16] text-[#2B1A12]" : "relative min-h-screen overflow-x-hidden bg-[#EDE5D7] text-[#2B1A12]"}>
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         {isDarkMode ? (
           <>
@@ -1174,11 +1174,7 @@ function StatCard({ icon, label, value, helper, tone = "slate", isDarkMode = fal
   };
 
   return (
-    <Card
-      className={`rounded-[1.4rem] border shadow-md ${
-        isDarkMode ? "border-[#31463C] bg-[#FCF8F2]" : "border-[#D4C3AD] bg-[#FCF8F2]"
-      }`}
-    >
+    <Card className={`rounded-[1.4rem] border shadow-md ${isDarkMode ? "border-[#31463C] bg-[#FCF8F2]" : "border-[#D4C3AD] bg-[#FCF8F2]"}`}>
       <CardContent className="p-3.5">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -1186,7 +1182,6 @@ function StatCard({ icon, label, value, helper, tone = "slate", isDarkMode = fal
             <div className="mt-1 text-xl font-bold tracking-tight text-[#2B1A12]">{value}</div>
             <p className={isDarkMode ? "mt-0.5 text-xs text-[#7C5A45]" : "mt-0.5 text-xs text-[#8A6A55]"}>{helper}</p>
           </div>
-
           <div className={`rounded-2xl p-2.5 ${tones[tone]}`}>{React.cloneElement(icon, { className: "h-4 w-4" })}</div>
         </div>
       </CardContent>
@@ -1217,7 +1212,6 @@ function NotesHover({ text }) {
       <div className="absolute bottom-full left-0 z-50 mb-2 hidden w-72 rounded-2xl border border-[#D4C3AD] bg-white p-3 text-[11px] leading-4 text-[#3A2417] shadow-xl group-hover:block">
         <div className="mb-1 font-bold text-[#5B3320]">Notes</div>
         <div className="whitespace-pre-wrap select-text">{text}</div>
-
         <div className="mt-2 flex justify-end">
           <button
             type="button"
@@ -1251,7 +1245,7 @@ function Input({ label, value, onChange, type = "text", required = false, placeh
         onChange={(e) => onChange(e.target.value)}
         required={required}
         placeholder={placeholder}
-        className="h-9 w-full rounded-2xl border border-[#D4C3AD] bg-white px-3 text-xs outline-none focus:border-[#5C7768]"
+        className="h-9 w-full rounded-2xl border border-[#D4C3AD] bg-white px-3 text-xs text-[#2B1A12] outline-none focus:border-[#5C7768]"
       />
     </label>
   );
@@ -1266,7 +1260,7 @@ function Textarea({ label, value, onChange, placeholder = "" }) {
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         rows={2}
-        className="w-full resize-none rounded-2xl border border-[#D4C3AD] bg-white px-3 py-2 text-xs outline-none focus:border-[#5C7768]"
+        className="w-full resize-none rounded-2xl border border-[#D4C3AD] bg-white px-3 py-2 text-xs text-[#2B1A12] outline-none focus:border-[#5C7768]"
       />
     </label>
   );
@@ -1279,7 +1273,7 @@ function Select({ label, value, onChange, options }) {
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-9 w-full rounded-2xl border border-[#D4C3AD] bg-white px-2 text-xs outline-none focus:border-[#5C7768]"
+        className="h-9 w-full rounded-2xl border border-[#D4C3AD] bg-white px-2 text-xs text-[#2B1A12] outline-none focus:border-[#5C7768]"
       >
         {options.map((option, index) => (
           <option key={label + "-" + option + "-" + index} value={option}>
@@ -1296,21 +1290,13 @@ function MiniSelect({ value, onChange, options }) {
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="h-8 rounded-2xl border border-[#D4C3AD] bg-white px-2 text-xs outline-none focus:border-[#5C7768]"
+      className="h-8 rounded-2xl border border-[#D4C3AD] bg-white px-2 text-xs text-[#2B1A12] outline-none focus:border-[#5C7768]"
     >
       {options.map((option) => {
-        const label =
-          option === "updatedAt"
-            ? "Latest update"
-            : option === "clientName"
-            ? "Client A-Z"
-            : option === "ap"
-            ? "Highest AP"
-            : option;
-
+        const optionLabel = option === "updatedAt" ? "Latest update" : option === "clientName" ? "Client A-Z" : option === "ap" ? "Highest AP" : option;
         return (
           <option key={option} value={option}>
-            {label}
+            {optionLabel}
           </option>
         );
       })}

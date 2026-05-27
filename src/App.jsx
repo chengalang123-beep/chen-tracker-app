@@ -198,6 +198,8 @@ export default function ChenTrackerApp() {
   const [priorityFilter, setPriorityFilter] = useState("Priority");
   const [specialistFilter, setSpecialistFilter] = useState("Specialist");
   const [sortBy, setSortBy] = useState("updatedAt");
+  const [currentPage, setCurrentPage] = useState(1);
+  const rowsPerPage = 8;
   const [filterStartDate, setFilterStartDate] = useState("");
   const [filterEndDate, setFilterEndDate] = useState("");
   const [exportStartDate, setExportStartDate] = useState("");
@@ -319,6 +321,17 @@ export default function ChenTrackerApp() {
         return String(b.updatedAt || "").localeCompare(String(a.updatedAt || ""));
       });
   }, [rows, query, resultFilter, priorityFilter, specialistFilter, filterStartDate, filterEndDate, sortBy]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / rowsPerPage));
+  const paginatedRows = useMemo(() => {
+    const safePage = Math.min(currentPage, totalPages);
+    const start = (safePage - 1) * rowsPerPage;
+    return filteredRows.slice(start, start + rowsPerPage);
+  }, [filteredRows, currentPage, totalPages]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [query, resultFilter, priorityFilter, specialistFilter, filterStartDate, filterEndDate, sortBy]);
 
   const topAgents = useMemo(() => {
     const map = new Map();
@@ -1063,7 +1076,7 @@ export default function ChenTrackerApp() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#EEDBC6]">
-                        {filteredRows.map((row) => (
+                        {paginatedRows.map((row) => (
                           <tr key={row.id} className="bg-white align-top hover:bg-[#F6EEE3]">
                             <td className="break-words px-3 py-3">
                               <div className="font-semibold text-[#2B1A12]">{row.clientName}</div>
@@ -1118,6 +1131,37 @@ export default function ChenTrackerApp() {
                       </div>
                     )}
                   </div>
+
+                  {filteredRows.length > 0 && (
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#D4C3AD] bg-[#FCF8F2] px-4 py-3 text-xs text-[#5B3320]">
+                      <div>
+                        Showing {(currentPage - 1) * rowsPerPage + 1} - {Math.min(currentPage * rowsPerPage, filteredRows.length)} of {filteredRows.length}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={currentPage === 1}
+                          onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                          className="h-8 rounded-2xl border-[#D4C3AD] px-3 text-xs disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Previous
+                        </Button>
+                        <span className="rounded-full bg-[#F6EEE3] px-3 py-1 font-semibold">
+                          Page {currentPage} of {totalPages}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={currentPage >= totalPages}
+                          onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                          className="h-8 rounded-2xl border-[#D4C3AD] px-3 text-xs disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Next
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>

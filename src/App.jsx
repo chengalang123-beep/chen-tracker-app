@@ -322,12 +322,14 @@ export default function ChenTrackerApp() {
 
   const topAgents = useMemo(() => {
     const map = new Map();
-    rows.forEach((row) => {
-      const key = row.agentName || "Unassigned";
+
+    filteredRows.forEach((row) => {
+      const key = String(row.agentName || "Unassigned").trim() || "Unassigned";
       map.set(key, (map.get(key) || 0) + 1);
     });
-    return [...map.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
-  }, [rows]);
+
+    return [...map.entries()].sort((a, b) => b[1] - a[1]);
+  }, [filteredRows]);
 
   const reportStats = useMemo(() => {
     const now = new Date();
@@ -971,21 +973,26 @@ export default function ChenTrackerApp() {
                 <h3 className="mb-3 flex items-center gap-1.5 text-sm font-bold text-[#2B1A12]">
                   <BarChart3 className="h-4 w-4" /> Agent load
                 </h3>
+
                 <div className="space-y-2">
-                  {topAgents.map(([agent, count]) => {
-                    const width = stats.total ? Math.max(8, Math.round((count / stats.total) * 100)) : 0;
-                    return (
-                      <div key={agent}>
-                        <div className="mb-1 flex items-center justify-between gap-2 text-[11px]">
-                          <span className="truncate font-semibold text-[#5B3320]" title={agent}>{agent}</span>
-                          <span className="text-[#8A6A55]">{count}</span>
-                        </div>
-                        <div className="h-1.5 overflow-hidden rounded-full bg-[#E9DECC]">
-                          <div className="h-full rounded-full bg-[#5C7768]" style={{ width: String(width) + "%" }} />
-                        </div>
+                  {topAgents.map(([agent, count]) => (
+                    <div key={agent}>
+                      <div className="mb-1 flex items-center justify-between gap-2 text-[11px]">
+                        <span className="truncate font-semibold text-[#5B3320]" title={agent}>
+                          {agent}
+                        </span>
+                        <span className="text-[#8A6A55]">{count}</span>
                       </div>
-                    );
-                  })}
+
+                      <div className="h-1.5 overflow-hidden rounded-full bg-[#E9DECC]">
+                        <div
+                          className="h-full rounded-full bg-[#5C7768]"
+                          style={{ width: filteredRows.length ? Math.max(8, Math.round((count / filteredRows.length) * 100)) + "%" : "0%" }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+
                   {!topAgents.length && <p className="text-xs text-[#8A6A55]">No agent data yet.</p>}
                 </div>
               </div>

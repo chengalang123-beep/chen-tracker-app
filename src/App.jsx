@@ -438,6 +438,33 @@ export default function ChenTrackerApp() {
     }
   }
 
+  async function updateGoogleSheetRow(rowId, data) {
+    try {
+      const formData = new URLSearchParams();
+      formData.append("recordType", "update");
+      formData.append("rowId", rowId || "");
+      formData.append("clientName", data.clientName || "");
+      formData.append("policyNumber", data.policyNumber || "");
+      formData.append("ap", data.ap || "");
+      formData.append("leadStatus", data.leadStatus || "");
+      formData.append("agentName", data.agentName || "");
+      formData.append("result", data.result || "");
+      formData.append("action", data.action || "");
+      formData.append("notes", data.notes || "");
+      formData.append("priority", data.priority || "");
+      formData.append("updatedAt", data.updatedAt || "");
+      formData.append("specialistName", data.specialistName || "");
+
+      await fetch(GOOGLE_SHEET_WEB_APP_URL, {
+        method: "POST",
+        mode: "no-cors",
+        body: formData,
+      });
+    } catch (error) {
+      console.error("Google Sheet update failed:", error);
+    }
+  }
+
   function isRealTrackerRow(row) {
     const badLabels = [
       "save",
@@ -579,7 +606,8 @@ export default function ChenTrackerApp() {
     };
 
     setRows((current) => current.map((row) => (row.id === editModalRow.id ? { ...row, ...payload } : row)));
-    setSheetMessage("Client details updated.");
+    updateGoogleSheetRow(editModalRow.id, payload);
+    setSheetMessage("Client details updated. Syncing update to Google Sheets...");
     setTimeout(() => setSheetMessage(""), 2500);
     closeEditModal();
   }

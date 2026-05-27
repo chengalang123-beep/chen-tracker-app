@@ -199,7 +199,7 @@ export default function ChenTrackerApp() {
   const [specialistFilter, setSpecialistFilter] = useState("Specialist");
   const [sortBy, setSortBy] = useState("updatedAt");
   const [currentPage, setCurrentPage] = useState(1);
-  const rowsPerPage = 8;
+  const rowsPerPage = 20;
   const [filterStartDate, setFilterStartDate] = useState("");
   const [filterEndDate, setFilterEndDate] = useState("");
   const [exportStartDate, setExportStartDate] = useState("");

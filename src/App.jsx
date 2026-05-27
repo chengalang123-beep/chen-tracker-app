@@ -987,24 +987,25 @@ export default function ChenTrackerApp() {
                   <BarChart3 className="h-4 w-4" /> Agent load
                 </h3>
 
-                <div className="space-y-2">
-                  {topAgents.map(([agent, count]) => (
-                    <div key={agent}>
-                      <div className="mb-1 flex items-center justify-between gap-2 text-[11px]">
-                        <span className="truncate font-semibold text-[#5B3320]" title={agent}>
-                          {agent}
-                        </span>
-                        <span className="text-[#8A6A55]">{count}</span>
-                      </div>
+                <div className="max-h-[160px] space-y-2 overflow-y-auto pr-1">
+                  {topAgents.map(([agent, count]) => {
+                    const agentWidth = filteredRows.length ? Math.max(8, Math.round((count / filteredRows.length) * 100)) : 0;
 
-                      <div className="h-1.5 overflow-hidden rounded-full bg-[#E9DECC]">
-                        <div
-                          className="h-full rounded-full bg-[#5C7768]"
-                          style={{ width: filteredRows.length ? Math.max(8, Math.round((count / filteredRows.length) * 100)) + "%" : "0%" }}
-                        />
+                    return (
+                      <div key={agent}>
+                        <div className="mb-1 flex items-center justify-between gap-2 text-[11px]">
+                          <span className="truncate font-semibold text-[#5B3320]" title={agent}>
+                            {agent}
+                          </span>
+                          <span className="text-[#8A6A55]">{count}</span>
+                        </div>
+
+                        <div className="h-1.5 overflow-hidden rounded-full bg-[#E9DECC]">
+                          <div className="h-full rounded-full bg-[#5C7768]" style={{ width: agentWidth + "%" }} />
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
 
                   {!topAgents.length && <p className="text-xs text-[#8A6A55]">No agent data yet.</p>}
                 </div>

@@ -1090,7 +1090,7 @@ export default function ChenTrackerApp() {
             <div className="mt-3 grid h-fit content-start items-start gap-3 self-start">
               <Card className="h-fit min-w-0 self-start rounded-[1.6rem] border border-[#D4C3AD] bg-[#FCF8F2] shadow-md">
                 <CardContent className="p-0">
-                  <div className="w-full overflow-x-auto overflow-y-visible rounded-[1.6rem]">
+                  <div className="w-full overflow-visible rounded-[1.6rem]">
                     <table className="w-full min-w-[920px] table-fixed text-left text-[11px]">
                       <thead className="sticky top-0 z-10 bg-[#F7E8D6] text-[11px] uppercase tracking-wide text-[#8A6A55]">
                         <tr>
@@ -1289,7 +1289,7 @@ function NotesHover({ text }) {
         Notes
       </button>
 
-      <div className="absolute bottom-[calc(100%+10px)] left-0 z-[9999] hidden w-80 rounded-2xl border border-[#D4C3AD] bg-white p-3 text-[11px] leading-4 text-[#3A2417] shadow-2xl group-hover:block">
+      <div className="fixed left-1/2 top-[28%] z-[99999] hidden w-96 -translate-x-1/2 rounded-2xl border border-[#D4C3AD] bg-white p-3 text-[11px] leading-4 text-[#3A2417] shadow-2xl group-hover:block">
         <div className="mb-1 font-bold text-[#5B3320]">Notes</div>
         <div className="whitespace-pre-wrap select-text">{text}</div>
         <div className="mt-2 flex justify-end">

@@ -1270,6 +1270,8 @@ function StatCard({ icon, label, value, helper, tone = "slate", isDarkMode = fal
 }
 
 function NotesHover({ text }) {
+  const [position, setPosition] = React.useState({ top: 0, left: 0 });
+
   async function copyNotes() {
     try {
       await navigator.clipboard.writeText(text);
@@ -1278,10 +1280,19 @@ function NotesHover({ text }) {
     }
   }
 
+  function updatePopupPosition(event) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const popupWidth = 360;
+    const left = Math.min(Math.max(12, rect.left), window.innerWidth - popupWidth - 12);
+    const top = Math.max(12, rect.top - 118);
+    setPosition({ top, left });
+  }
+
   return (
-    <div className="group relative mt-1 inline-block overflow-visible">
+    <div className="group relative mt-1 inline-block overflow-visible" onMouseEnter={updatePopupPosition}>
       <button
         type="button"
+        onMouseEnter={updatePopupPosition}
         onClick={copyNotes}
         className="rounded-full border border-[#D4C3AD] bg-[#F6EEE3] px-2 py-0.5 text-[10px] font-semibold text-[#5B3320] hover:bg-[#E9DECC]"
         title="Hover to view notes. Click to copy."
@@ -1289,9 +1300,12 @@ function NotesHover({ text }) {
         Notes
       </button>
 
-      <div className="fixed left-1/2 top-[28%] z-[99999] hidden w-96 -translate-x-1/2 rounded-2xl border border-[#D4C3AD] bg-white p-3 text-[11px] leading-4 text-[#3A2417] shadow-2xl group-hover:block">
+      <div
+        className="fixed z-[99999] hidden w-[360px] rounded-2xl border border-[#D4C3AD] bg-white p-3 text-[11px] leading-4 text-[#3A2417] shadow-2xl group-hover:block"
+        style={{ top: position.top, left: position.left }}
+      >
         <div className="mb-1 font-bold text-[#5B3320]">Notes</div>
-        <div className="whitespace-pre-wrap select-text">{text}</div>
+        <div className="max-h-40 overflow-y-auto whitespace-pre-wrap select-text pr-1">{text}</div>
         <div className="mt-2 flex justify-end">
           <button
             type="button"

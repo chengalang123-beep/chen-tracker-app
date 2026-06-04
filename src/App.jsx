@@ -41,6 +41,8 @@ const blankReminderForm = {
 };
 
 const GOOGLE_SHEET_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxQbzGV243t3Tyfyzc7kcZuvNEmscoGf0lpdSRft5VhUIL1Y_ALEc3mA7HIO4WgF_x4/exec";
+// Paste your Google Sheet share/edit link here to view the live sheet inside the tracker.
+const GOOGLE_SHEET_VIEW_URL = "https://docs.google.com/spreadsheets/d/1ZTk5rV-4qFQWTxC0VYovD45Y8bHtHDI8dA1tfREge0A/edit?usp=sharing";
 const EOD_JOTFORM_URL = "https://form.jotform.com/260420066600039";
 
 const blankForm = {
@@ -226,6 +228,7 @@ export default function ChenTrackerApp() {
   const [reportStartDate, setReportStartDate] = useState("");
   const [reportEndDate, setReportEndDate] = useState("");
   const [isReminderOpen, setIsReminderOpen] = useState(false);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [reminders, setReminders] = useState(() => {
     try {
       const saved = localStorage.getItem(REMINDER_STORAGE_KEY);
@@ -1063,6 +1066,15 @@ export default function ChenTrackerApp() {
                 <div className="ml-auto flex justify-end gap-2">
                   <Button
                     type="button"
+                    onClick={() => setIsSheetOpen(true)}
+                    className="h-9 rounded-2xl bg-[#03071A] px-4 text-xs text-white hover:bg-[#10142B]"
+                  >
+                    <FileSpreadsheet className="mr-2 h-4 w-4" />
+                    View Sheet
+                  </Button>
+
+                  <Button
+                    type="button"
                     onClick={() => setIsReminderOpen(true)}
                     className="relative h-9 rounded-2xl bg-[#5B3320] px-4 text-xs text-white hover:bg-[#432516]"
                   >
@@ -1437,6 +1449,42 @@ export default function ChenTrackerApp() {
           </div>
         </div>
       </div>
+
+      {isSheetOpen && (
+        <div className="fixed inset-0 z-[105] flex items-center justify-center bg-black/40 px-4 py-6">
+          <div className="max-h-[92vh] w-full max-w-6xl overflow-hidden rounded-[1.8rem] border border-[#D4C3AD] bg-[#FCF8F2] shadow-2xl">
+            <div className="flex items-center justify-between gap-3 border-b border-[#D4C3AD] bg-[#F6EEE3] px-5 py-4">
+              <div>
+                <h2 className="flex items-center gap-2 text-xl font-bold text-[#2B1A12]">
+                  <FileSpreadsheet className="h-5 w-5" /> Google Sheet
+                </h2>
+                <p className="text-xs text-[#8A6A55]">View your live Google Sheet without leaving the tracker.</p>
+              </div>
+              <Button type="button" variant="ghost" size="sm" onClick={() => setIsSheetOpen(false)} className="rounded-xl">
+                <X className="mr-1 h-4 w-4" /> Close
+              </Button>
+            </div>
+
+            {GOOGLE_SHEET_VIEW_URL ? (
+              <iframe
+                title="Google Sheet Viewer"
+                src={GOOGLE_SHEET_VIEW_URL}
+                className="h-[76vh] w-full bg-white"
+                frameBorder="0"
+                allowFullScreen
+              />
+            ) : (
+              <div className="flex h-[420px] flex-col items-center justify-center bg-white px-6 text-center">
+                <FileSpreadsheet className="mb-3 h-10 w-10 text-[#6E8578]" />
+                <h3 className="text-lg font-bold text-[#2B1A12]">Google Sheet link needed</h3>
+                <p className="mt-2 max-w-lg text-sm text-[#8A6A55]">
+                  Add your Google Sheet share link to <span className="font-semibold text-[#5B3320]">GOOGLE_SHEET_VIEW_URL</span> near the top of the code, then this window will show the live sheet.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {isReminderOpen && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/40 px-4 py-6">

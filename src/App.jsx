@@ -30,6 +30,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
 const STORAGE_KEY = "chen-policy-tracker-v1";
+const WHATS_NEW_STORAGE_KEY = "eterna-whats-new-seen-v1";
+const WHATS_NEW_VERSION = "2026-06-04-reminders-calendar-sound-sheet";
 const REMINDER_STORAGE_KEY = "eterna-personal-reminders-v1";
 const REMINDER_SOUND_STORAGE_KEY = "eterna-reminder-sound-enabled-v1";
 const REMINDER_ALERTED_STORAGE_KEY = "eterna-reminder-alerted-ids-v1";
@@ -42,7 +44,7 @@ const blankReminderForm = {
 
 const GOOGLE_SHEET_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxQbzGV243t3Tyfyzc7kcZuvNEmscoGf0lpdSRft5VhUIL1Y_ALEc3mA7HIO4WgF_x4/exec";
 // Paste your Google Sheet share/edit link here to view the live sheet inside the tracker.
-const GOOGLE_SHEET_VIEW_URL = "https://docs.google.com/spreadsheets/d/1ZTk5rV-4qFQWTxC0VYovD45Y8bHtHDI8dA1tfREge0A/edit?usp=sharing";
+const GOOGLE_SHEET_VIEW_URL = "";
 const EOD_JOTFORM_URL = "https://form.jotform.com/260420066600039";
 
 const blankForm = {
@@ -229,6 +231,13 @@ export default function ChenTrackerApp() {
   const [reportEndDate, setReportEndDate] = useState("");
   const [isReminderOpen, setIsReminderOpen] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [isWhatsNewOpen, setIsWhatsNewOpen] = useState(() => {
+    try {
+      return localStorage.getItem(WHATS_NEW_STORAGE_KEY) !== WHATS_NEW_VERSION;
+    } catch {
+      return true;
+    }
+  });
   const [reminders, setReminders] = useState(() => {
     try {
       const saved = localStorage.getItem(REMINDER_STORAGE_KEY);
@@ -544,6 +553,16 @@ export default function ChenTrackerApp() {
 
   const entryTitle = activeEntryTab === "case" ? (editingId ? "Edit case" : "Add new case") : "EOD";
   const entryHelper = activeEntryTab === "case" ? "Fast entry for daily tracking." : "Fill out your EOD Jotform inside the tracker.";
+
+
+  function closeWhatsNew() {
+    try {
+      localStorage.setItem(WHATS_NEW_STORAGE_KEY, WHATS_NEW_VERSION);
+    } catch {
+      // Ignore localStorage errors.
+    }
+    setIsWhatsNewOpen(false);
+  }
 
   function updateForm(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
@@ -1449,6 +1468,84 @@ export default function ChenTrackerApp() {
           </div>
         </div>
       </div>
+
+
+      {isWhatsNewOpen && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40 px-4 py-6">
+          <div className="w-full max-w-2xl overflow-hidden rounded-[1.8rem] border border-[#D4C3AD] bg-[#FCF8F2] shadow-2xl">
+            <div className="border-b border-[#D4C3AD] bg-[#F6EEE3] px-5 py-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="mb-2 inline-flex rounded-full bg-[#5B3320] px-3 py-1 text-[10px] font-bold uppercase tracking-wide text-white">
+                    New updates
+                  </div>
+                  <h2 className="text-2xl font-bold text-[#2B1A12]">What's new in the tracker</h2>
+                  <p className="mt-1 text-xs text-[#8A6A55]">Here are the latest features added to your Eterna Retention Tracker.</p>
+                </div>
+                <Button type="button" variant="ghost" size="sm" onClick={closeWhatsNew} className="rounded-xl">
+                  <X className="mr-1 h-4 w-4" /> Close
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-3 px-5 py-5">
+              <div className="rounded-2xl border border-[#D4C3AD] bg-white p-4">
+                <div className="flex gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[#5B3320] text-white">
+                    <Bell className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-[#2B1A12]">Personal Reminders</h3>
+                    <p className="mt-1 text-xs leading-5 text-[#8A6A55]">A Reminders button was added beside Refresh Data. You can add personal follow-ups, appointments, and self notes without tying them to a client.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-[#D4C3AD] bg-white p-4">
+                <div className="flex gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[#6F8A3A] text-white">
+                    <Clock3 className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-[#2B1A12]">Reminder Calendar</h3>
+                    <p className="mt-1 text-xs leading-5 text-[#8A6A55]">The reminder popup now includes a calendar view so you can quickly see which dates have reminders and which reminders are due soon.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-[#D4C3AD] bg-white p-4">
+                <div className="flex gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[#D8913D] text-white">
+                    <Volume2 className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-[#2B1A12]">Reminder Sound Alerts</h3>
+                    <p className="mt-1 text-xs leading-5 text-[#8A6A55]">You can turn reminder sounds on. The tracker will alert you when a reminder is due or coming up soon while the tab is open.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-[#D4C3AD] bg-white p-4">
+                <div className="flex gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[#5C7768] text-white">
+                    <FileSpreadsheet className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-[#2B1A12]">View Sheet Button</h3>
+                    <p className="mt-1 text-xs leading-5 text-[#8A6A55]">A View Sheet button was added near Refresh Data so you can open the Google Sheet inside the tracker once your sheet link is added.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end border-t border-[#D4C3AD] bg-[#F6EEE3] px-5 py-4">
+              <Button type="button" onClick={closeWhatsNew} className="rounded-2xl bg-[#03071A] px-5 text-xs text-white hover:bg-[#10142B]">
+                Got it
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isSheetOpen && (
         <div className="fixed inset-0 z-[105] flex items-center justify-center bg-black/40 px-4 py-6">

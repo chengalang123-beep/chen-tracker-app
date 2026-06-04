@@ -41,6 +41,7 @@ const blankInboundCancellationForm = {
   clientName: "",
   phoneNumber: "",
   agentName: "",
+  specialistName: "",
   resolved: "No",
   agentInformed: "No",
 };
@@ -614,6 +615,7 @@ export default function ChenTrackerApp() {
       clientName: inboundCancellationForm.clientName.trim(),
       phoneNumber: inboundCancellationForm.phoneNumber.trim(),
       agentName: inboundCancellationForm.agentName.trim(),
+      specialistName: inboundCancellationForm.specialistName.trim(),
       resolved: inboundCancellationForm.resolved,
       agentInformed: inboundCancellationForm.agentInformed,
     };
@@ -678,6 +680,7 @@ export default function ChenTrackerApp() {
       formData.append("clientName", data.clientName || "");
       formData.append("phoneNumber", data.phoneNumber || "");
       formData.append("agentName", data.agentName || "");
+      formData.append("specialistName", data.specialistName || "");
       formData.append("resolved", data.resolved || "No");
       formData.append("agentInformed", data.agentInformed || "No");
 
@@ -1309,6 +1312,12 @@ export default function ChenTrackerApp() {
                       onChange={(v) => updateInboundCancellationForm("agentName", v)}
                       placeholder="Agent name"
                     />
+                    <Select
+                      label="Specialist"
+                      value={inboundCancellationForm.specialistName}
+                      onChange={(v) => updateInboundCancellationForm("specialistName", v)}
+                      options={specialistOptions}
+                    />
                     <div className="grid grid-cols-2 gap-2">
                       <Select
                         label="Resolved"
@@ -1473,15 +1482,16 @@ export default function ChenTrackerApp() {
                   </div>
 
                   <div className="w-full overflow-x-auto rounded-b-[1.6rem]">
-                    <table className="w-full min-w-[860px] table-fixed text-left text-[11px]">
+                    <table className="w-full min-w-[980px] table-fixed text-left text-[11px]">
                       <thead className="bg-[#F7E8D6] text-[11px] uppercase tracking-wide text-[#8A6A55]">
                         <tr>
-                          <th className="w-[18%] px-3 py-3">Client</th>
-                          <th className="w-[15%] px-2 py-3">Phone</th>
-                          <th className="w-[17%] px-2 py-3">Agent</th>
-                          <th className="w-[14%] px-2 py-3">Resolved</th>
-                          <th className="w-[20%] px-2 py-3">Agent informed</th>
-                          <th className="w-[11%] px-2 py-3">Date</th>
+                          <th className="w-[16%] px-3 py-3">Client</th>
+                          <th className="w-[13%] px-2 py-3">Phone</th>
+                          <th className="w-[14%] px-2 py-3">Agent</th>
+                          <th className="w-[12%] px-2 py-3">Specialist</th>
+                          <th className="w-[12%] px-2 py-3">Resolved</th>
+                          <th className="w-[18%] px-2 py-3">Agent informed</th>
+                          <th className="w-[10%] px-2 py-3">Date</th>
                           <th className="w-[5%] px-2 py-3 text-right">Tools</th>
                         </tr>
                       </thead>
@@ -1494,6 +1504,7 @@ export default function ChenTrackerApp() {
                             </td>
                             <td className="break-words px-2 py-3 text-[#5B3320]">{item.phoneNumber || "—"}</td>
                             <td className="break-words px-2 py-3 text-[#5B3320]">{item.agentName || "—"}</td>
+                            <td className="break-words px-2 py-3 text-[#5B3320]">{item.specialistName || "—"}</td>
                             <td className="px-2 py-3">
                               <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold ${item.resolved === "Yes" ? "bg-[#EEF7E8] text-[#4C6B2F]" : "bg-[#FFF1D8] text-[#9A5B12]"}`}>
                                 {item.resolved}

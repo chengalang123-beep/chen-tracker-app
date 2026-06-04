@@ -22,11 +22,24 @@ import {
   Loader2,
   Moon,
   Sun,
+  Bell,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
 const STORAGE_KEY = "chen-policy-tracker-v1";
+const REMINDER_STORAGE_KEY = "eterna-personal-reminders-v1";
+const REMINDER_SOUND_STORAGE_KEY = "eterna-reminder-sound-enabled-v1";
+const REMINDER_ALERTED_STORAGE_KEY = "eterna-reminder-alerted-ids-v1";
+
+const blankReminderForm = {
+  title: "",
+  reminderAt: "",
+  note: "",
+};
+
 const GOOGLE_SHEET_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxQbzGV243t3Tyfyzc7kcZuvNEmscoGf0lpdSRft5VhUIL1Y_ALEc3mA7HIO4WgF_x4/exec";
 const EOD_JOTFORM_URL = "https://form.jotform.com/260420066600039";
 
@@ -212,10 +225,82 @@ export default function ChenTrackerApp() {
   const [reportRange, setReportRange] = useState("week");
   const [reportStartDate, setReportStartDate] = useState("");
   const [reportEndDate, setReportEndDate] = useState("");
+  const [isReminderOpen, setIsReminderOpen] = useState(false);
+  const [reminders, setReminders] = useState(() => {
+    try {
+      const saved = localStorage.getItem(REMINDER_STORAGE_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [reminderForm, setReminderForm] = useState(blankReminderForm);
+  const [reminderCalendarMonth, setReminderCalendarMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [isReminderSoundEnabled, setIsReminderSoundEnabled] = useState(() => {
+    try {
+      return localStorage.getItem(REMINDER_SOUND_STORAGE_KEY) === "true";
+    } catch {
+      return false;
+    }
+  });
+  const [alertedReminderIds, setAlertedReminderIds] = useState(() => {
+    try {
+      const saved = localStorage.getItem(REMINDER_ALERTED_STORAGE_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
   }, [rows]);
+
+  useEffect(() => {
+    localStorage.setItem(REMINDER_STORAGE_KEY, JSON.stringify(reminders));
+  }, [reminders]);
+
+  useEffect(() => {
+    localStorage.setItem(REMINDER_SOUND_STORAGE_KEY, String(isReminderSoundEnabled));
+  }, [isReminderSoundEnabled]);
+
+  useEffect(() => {
+    localStorage.setItem(REMINDER_ALERTED_STORAGE_KEY, JSON.stringify(alertedReminderIds));
+  }, [alertedReminderIds]);
+
+  useEffect(() => {
+    if (!isReminderSoundEnabled) return;
+
+    function checkReminderSounds() {
+      const now = Date.now();
+      const upcomingWindow = 5 * 60 * 1000;
+
+      const upcomingReminders = reminders.filter((reminder) => {
+        if (reminder.isDone || !reminder.reminderAt) return false;
+        const reminderTime = new Date(reminder.reminderAt).getTime();
+        return reminderTime >= now - 60 * 1000 && reminderTime <= now + upcomingWindow;
+      });
+
+      const freshReminders = upcomingReminders.filter((reminder) => !alertedReminderIds.includes(reminder.id));
+
+      if (freshReminders.length) {
+        playReminderSound();
+        setAlertedReminderIds((current) => [...new Set([...current, ...freshReminders.map((reminder) => reminder.id)])]);
+        setSheetMessage(`Reminder coming up: ${freshReminders[0].title}`);
+        setTimeout(() => setSheetMessage(""), 5000);
+
+        if ("Notification" in window && Notification.permission === "granted") {
+          new Notification("Eterna reminder", {
+            body: freshReminders[0].note || freshReminders[0].title,
+          });
+        }
+      }
+    }
+
+    checkReminderSounds();
+    const timer = window.setInterval(checkReminderSounds, 30000);
+    return () => window.clearInterval(timer);
+  }, [reminders, isReminderSoundEnabled, alertedReminderIds]);
 
   useEffect(() => {
     loadFromGoogleSheet();
@@ -343,6 +428,70 @@ export default function ChenTrackerApp() {
 
     return [...map.entries()].sort((a, b) => b[1] - a[1]);
   }, [filteredRows]);
+
+  const sortedReminders = useMemo(() => {
+    return [...reminders].sort((a, b) => String(a.reminderAt).localeCompare(String(b.reminderAt)));
+  }, [reminders]);
+
+  const dueReminders = useMemo(() => {
+    return reminders.filter((reminder) => {
+      if (reminder.isDone || !reminder.reminderAt) return false;
+      return new Date(reminder.reminderAt).getTime() <= Date.now();
+    });
+  }, [reminders]);
+
+  const reminderCalendarMap = useMemo(() => {
+    const map = new Map();
+
+    reminders.forEach((reminder) => {
+      if (!reminder.reminderAt) return;
+      const dateKey = String(reminder.reminderAt).slice(0, 10);
+      if (!map.has(dateKey)) map.set(dateKey, []);
+      map.get(dateKey).push(reminder);
+    });
+
+    return map;
+  }, [reminders]);
+
+  const reminderCalendarDays = useMemo(() => {
+    const [year, month] = reminderCalendarMonth.split("-").map(Number);
+    const firstDay = new Date(year, month - 1, 1);
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const leadingBlanks = firstDay.getDay();
+    const days = [];
+
+    for (let i = 0; i < leadingBlanks; i++) {
+      days.push({ blank: true, key: "blank-" + i });
+    }
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateKey = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      const dayReminders = reminderCalendarMap.get(dateKey) || [];
+      const hasDueReminder = dayReminders.some((reminder) => {
+        if (reminder.isDone || !reminder.reminderAt) return false;
+        return new Date(reminder.reminderAt).getTime() <= Date.now();
+      });
+
+      days.push({
+        blank: false,
+        key: dateKey,
+        day,
+        dateKey,
+        reminders: dayReminders,
+        hasDueReminder,
+      });
+    }
+
+    return days;
+  }, [reminderCalendarMonth, reminderCalendarMap]);
+
+  const reminderCalendarTitle = useMemo(() => {
+    const [year, month] = reminderCalendarMonth.split("-").map(Number);
+    return new Date(year, month - 1, 1).toLocaleString("en-US", {
+      month: "long",
+      year: "numeric",
+    });
+  }, [reminderCalendarMonth]);
 
   const reportStats = useMemo(() => {
     const now = new Date();
@@ -714,6 +863,84 @@ export default function ChenTrackerApp() {
     event.target.value = "";
   }
 
+  function playReminderSound() {
+    try {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) return;
+
+      const audioContext = new AudioContextClass();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(740, audioContext.currentTime);
+      oscillator.frequency.setValueAtTime(880, audioContext.currentTime + 0.15);
+
+      gainNode.gain.setValueAtTime(0.0001, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.25, audioContext.currentTime + 0.02);
+      gainNode.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 0.45);
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      oscillator.start();
+      oscillator.stop(audioContext.currentTime + 0.45);
+    } catch (error) {
+      console.error("Reminder sound failed:", error);
+    }
+  }
+
+  async function toggleReminderSound() {
+    const nextValue = !isReminderSoundEnabled;
+    setIsReminderSoundEnabled(nextValue);
+
+    if (nextValue) {
+      playReminderSound();
+      if ("Notification" in window && Notification.permission === "default") {
+        try {
+          await Notification.requestPermission();
+        } catch (error) {
+          console.error("Notification permission request failed:", error);
+        }
+      }
+      setSheetMessage("Reminder sound enabled. Upcoming reminders will make a sound.");
+      setTimeout(() => setSheetMessage(""), 4000);
+    } else {
+      setSheetMessage("Reminder sound turned off.");
+      setTimeout(() => setSheetMessage(""), 3000);
+    }
+  }
+
+  function updateReminderForm(field, value) {
+    setReminderForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function addReminder(event) {
+    event.preventDefault();
+    if (!reminderForm.title.trim() || !reminderForm.reminderAt) return;
+
+    const newReminder = {
+      id: crypto.randomUUID(),
+      title: reminderForm.title.trim(),
+      reminderAt: reminderForm.reminderAt,
+      note: reminderForm.note.trim(),
+      isDone: false,
+      createdAt: new Date().toISOString(),
+    };
+
+    setReminders((current) => [newReminder, ...current]);
+    setReminderForm(blankReminderForm);
+  }
+
+  function toggleReminderDone(id) {
+    setReminders((current) => current.map((reminder) => (reminder.id === id ? { ...reminder, isDone: !reminder.isDone } : reminder)));
+    setAlertedReminderIds((current) => current.filter((reminderId) => reminderId !== id));
+  }
+
+  function deleteReminder(id) {
+    setReminders((current) => current.filter((reminder) => reminder.id !== id));
+    setAlertedReminderIds((current) => current.filter((reminderId) => reminderId !== id));
+  }
+
   function clearFilters() {
     setQuery("");
     setResultFilter("Status");
@@ -833,7 +1060,20 @@ export default function ChenTrackerApp() {
                 >
                   <Download className="mr-2 h-4 w-4" /> Export Range
                 </Button>
-                <div className="ml-auto flex justify-end">
+                <div className="ml-auto flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    onClick={() => setIsReminderOpen(true)}
+                    className="relative h-9 rounded-2xl bg-[#5B3320] px-4 text-xs text-white hover:bg-[#432516]"
+                  >
+                    <Bell className="mr-2 h-4 w-4" />
+                    Reminders
+                    {dueReminders.length > 0 && (
+                      <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#D8913D] px-1 text-[10px] font-bold text-white">
+                        {dueReminders.length}
+                      </span>
+                    )}
+                  </Button>
                   <Button
                     onClick={loadFromGoogleSheet}
                     disabled={isLoadingSheet}
@@ -1197,6 +1437,183 @@ export default function ChenTrackerApp() {
           </div>
         </div>
       </div>
+
+      {isReminderOpen && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/40 px-4 py-6">
+          <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-[1.8rem] border border-[#D4C3AD] bg-[#FCF8F2] p-5 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <h2 className="flex items-center gap-2 text-xl font-bold text-[#2B1A12]">
+                  <Bell className="h-5 w-5" /> Personal Reminders
+                </h2>
+                <p className="text-xs text-[#8A6A55]">Set appointments, follow-ups, or important self notes. Turn sound on once so your browser allows reminder audio.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  onClick={toggleReminderSound}
+                  className={isReminderSoundEnabled ? "h-8 rounded-2xl bg-[#5C7768] px-3 text-xs text-white hover:bg-[#466153]" : "h-8 rounded-2xl bg-[#03071A] px-3 text-xs text-white hover:bg-[#10142B]"}
+                  title={isReminderSoundEnabled ? "Turn reminder sound off" : "Turn reminder sound on"}
+                >
+                  {isReminderSoundEnabled ? <Volume2 className="mr-1.5 h-3.5 w-3.5" /> : <VolumeX className="mr-1.5 h-3.5 w-3.5" />}
+                  {isReminderSoundEnabled ? "Sound On" : "Sound Off"}
+                </Button>
+                <Button type="button" variant="ghost" size="sm" onClick={() => setIsReminderOpen(false)} className="rounded-xl">
+                  <X className="mr-1 h-4 w-4" /> Close
+                </Button>
+              </div>
+            </div>
+
+            {dueReminders.length > 0 && (
+              <div className="mb-4 rounded-2xl border border-[#D8913D] bg-[#FFF1D8] px-3 py-2 text-xs font-semibold text-[#7A4B12]">
+                You have {dueReminders.length} reminder{dueReminders.length > 1 ? "s" : ""} due now.
+              </div>
+            )}
+
+            <div className="grid gap-4 lg:grid-cols-[300px_320px_1fr]">
+              <form onSubmit={addReminder} className="rounded-[1.4rem] border border-[#D4C3AD] bg-[#F6EEE3] p-4">
+                <h3 className="mb-3 text-sm font-bold text-[#2B1A12]">Add reminder</h3>
+                <div className="space-y-3">
+                  <label className="block">
+                    <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[#8A6A55]">Reminder title</span>
+                    <input
+                      type="text"
+                      value={reminderForm.title}
+                      onChange={(e) => updateReminderForm("title", e.target.value)}
+                      placeholder="Example: Call lead back"
+                      className="h-9 w-full rounded-2xl border border-[#D4C3AD] bg-white px-3 text-xs text-[#2B1A12] outline-none focus:border-[#5C7768]"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[#8A6A55]">Date and time</span>
+                    <input
+                      type="datetime-local"
+                      value={reminderForm.reminderAt}
+                      onChange={(e) => updateReminderForm("reminderAt", e.target.value)}
+                      className="h-9 w-full rounded-2xl border border-[#D4C3AD] bg-white px-3 text-xs text-[#2B1A12] outline-none focus:border-[#5C7768]"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-[#8A6A55]">Notes</span>
+                    <textarea
+                      value={reminderForm.note}
+                      onChange={(e) => updateReminderForm("note", e.target.value)}
+                      placeholder="Important details..."
+                      rows={6}
+                      className="w-full resize-none rounded-2xl border border-[#D4C3AD] bg-white px-3 py-2 text-xs text-[#2B1A12] outline-none focus:border-[#5C7768]"
+                    />
+                  </label>
+
+                  <Button type="submit" className="h-10 w-full rounded-2xl bg-[#03071A] text-xs text-white hover:bg-[#10142B]">
+                    <Plus className="mr-2 h-4 w-4" /> Add reminder
+                  </Button>
+                </div>
+              </form>
+
+              <div className="rounded-[1.4rem] border border-[#D4C3AD] bg-[#F6EEE3] p-4">
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-sm font-bold text-[#2B1A12]">Calendar</h3>
+                    <p className="text-[11px] text-[#8A6A55]">{reminderCalendarTitle}</p>
+                  </div>
+
+                  <input
+                    type="month"
+                    value={reminderCalendarMonth}
+                    onChange={(e) => setReminderCalendarMonth(e.target.value)}
+                    className="h-8 rounded-2xl border border-[#D4C3AD] bg-white px-2 text-[11px] text-[#2B1A12] outline-none focus:border-[#5C7768]"
+                  />
+                </div>
+
+                <div className="mb-2 grid grid-cols-7 gap-1 text-center text-[10px] font-bold uppercase text-[#8A6A55]">
+                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+                    <div key={day}>{day}</div>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-7 gap-1">
+                  {reminderCalendarDays.map((day) =>
+                    day.blank ? (
+                      <div key={day.key} className="h-10 rounded-xl" />
+                    ) : (
+                      <div
+                        key={day.key}
+                        title={
+                          day.reminders.length
+                            ? day.reminders.map((reminder) => reminder.title).join(", ")
+                            : ""
+                        }
+                        className={`relative flex h-10 items-start justify-start rounded-xl border px-1.5 py-1 text-[11px] font-semibold ${
+                          day.reminders.length
+                            ? day.hasDueReminder
+                              ? "border-[#D8913D] bg-[#FFF1D8] text-[#5B3320]"
+                              : "border-[#6E8578] bg-[#EEF7E8] text-[#2E443A]"
+                            : "border-[#E7D5BF] bg-white text-[#8A6A55]"
+                        }`}
+                      >
+                        <span>{day.day}</span>
+                        {day.reminders.length > 0 && (
+                          <span className={`absolute bottom-1 right-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-bold text-white ${
+                            day.hasDueReminder ? "bg-[#D8913D]" : "bg-[#5C7768]"
+                          }`}>
+                            {day.reminders.length}
+                          </span>
+                        )}
+                      </div>
+                    )
+                  )}
+                </div>
+
+                <div className="mt-3 rounded-2xl bg-white/70 p-3 text-[11px] text-[#5B3320]">
+                  Dates with reminders show a number. Orange means at least one reminder is due.
+                </div>
+              </div>
+
+              <div className="rounded-[1.4rem] border border-[#D4C3AD] bg-[#F6EEE3] p-4">
+                <h3 className="mb-3 text-sm font-bold text-[#2B1A12]">Reminder list</h3>
+                <div className="max-h-[430px] space-y-2 overflow-y-auto pr-1">
+                  {sortedReminders.map((reminder) => {
+                    const reminderTime = reminder.reminderAt ? new Date(reminder.reminderAt).getTime() : 0;
+                    const isDue = !reminder.isDone && reminderTime && reminderTime <= Date.now();
+                    const isUpcoming = !reminder.isDone && reminderTime && reminderTime > Date.now() && reminderTime <= Date.now() + 5 * 60 * 1000;
+
+                    return (
+                      <div
+                        key={reminder.id}
+                        className={`rounded-2xl border p-3 text-xs ${isDue ? "border-[#D8913D] bg-[#FFF1D8]" : "border-[#D4C3AD] bg-[#FCF8F2]"} ${reminder.isDone ? "opacity-60" : ""}`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <div className="font-bold text-[#2B1A12]">{reminder.title}</div>
+                            <div className="mt-0.5 text-[11px] text-[#8A6A55]">{new Date(reminder.reminderAt).toLocaleString()}</div>
+                            {isDue && <div className="mt-1 inline-flex rounded-full bg-[#D8913D] px-2 py-0.5 text-[10px] font-bold text-white">Due now</div>}
+                            {isUpcoming && <div className="mt-1 inline-flex rounded-full bg-[#5C7768] px-2 py-0.5 text-[10px] font-bold text-white">Upcoming soon</div>}
+                          </div>
+
+                          <div className="flex gap-1">
+                            <Button type="button" size="icon" variant="ghost" onClick={() => toggleReminderDone(reminder.id)} className="h-7 w-7 rounded-xl" title="Mark done">
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button type="button" size="icon" variant="ghost" onClick={() => deleteReminder(reminder.id)} className="h-7 w-7 rounded-xl text-[#B44A2B]" title="Delete reminder">
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+
+                        {reminder.note && <div className="mt-2 rounded-xl bg-white/70 p-2 text-[11px] text-[#5B3320]">{reminder.note}</div>}
+                      </div>
+                    );
+                  })}
+
+                  {!sortedReminders.length && <p className="text-xs text-[#8A6A55]">No reminders yet.</p>}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {editModalRow && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 px-4 py-6">

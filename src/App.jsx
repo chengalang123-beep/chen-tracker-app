@@ -35,6 +35,15 @@ const WHATS_NEW_VERSION = "2026-06-04-reminders-calendar-sound-sheet";
 const REMINDER_STORAGE_KEY = "eterna-personal-reminders-v1";
 const REMINDER_SOUND_STORAGE_KEY = "eterna-reminder-sound-enabled-v1";
 const REMINDER_ALERTED_STORAGE_KEY = "eterna-reminder-alerted-ids-v1";
+const INBOUND_CANCELLATION_STORAGE_KEY = "eterna-inbound-cancellations-v1";
+
+const blankInboundCancellationForm = {
+  clientName: "",
+  phoneNumber: "",
+  agentName: "",
+  resolved: "No",
+  agentInformed: "No",
+};
 
 const blankReminderForm = {
   title: "",
@@ -44,7 +53,7 @@ const blankReminderForm = {
 
 const GOOGLE_SHEET_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxQbzGV243t3Tyfyzc7kcZuvNEmscoGf0lpdSRft5VhUIL1Y_ALEc3mA7HIO4WgF_x4/exec";
 // Paste your Google Sheet share/edit link here to view the live sheet inside the tracker.
-const GOOGLE_SHEET_VIEW_URL = "https://docs.google.com/spreadsheets/d/1ZTk5rV-4qFQWTxC0VYovD45Y8bHtHDI8dA1tfREge0A/edit?usp=sharing";
+const GOOGLE_SHEET_VIEW_URL = "";
 const EOD_JOTFORM_URL = "https://form.jotform.com/260420066600039";
 
 const blankForm = {
@@ -207,6 +216,15 @@ export default function ChenTrackerApp() {
     }
   });
   const [form, setForm] = useState(blankForm);
+  const [inboundCancellationForm, setInboundCancellationForm] = useState(blankInboundCancellationForm);
+  const [inboundCancellations, setInboundCancellations] = useState(() => {
+    try {
+      const saved = localStorage.getItem(INBOUND_CANCELLATION_STORAGE_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const [editForm, setEditForm] = useState(blankForm);
   const [editModalRow, setEditModalRow] = useState(null);
   const [editingId, setEditingId] = useState(null);
@@ -267,6 +285,10 @@ export default function ChenTrackerApp() {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
   }, [rows]);
+
+  useEffect(() => {
+    localStorage.setItem(INBOUND_CANCELLATION_STORAGE_KEY, JSON.stringify(inboundCancellations));
+  }, [inboundCancellations]);
 
   useEffect(() => {
     localStorage.setItem(REMINDER_STORAGE_KEY, JSON.stringify(reminders));
@@ -551,8 +573,17 @@ export default function ChenTrackerApp() {
     return { startDate: selectedStartDate, today: endDate, totalCases, pending, resolved, lost, pendingSaveAp, saveAp, label, badge };
   }, [rows, specialistFilter, reportRange, reportStartDate, reportEndDate]);
 
-  const entryTitle = activeEntryTab === "case" ? (editingId ? "Edit case" : "Add new case") : "EOD";
-  const entryHelper = activeEntryTab === "case" ? "Fast entry for daily tracking." : "Fill out your EOD Jotform inside the tracker.";
+  const entryTitle = activeEntryTab === "case"
+    ? (editingId ? "Edit case" : "Add new case")
+    : activeEntryTab === "inbound"
+      ? "Inbound cancellation"
+      : "EOD";
+
+  const entryHelper = activeEntryTab === "case"
+    ? "Fast entry for daily tracking."
+    : activeEntryTab === "inbound"
+      ? "Log inbound cancellation calls and agent updates."
+      : "Fill out your EOD Jotform inside the tracker.";
 
 
   function closeWhatsNew() {
@@ -566,6 +597,36 @@ export default function ChenTrackerApp() {
 
   function updateForm(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function updateInboundCancellationForm(field, value) {
+    setInboundCancellationForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function submitInboundCancellation(event) {
+    event.preventDefault();
+
+    if (!inboundCancellationForm.clientName.trim()) return;
+
+    const newInboundCancellation = {
+      id: crypto.randomUUID(),
+      createdAt: new Date().toISOString(),
+      clientName: inboundCancellationForm.clientName.trim(),
+      phoneNumber: inboundCancellationForm.phoneNumber.trim(),
+      agentName: inboundCancellationForm.agentName.trim(),
+      resolved: inboundCancellationForm.resolved,
+      agentInformed: inboundCancellationForm.agentInformed,
+    };
+
+    setInboundCancellations((current) => [newInboundCancellation, ...current]);
+    sendInboundCancellationToGoogleSheet(newInboundCancellation);
+    setInboundCancellationForm(blankInboundCancellationForm);
+    setSheetMessage("Inbound cancellation saved. Syncing to Google Sheets...");
+    setTimeout(() => setSheetMessage(""), 2500);
+  }
+
+  function deleteInboundCancellation(id) {
+    setInboundCancellations((current) => current.filter((item) => item.id !== id));
   }
 
   function updateEditForm(field, value) {
@@ -606,6 +667,27 @@ export default function ChenTrackerApp() {
       });
     } catch (error) {
       console.error("Google Sheet sync failed:", error);
+    }
+  }
+
+  async function sendInboundCancellationToGoogleSheet(data) {
+    try {
+      const formData = new URLSearchParams();
+      formData.append("recordType", "inboundCancellation");
+      formData.append("createdAt", data.createdAt || "");
+      formData.append("clientName", data.clientName || "");
+      formData.append("phoneNumber", data.phoneNumber || "");
+      formData.append("agentName", data.agentName || "");
+      formData.append("resolved", data.resolved || "No");
+      formData.append("agentInformed", data.agentInformed || "No");
+
+      await fetch(GOOGLE_SHEET_WEB_APP_URL, {
+        method: "POST",
+        mode: "no-cors",
+        body: formData,
+      });
+    } catch (error) {
+      console.error("Inbound cancellation sync failed:", error);
     }
   }
 
@@ -1148,6 +1230,13 @@ export default function ChenTrackerApp() {
                     </button>
                     <button
                       type="button"
+                      onClick={() => setActiveEntryTab("inbound")}
+                      className={`rounded-xl px-3 py-1.5 text-xs font-bold ${activeEntryTab === "inbound" ? "bg-[#5B3320] text-white" : "text-[#5B3320]"}`}
+                    >
+                      Inbound cancellation
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => setActiveEntryTab("eod")}
                       className={`rounded-xl px-3 py-1.5 text-xs font-bold ${activeEntryTab === "eod" ? "bg-[#5B3320] text-white" : "text-[#5B3320]"}`}
                     >
@@ -1199,6 +1288,59 @@ export default function ChenTrackerApp() {
                     </Button>
                   </div>
                 </form>
+              ) : activeEntryTab === "inbound" ? (
+                <div className="space-y-3">
+                  <form onSubmit={submitInboundCancellation} className="space-y-2">
+                    <Input
+                      label="Client name"
+                      value={inboundCancellationForm.clientName}
+                      onChange={(v) => updateInboundCancellationForm("clientName", v)}
+                      required
+                    />
+                    <Input
+                      label="Phone number"
+                      value={inboundCancellationForm.phoneNumber}
+                      onChange={(v) => updateInboundCancellationForm("phoneNumber", v)}
+                      placeholder="Client phone number"
+                    />
+                    <Input
+                      label="Agent"
+                      value={inboundCancellationForm.agentName}
+                      onChange={(v) => updateInboundCancellationForm("agentName", v)}
+                      placeholder="Agent name"
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <Select
+                        label="Resolved"
+                        value={inboundCancellationForm.resolved}
+                        onChange={(v) => updateInboundCancellationForm("resolved", v)}
+                        options={["No", "Yes"]}
+                      />
+                      <Select
+                        label="Agent informed with updates"
+                        value={inboundCancellationForm.agentInformed}
+                        onChange={(v) => updateInboundCancellationForm("agentInformed", v)}
+                        options={["No", "Yes"]}
+                      />
+                    </div>
+                    <div className="grid grid-cols-[1fr_auto] gap-2">
+                      <Button type="submit" className="h-11 rounded-2xl bg-[#03071A] text-white hover:bg-[#10142B]">
+                        <Plus className="mr-2 h-4 w-4" /> Save inbound cancellation
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setInboundCancellationForm(blankInboundCancellationForm)}
+                        className="h-11 rounded-2xl border-[#D4C3AD] px-4 text-xs text-[#5B3320]"
+                      >
+                        Clear
+                      </Button>
+                    </div>
+                  </form>
+                  <div className="rounded-[1.2rem] border border-[#D4C3AD] bg-[#F6EEE3] p-3 text-xs text-[#8A6A55]">
+                    Saved inbound cancellations will appear in their own list on the right side.
+                  </div>
+                </div>
               ) : (
                 <div className="overflow-hidden rounded-2xl border border-[#D4C3AD] bg-[#F6EEE3]">
                   <iframe
@@ -1313,108 +1455,68 @@ export default function ChenTrackerApp() {
           </Card>
 
           <div className="h-fit min-w-0 self-start">
-            <Card className="h-fit max-h-fit min-w-0 self-start rounded-[1.4rem] border border-[#D4C3AD] bg-[#FCF8F2] shadow-md">
-              <CardContent className="p-2.5">
-                <div className="grid items-center gap-2 lg:grid-cols-[115px_1fr_105px_105px_110px_110px_112px_112px_64px]">
-                  <div>
-                    <h2 className="flex items-center gap-1.5 text-sm font-bold">
-                      <Filter className="h-4 w-4" /> Search
-                    </h2>
-                    <p className="text-[10px] leading-3 text-[#8A6A55]">
-                      {lastRefreshed ? `Last refreshed: ${lastRefreshed}` : "Search & filter."}
-                    </p>
-                  </div>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#B28A6B]" />
-                    <input
-                      value={query}
-                      onChange={(e) => setQuery(e.target.value)}
-                      placeholder="Search client, policy, agent, specialist, notes..."
-                      className="h-8 w-full rounded-2xl border border-[#D4C3AD] bg-white pl-9 pr-3 text-xs outline-none focus:border-[#5C7768]"
-                    />
-                  </div>
-                  <MiniSelect value={resultFilter} onChange={setResultFilter} options={["Status", ...resultOptions]} />
-                  <MiniSelect value={priorityFilter} onChange={setPriorityFilter} options={["Priority", ...priorityOptions]} />
-                  <MiniSelect value={specialistFilter} onChange={setSpecialistFilter} options={["Specialist", "Nisha", "Rick", "Chen"]} />
-                  <MiniSelect value={sortBy} onChange={setSortBy} options={["updatedAt", "ap", "clientName"]} />
-                  <input
-                    type="date"
-                    value={filterStartDate}
-                    onChange={(e) => setFilterStartDate(e.target.value)}
-                    className="h-8 rounded-2xl border border-[#D4C3AD] bg-white px-2 text-xs outline-none focus:border-[#5C7768]"
-                    title="From date"
-                  />
-                  <input
-                    type="date"
-                    value={filterEndDate}
-                    onChange={(e) => setFilterEndDate(e.target.value)}
-                    className="h-8 rounded-2xl border border-[#D4C3AD] bg-white px-2 text-xs outline-none focus:border-[#5C7768]"
-                    title="To date"
-                  />
-                  <Button variant="outline" size="sm" onClick={clearFilters} className="h-8 rounded-2xl px-2 text-xs">
-                    Clear
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            <div className="mt-3 grid h-fit content-start items-start gap-3 self-start">
+            {activeEntryTab === "inbound" ? (
               <Card className="h-fit min-w-0 self-start rounded-[1.6rem] border border-[#D4C3AD] bg-[#FCF8F2] shadow-md">
                 <CardContent className="p-0">
-                  <div className="w-full overflow-visible rounded-[1.6rem]">
-                    <table className="w-full min-w-[920px] table-fixed text-left text-[11px]">
-                      <thead className="sticky top-0 z-10 bg-[#F7E8D6] text-[11px] uppercase tracking-wide text-[#8A6A55]">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#D4C3AD] bg-[#F6EEE3] px-4 py-3">
+                    <div>
+                      <h2 className="flex items-center gap-1.5 text-sm font-bold text-[#2B1A12]">
+                        <XCircle className="h-4 w-4" /> Inbound cancellation list
+                      </h2>
+                      <p className="text-[10px] leading-3 text-[#8A6A55]">
+                        Separate list for inbound cancellation calls only.
+                      </p>
+                    </div>
+                    <div className="rounded-full bg-[#5B3320] px-3 py-1 text-xs font-bold text-white">
+                      {inboundCancellations.length} total
+                    </div>
+                  </div>
+
+                  <div className="w-full overflow-x-auto rounded-b-[1.6rem]">
+                    <table className="w-full min-w-[860px] table-fixed text-left text-[11px]">
+                      <thead className="bg-[#F7E8D6] text-[11px] uppercase tracking-wide text-[#8A6A55]">
                         <tr>
-                          <th className="w-[14%] px-3 py-3">Client</th>
-                          <th className="w-[11%] px-2 py-3">Policy</th>
-                          <th className="w-[9%] px-2 py-3">AP</th>
-                          <th className="w-[8%] px-2 py-3">Stage</th>
-                          <th className="w-[13%] px-2 py-3">Agent</th>
-                          <th className="w-[11%] px-2 py-3">Status</th>
-                          <th className="w-[24%] px-2 py-3">Action / Notes</th>
-                          <th className="w-[10%] px-2 py-3 text-right">Tools</th>
+                          <th className="w-[18%] px-3 py-3">Client</th>
+                          <th className="w-[15%] px-2 py-3">Phone</th>
+                          <th className="w-[17%] px-2 py-3">Agent</th>
+                          <th className="w-[14%] px-2 py-3">Resolved</th>
+                          <th className="w-[20%] px-2 py-3">Agent informed</th>
+                          <th className="w-[11%] px-2 py-3">Date</th>
+                          <th className="w-[5%] px-2 py-3 text-right">Tools</th>
                         </tr>
                       </thead>
+
                       <tbody className="divide-y divide-[#EEDBC6]">
-                        {paginatedRows.map((row) => (
-                          <tr key={row.id} className="bg-white align-top hover:bg-[#F6EEE3]">
+                        {inboundCancellations.map((item) => (
+                          <tr key={item.id} className="bg-white align-top hover:bg-[#F6EEE3]">
                             <td className="break-words px-3 py-3">
-                              <div className="font-semibold text-[#2B1A12]">{row.clientName}</div>
-                              <div className="mt-1 flex items-center gap-2 text-[11px] text-[#8A6A55]">
-                                {row.updatedAt}
-                                <span className={`rounded-full px-2 py-0.5 ${priorityClasses(row.priority)}`}>{row.priority}</span>
-                              </div>
+                              <div className="font-semibold text-[#2B1A12]">{item.clientName}</div>
                             </td>
-                            <td className="break-words px-2 py-3 font-mono text-[10px] text-[#6F4A33]">{row.policyNumber}</td>
-                            <td className="break-words px-2 py-3 font-semibold">{currency(row.ap)}</td>
+                            <td className="break-words px-2 py-3 text-[#5B3320]">{item.phoneNumber || "—"}</td>
+                            <td className="break-words px-2 py-3 text-[#5B3320]">{item.agentName || "—"}</td>
                             <td className="px-2 py-3">
-                              <span className="rounded-full bg-[#F7E8D6] px-1.5 py-0.5 text-[10px] font-semibold text-[#5B3320]">{row.leadStatus || "—"}</span>
-                            </td>
-                            <td className="break-words px-2 py-3 text-[#5B3320]">{row.agentName || "—"}</td>
-                            <td className="px-2 py-3">
-                              <span className={`inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-bold ${statusClasses(row.result)}`}>
-                                {row.result === "RESOLVED" && <CheckCircle2 className="mr-1 h-3 w-3" />}
-                                {row.result === "PENDING" && <Clock3 className="mr-1 h-3 w-3" />}
-                                {row.result === "LOST" && <XCircle className="mr-1 h-3 w-3" />}
-                                {row.result}
+                              <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold ${item.resolved === "Yes" ? "bg-[#EEF7E8] text-[#4C6B2F]" : "bg-[#FFF1D8] text-[#9A5B12]"}`}>
+                                {item.resolved}
                               </span>
                             </td>
-                            <td className="break-words px-2 py-3">
-                              <div className="font-medium text-[#3A2417]">{row.action || "—"}</div>
-                              {row.notes && <NotesHover text={row.notes} />}
+                            <td className="px-2 py-3">
+                              <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold ${item.agentInformed === "Yes" ? "bg-[#EEF7E8] text-[#4C6B2F]" : "bg-[#FFF1D8] text-[#9A5B12]"}`}>
+                                {item.agentInformed}
+                              </span>
+                            </td>
+                            <td className="break-words px-2 py-3 text-[10px] text-[#8A6A55]">
+                              {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "—"}
                             </td>
                             <td className="px-2 py-3">
-                              <div className="flex flex-nowrap justify-end gap-0.5">
-                                <Button size="icon" variant="ghost" className="h-7 w-7 rounded-xl" onClick={() => quickStatus(row.id, "RESOLVED")} title="Mark resolved">
-                                  <CheckCircle2 className="h-3.5 w-3.5" />
-                                </Button>
-                                <Button size="icon" variant="ghost" className="h-7 w-7 rounded-xl" onClick={() => copyClientSummary(row)} title="Copy summary">
-                                  <FileSpreadsheet className="h-3.5 w-3.5" />
-                                </Button>
-                                <Button size="icon" variant="ghost" className="h-7 w-7 rounded-xl" onClick={() => editRow(row)} title="Edit">
-                                  <Edit3 className="h-3.5 w-3.5" />
-                                </Button>
-                                <Button size="icon" variant="ghost" className="h-8 w-8 rounded-xl text-[#B44A2B] hover:text-[#8F321D]" onClick={() => deleteRow(row.id)} title="Delete">
+                              <div className="flex justify-end">
+                                <Button
+                                  type="button"
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => deleteInboundCancellation(item.id)}
+                                  className="h-7 w-7 rounded-xl text-[#B44A2B] hover:text-[#8F321D]"
+                                  title="Delete inbound cancellation"
+                                >
                                   <Trash2 className="h-3.5 w-3.5" />
                                 </Button>
                               </div>
@@ -1423,52 +1525,176 @@ export default function ChenTrackerApp() {
                         ))}
                       </tbody>
                     </table>
-                    {!filteredRows.length && (
-                      <div className="flex h-auto flex-col items-center justify-center bg-white px-6 py-3 text-center">
-                        <AlertTriangle className="mb-1 h-5 w-5 text-[#F3D9BC]" />
-                        <h3 className="text-sm font-bold">No cases found</h3>
-                        <p className="mt-0.5 text-xs text-[#8A6A55]">Try changing your search or filters.</p>
+
+                    {!inboundCancellations.length && (
+                      <div className="flex h-auto flex-col items-center justify-center bg-white px-6 py-10 text-center">
+                        <AlertTriangle className="mb-2 h-6 w-6 text-[#F3D9BC]" />
+                        <h3 className="text-sm font-bold text-[#2B1A12]">No inbound cancellations yet</h3>
+                        <p className="mt-1 text-xs text-[#8A6A55]">Use the form on the left to add one.</p>
                       </div>
                     )}
                   </div>
-
-                  {filteredRows.length > 0 && (
-                    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#D4C3AD] bg-[#FCF8F2] px-4 py-3 text-xs text-[#5B3320]">
-                      <div>
-                        Showing {(currentPage - 1) * rowsPerPage + 1} - {Math.min(currentPage * rowsPerPage, filteredRows.length)} of {filteredRows.length}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          disabled={currentPage === 1}
-                          onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
-                          className="h-8 rounded-2xl border-[#D4C3AD] px-3 text-xs disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          Previous
-                        </Button>
-                        <span className="rounded-full bg-[#F6EEE3] px-3 py-1 font-semibold">
-                          Page {currentPage} of {totalPages}
-                        </span>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          disabled={currentPage >= totalPages}
-                          onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
-                          className="h-8 rounded-2xl border-[#D4C3AD] px-3 text-xs disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          Next
-                        </Button>
-                      </div>
-                    </div>
-                  )}
                 </CardContent>
               </Card>
-            </div>
+            ) : (
+              <>
+                <Card className="h-fit max-h-fit min-w-0 self-start rounded-[1.4rem] border border-[#D4C3AD] bg-[#FCF8F2] shadow-md">
+                  <CardContent className="p-2.5">
+                    <div className="grid items-center gap-2 lg:grid-cols-[115px_1fr_105px_105px_110px_110px_112px_112px_64px]">
+                      <div>
+                        <h2 className="flex items-center gap-1.5 text-sm font-bold">
+                          <Filter className="h-4 w-4" /> Search
+                        </h2>
+                        <p className="text-[10px] leading-3 text-[#8A6A55]">
+                          {lastRefreshed ? `Last refreshed: ${lastRefreshed}` : "Search & filter."}
+                        </p>
+                      </div>
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#B28A6B]" />
+                        <input
+                          value={query}
+                          onChange={(e) => setQuery(e.target.value)}
+                          placeholder="Search client, policy, agent, specialist, notes..."
+                          className="h-8 w-full rounded-2xl border border-[#D4C3AD] bg-white pl-9 pr-3 text-xs outline-none focus:border-[#5C7768]"
+                        />
+                      </div>
+                      <MiniSelect value={resultFilter} onChange={setResultFilter} options={["Status", ...resultOptions]} />
+                      <MiniSelect value={priorityFilter} onChange={setPriorityFilter} options={["Priority", ...priorityOptions]} />
+                      <MiniSelect value={specialistFilter} onChange={setSpecialistFilter} options={["Specialist", "Nisha", "Rick", "Chen"]} />
+                      <MiniSelect value={sortBy} onChange={setSortBy} options={["updatedAt", "ap", "clientName"]} />
+                      <input
+                        type="date"
+                        value={filterStartDate}
+                        onChange={(e) => setFilterStartDate(e.target.value)}
+                        className="h-8 rounded-2xl border border-[#D4C3AD] bg-white px-2 text-xs outline-none focus:border-[#5C7768]"
+                        title="From date"
+                      />
+                      <input
+                        type="date"
+                        value={filterEndDate}
+                        onChange={(e) => setFilterEndDate(e.target.value)}
+                        className="h-8 rounded-2xl border border-[#D4C3AD] bg-white px-2 text-xs outline-none focus:border-[#5C7768]"
+                        title="To date"
+                      />
+                      <Button variant="outline" size="sm" onClick={clearFilters} className="h-8 rounded-2xl px-2 text-xs">
+                        Clear
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <div className="mt-3 grid h-fit content-start items-start gap-3 self-start">
+                  <Card className="h-fit min-w-0 self-start rounded-[1.6rem] border border-[#D4C3AD] bg-[#FCF8F2] shadow-md">
+                    <CardContent className="p-0">
+                      <div className="w-full overflow-visible rounded-[1.6rem]">
+                        <table className="w-full min-w-[920px] table-fixed text-left text-[11px]">
+                          <thead className="sticky top-0 z-10 bg-[#F7E8D6] text-[11px] uppercase tracking-wide text-[#8A6A55]">
+                            <tr>
+                              <th className="w-[14%] px-3 py-3">Client</th>
+                              <th className="w-[11%] px-2 py-3">Policy</th>
+                              <th className="w-[9%] px-2 py-3">AP</th>
+                              <th className="w-[8%] px-2 py-3">Stage</th>
+                              <th className="w-[13%] px-2 py-3">Agent</th>
+                              <th className="w-[11%] px-2 py-3">Status</th>
+                              <th className="w-[24%] px-2 py-3">Action / Notes</th>
+                              <th className="w-[10%] px-2 py-3 text-right">Tools</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-[#EEDBC6]">
+                            {paginatedRows.map((row) => (
+                              <tr key={row.id} className="bg-white align-top hover:bg-[#F6EEE3]">
+                                <td className="break-words px-3 py-3">
+                                  <div className="font-semibold text-[#2B1A12]">{row.clientName}</div>
+                                  <div className="mt-1 flex items-center gap-2 text-[11px] text-[#8A6A55]">
+                                    {row.updatedAt}
+                                    <span className={`rounded-full px-2 py-0.5 ${priorityClasses(row.priority)}`}>{row.priority}</span>
+                                  </div>
+                                </td>
+                                <td className="break-words px-2 py-3 font-mono text-[10px] text-[#6F4A33]">{row.policyNumber}</td>
+                                <td className="break-words px-2 py-3 font-semibold">{currency(row.ap)}</td>
+                                <td className="px-2 py-3">
+                                  <span className="rounded-full bg-[#F7E8D6] px-1.5 py-0.5 text-[10px] font-semibold text-[#5B3320]">{row.leadStatus || "—"}</span>
+                                </td>
+                                <td className="break-words px-2 py-3 text-[#5B3320]">{row.agentName || "—"}</td>
+                                <td className="px-2 py-3">
+                                  <span className={`inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-bold ${statusClasses(row.result)}`}>
+                                    {row.result === "RESOLVED" && <CheckCircle2 className="mr-1 h-3 w-3" />}
+                                    {row.result === "PENDING" && <Clock3 className="mr-1 h-3 w-3" />}
+                                    {row.result === "LOST" && <XCircle className="mr-1 h-3 w-3" />}
+                                    {row.result}
+                                  </span>
+                                </td>
+                                <td className="break-words px-2 py-3">
+                                  <div className="font-medium text-[#3A2417]">{row.action || "—"}</div>
+                                  {row.notes && <NotesHover text={row.notes} />}
+                                </td>
+                                <td className="px-2 py-3">
+                                  <div className="flex flex-nowrap justify-end gap-0.5">
+                                    <Button size="icon" variant="ghost" className="h-7 w-7 rounded-xl" onClick={() => quickStatus(row.id, "RESOLVED")} title="Mark resolved">
+                                      <CheckCircle2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button size="icon" variant="ghost" className="h-7 w-7 rounded-xl" onClick={() => copyClientSummary(row)} title="Copy summary">
+                                      <FileSpreadsheet className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button size="icon" variant="ghost" className="h-7 w-7 rounded-xl" onClick={() => editRow(row)} title="Edit">
+                                      <Edit3 className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button size="icon" variant="ghost" className="h-8 w-8 rounded-xl text-[#B44A2B] hover:text-[#8F321D]" onClick={() => deleteRow(row.id)} title="Delete">
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        {!filteredRows.length && (
+                          <div className="flex h-auto flex-col items-center justify-center bg-white px-6 py-3 text-center">
+                            <AlertTriangle className="mb-1 h-5 w-5 text-[#F3D9BC]" />
+                            <h3 className="text-sm font-bold">No cases found</h3>
+                            <p className="mt-0.5 text-xs text-[#8A6A55]">Try changing your search or filters.</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {filteredRows.length > 0 && (
+                        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#D4C3AD] bg-[#FCF8F2] px-4 py-3 text-xs text-[#5B3320]">
+                          <div>
+                            Showing {(currentPage - 1) * rowsPerPage + 1} - {Math.min(currentPage * rowsPerPage, filteredRows.length)} of {filteredRows.length}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              disabled={currentPage === 1}
+                              onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                              className="h-8 rounded-2xl border-[#D4C3AD] px-3 text-xs disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              Previous
+                            </Button>
+                            <span className="rounded-full bg-[#F6EEE3] px-3 py-1 font-semibold">
+                              Page {currentPage} of {totalPages}
+                            </span>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              disabled={currentPage >= totalPages}
+                              onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                              className="h-8 rounded-2xl border-[#D4C3AD] px-3 text-xs disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              Next
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
-
 
       {isWhatsNewOpen && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40 px-4 py-6">

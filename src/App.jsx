@@ -1583,12 +1583,12 @@ export default function ChenTrackerApp() {
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-xs">
-                  <ReportItem label="Total Cases" value={reportStats.totalCases} />
-                  <ReportItem label="Resolved" value={reportStats.resolved} />
-                  <ReportItem label="Pending" value={reportStats.pending} />
-                  <ReportItem label="Lost" value={reportStats.lost} />
-                  <ReportItem label="Pending Save AP" value={currency(reportStats.pendingSaveAp)} />
-                  <ReportItem label="Save AP" value={currency(reportStats.saveAp)} />
+                  <ReportItem label="Total Cases" value={reportStats.totalCases} isDarkMode={isDarkMode} />
+                  <ReportItem label="Resolved" value={reportStats.resolved} isDarkMode={isDarkMode} />
+                  <ReportItem label="Pending" value={reportStats.pending} isDarkMode={isDarkMode} />
+                  <ReportItem label="Lost" value={reportStats.lost} isDarkMode={isDarkMode} />
+                  <ReportItem label="Pending Save AP" value={currency(reportStats.pendingSaveAp)} isDarkMode={isDarkMode} />
+                  <ReportItem label="Save AP" value={currency(reportStats.saveAp)} isDarkMode={isDarkMode} />
                 </div>
               </div>
 
@@ -2517,63 +2517,57 @@ function DarkModeStyleFix() {
 }
 
 function StatCard({ icon, label, value, helper, tone = "slate", isDarkMode = false }) {
-  const iconBg = {
-    slate: isDarkMode ? "#7A4328" : "#5B3320",
-    amber: "#D8913D",
-    emerald: "#6F8A3A",
+  const iconClasses = {
+    slate: "bg-[#7A4328] text-white",
+    amber: "bg-[#D8913D] text-white",
+    emerald: "bg-[#6F8A3A] text-white",
   };
 
-  const cardStyle = isDarkMode
-    ? {
-        backgroundColor: "#102019",
-        borderColor: "#425549",
-        color: "#F6EEE3",
-      }
-    : {
-        backgroundColor: "#FCF8F2",
-        borderColor: "#D4C3AD",
-        color: "#2B1A12",
-      };
-
   return (
-    <Card
-      className="rounded-[1.4rem] border shadow-md transition-colors"
-      style={cardStyle}
+    <div
+      className={`rounded-[1.4rem] border shadow-md transition-colors ${
+        isDarkMode
+          ? "border-[#425549] bg-[#102019] text-[#F6EEE3]"
+          : "border-[#D4C3AD] bg-[#FCF8F2] text-[#2B1A12]"
+      }`}
     >
-      <CardContent className="p-3.5">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p
-              className="text-xs font-medium"
-              style={{ color: isDarkMode ? "#D9C9B4" : "#8A6A55" }}
-            >
-              {label}
-            </p>
-
-            <div
-              className="mt-1 text-xl font-bold tracking-tight"
-              style={{ color: isDarkMode ? "#FFFFFF" : "#2B1A12" }}
-            >
-              {value}
-            </div>
-
-            <p
-              className="mt-0.5 text-xs"
-              style={{ color: isDarkMode ? "#D9C9B4" : "#8A6A55" }}
-            >
-              {helper}
-            </p>
-          </div>
+      <div className="flex items-start justify-between gap-3 p-3.5">
+        <div className="min-w-0 flex-1">
+          <p
+            className={`text-xs font-medium ${
+              isDarkMode ? "text-[#D9C9B4]" : "text-[#8A6A55]"
+            }`}
+          >
+            {label}
+          </p>
 
           <div
-            className="rounded-2xl p-2.5 text-white"
-            style={{ backgroundColor: iconBg[tone] || iconBg.slate }}
+            className={`mt-1 truncate text-lg font-bold leading-tight md:text-xl ${
+              isDarkMode ? "text-white" : "text-[#2B1A12]"
+            }`}
+            title={String(value)}
           >
-            {React.cloneElement(icon, { className: "h-4 w-4" })}
+            {value}
           </div>
+
+          <p
+            className={`mt-0.5 text-[11px] leading-snug ${
+              isDarkMode ? "text-[#D9C9B4]" : "text-[#8A6A55]"
+            }`}
+          >
+            {helper}
+          </p>
         </div>
-      </CardContent>
-    </Card>
+
+        <div
+          className={`grid h-10 w-10 shrink-0 place-items-center rounded-2xl ${
+            iconClasses[tone] || iconClasses.slate
+          }`}
+        >
+          {React.cloneElement(icon, { className: "h-4 w-4" })}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -2628,11 +2622,31 @@ function NotesHover({ text }) {
   );
 }
 
-function ReportItem({ label, value }) {
+function ReportItem({ label, value, isDarkMode = false }) {
   return (
-    <div className="rounded-2xl border border-[#D4C3AD] bg-[#FCF8F2] p-3">
-      <div className="text-[10px] font-semibold uppercase tracking-wide text-[#8A6A55]">{label}</div>
-      <div className="mt-1 text-sm font-bold text-[#2B1A12]">{value}</div>
+    <div
+      className={`rounded-2xl border p-3 ${
+        isDarkMode
+          ? "border-[#425549] bg-[#102019]"
+          : "border-[#D4C3AD] bg-[#FCF8F2]"
+      }`}
+    >
+      <div
+        className={`text-[10px] font-semibold uppercase tracking-wide ${
+          isDarkMode ? "text-[#D9C9B4]" : "text-[#8A6A55]"
+        }`}
+      >
+        {label}
+      </div>
+
+      <div
+        className={`mt-1 truncate text-sm font-bold leading-tight ${
+          isDarkMode ? "text-white" : "text-[#2B1A12]"
+        }`}
+        title={String(value)}
+      >
+        {value}
+      </div>
     </div>
   );
 }

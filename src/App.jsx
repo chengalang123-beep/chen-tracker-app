@@ -702,6 +702,7 @@ export default function ChenTrackerApp() {
       formData.append("inboundSpecialist", data.specialistName || "");
       formData.append("selectedSpecialist", data.specialistName || "");
       formData.append("specialist", data.specialistName || "");
+      formData.append("inboundCancellationSpecialist", data.specialistName || "");
 
       formData.append("resolved", data.resolved || "No");
       formData.append("agentInformed", data.agentInformed || "No");

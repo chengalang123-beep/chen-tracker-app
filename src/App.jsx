@@ -54,7 +54,7 @@ const blankReminderForm = {
 
 const GOOGLE_SHEET_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxQbzGV243t3Tyfyzc7kcZuvNEmscoGf0lpdSRft5VhUIL1Y_ALEc3mA7HIO4WgF_x4/exec";
 // Paste your Google Sheet share/edit link here to view the live sheet inside the tracker.
-const GOOGLE_SHEET_VIEW_URL = "https://docs.google.com/spreadsheets/d/1ZTk5rV-4qFQWTxC0VYovD45Y8bHtHDI8dA1tfREge0A/edit?usp=sharing";
+const GOOGLE_SHEET_VIEW_URL = "";
 const EOD_JOTFORM_URL = "https://form.jotform.com/260420066600039";
 
 const blankForm = {
@@ -604,31 +604,32 @@ export default function ChenTrackerApp() {
     setInboundCancellationForm((current) => ({ ...current, [field]: value }));
   }
 
-  function submitInboundCancellation(event) {
-  event.preventDefault();
+  function submitInboundCancellation() {
+    const clientName = String(inboundCancellationForm.clientName || "").trim();
 
-  if (!inboundForm.clientName.trim()) return;
+    if (!clientName) {
+      setSheetMessage("Please enter the client name before saving.");
+      setTimeout(() => setSheetMessage(""), 2500);
+      return;
+    }
 
-  const newInbound = {
-    id: crypto.randomUUID(),
-    createdAt: new Date().toISOString().slice(0, 10),
-    clientName: inboundForm.clientName.trim(),
-    phoneNumber: inboundForm.phoneNumber.trim(),
-    agentName: inboundForm.agentName.trim(),
-    specialistName: inboundForm.specialistName || "",
-    resolved: inboundForm.resolved || "No",
-    agentInformed: inboundForm.agentInformed || "No",
-  };
+    const newInboundCancellation = {
+      id: crypto.randomUUID(),
+      createdAt: new Date().toISOString(),
+      clientName,
+      phoneNumber: String(inboundCancellationForm.phoneNumber || "").trim(),
+      agentName: String(inboundCancellationForm.agentName || "").trim(),
+      specialistName: String(inboundCancellationForm.specialistName || "").trim(),
+      resolved: inboundCancellationForm.resolved || "No",
+      agentInformed: inboundCancellationForm.agentInformed || "No",
+    };
 
-  setInboundCancellations((current) => [newInbound, ...current]);
-
-  sendInboundCancellationToGoogleSheet(newInbound);
-
-  setInboundMessage("Inbound cancellation saved to Inbound Cancellations sheet.");
-  setInboundForm(blankInboundForm);
-
-  setTimeout(() => setInboundMessage(""), 3000);
-}
+    setInboundCancellations((current) => [newInboundCancellation, ...current]);
+    setInboundCancellationForm(blankInboundCancellationForm);
+    setSheetMessage("Inbound cancellation saved to the Inbound Cancellations list. Syncing to Google Sheets...");
+    sendInboundCancellationToGoogleSheet(newInboundCancellation);
+    setTimeout(() => setSheetMessage(""), 3000);
+  }
 
   function deleteInboundCancellation(id) {
     setInboundCancellations((current) => current.filter((item) => item.id !== id));
@@ -1296,7 +1297,7 @@ export default function ChenTrackerApp() {
                 </form>
               ) : activeEntryTab === "inbound" ? (
                 <div className="space-y-3">
-                  <form onSubmit={submitInboundCancellation} className="space-y-2">
+                  <div className="space-y-2">
                     <Input
                       label="Client name"
                       value={inboundCancellationForm.clientName}
@@ -1336,7 +1337,11 @@ export default function ChenTrackerApp() {
                       />
                     </div>
                     <div className="grid grid-cols-[1fr_auto] gap-2">
-                      <Button type="submit" className="h-11 rounded-2xl bg-[#03071A] text-white hover:bg-[#10142B]">
+                      <Button
+                        type="button"
+                        onClick={submitInboundCancellation}
+                        className="h-11 rounded-2xl bg-[#03071A] text-white hover:bg-[#10142B]"
+                      >
                         <Plus className="mr-2 h-4 w-4" /> Save inbound cancellation
                       </Button>
                       <Button
@@ -1348,7 +1353,7 @@ export default function ChenTrackerApp() {
                         Clear
                       </Button>
                     </div>
-                  </form>
+                  </div>
                   <div className="rounded-[1.2rem] border border-[#D4C3AD] bg-[#F6EEE3] p-3 text-xs text-[#8A6A55]">
                     Saved inbound cancellations will appear in their own list on the right side.
                   </div>

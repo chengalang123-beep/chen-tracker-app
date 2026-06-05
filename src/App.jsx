@@ -2540,38 +2540,91 @@ function StatCard({ icon, label, value, helper, tone = "slate", isDarkMode = fal
       className="rounded-[1.4rem] border shadow-md transition-colors"
       style={cardStyle}
     >
-      <CardContent className="flex items-start justify-between gap-3 p-4">
-        <div className="min-w-0">
-          <p
-            className="text-xs font-semibold"
-            style={{ color: isDarkMode ? "#D9C9B4" : "#8A6A55" }}
-          >
-            {label}
-          </p>
+      <CardContent className="p-3.5">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p
+              className="text-xs font-medium"
+              style={{ color: isDarkMode ? "#D9C9B4" : "#8A6A55" }}
+            >
+              {label}
+            </p>
 
-          <p
-            className="mt-2 truncate text-2xl font-black"
-            style={{ color: isDarkMode ? "#FFFFFF" : "#2B1A12" }}
-          >
-            {value}
-          </p>
+            <div
+              className="mt-1 text-xl font-bold tracking-tight"
+              style={{ color: isDarkMode ? "#FFFFFF" : "#2B1A12" }}
+            >
+              {value}
+            </div>
 
-          <p
-            className="mt-1 text-xs"
-            style={{ color: isDarkMode ? "#D9C9B4" : "#8A6A55" }}
-          >
-            {helper}
-          </p>
-        </div>
+            <p
+              className="mt-0.5 text-xs"
+              style={{ color: isDarkMode ? "#D9C9B4" : "#8A6A55" }}
+            >
+              {helper}
+            </p>
+          </div>
 
-        <div
-          className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-white"
-          style={{ backgroundColor: iconBg[tone] || iconBg.slate }}
-        >
-          {React.cloneElement(icon, { className: "h-5 w-5" })}
+          <div
+            className="rounded-2xl p-2.5 text-white"
+            style={{ backgroundColor: iconBg[tone] || iconBg.slate }}
+          >
+            {React.cloneElement(icon, { className: "h-4 w-4" })}
+          </div>
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function NotesHover({ text }) {
+  const [position, setPosition] = React.useState({ top: 0, left: 0 });
+
+  async function copyNotes() {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (error) {
+      console.error("Failed to copy notes:", error);
+    }
+  }
+
+  function updatePopupPosition(event) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const popupWidth = 360;
+    const left = Math.min(Math.max(12, rect.left), window.innerWidth - popupWidth - 12);
+    const top = Math.max(12, rect.top - 118);
+    setPosition({ top, left });
+  }
+
+  return (
+    <div className="group relative mt-1 inline-block overflow-visible" onMouseEnter={updatePopupPosition}>
+      <button
+        type="button"
+        onMouseEnter={updatePopupPosition}
+        onClick={copyNotes}
+        className="rounded-full border border-[#D4C3AD] bg-[#F6EEE3] px-2 py-0.5 text-[10px] font-semibold text-[#5B3320] hover:bg-[#E9DECC]"
+        title="Hover to view notes. Click to copy."
+      >
+        Notes
+      </button>
+
+      <div
+        className="fixed z-[99999] hidden w-[360px] rounded-2xl border border-[#D4C3AD] bg-white p-3 text-[11px] leading-4 text-[#3A2417] shadow-2xl group-hover:block"
+        style={{ top: position.top, left: position.left }}
+      >
+        <div className="mb-1 font-bold text-[#5B3320]">Notes</div>
+        <div className="max-h-40 overflow-y-auto whitespace-pre-wrap select-text pr-1">{text}</div>
+        <div className="mt-2 flex justify-end">
+          <button
+            type="button"
+            onClick={copyNotes}
+            className="rounded-lg border border-[#D4C3AD] bg-[#F6EEE3] px-2 py-1 text-[10px] font-semibold text-[#5B3320] hover:bg-[#E9DECC]"
+          >
+            Copy
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 

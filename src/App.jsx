@@ -58,6 +58,7 @@ const GOOGLE_SHEET_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxbNbA
 const GOOGLE_SHEET_VIEW_URL = "https://docs.google.com/spreadsheets/d/1ZTk5rV-4qFQWTxC0VYovD45Y8bHtHDI8dA1tfREge0A/edit?usp=sharing";
 const EOD_JOTFORM_URL = "https://form.jotform.com/260420066600039";
 
+
 const blankForm = {
   clientName: "",
   policyNumber: "",
@@ -2516,51 +2517,56 @@ function DarkModeStyleFix() {
 }
 
 function StatCard({ icon, label, value, helper, tone = "slate", isDarkMode = false }) {
-  const toneClasses = {
-    slate: isDarkMode ? "bg-[#7A4328] text-white" : "bg-[#5B3320] text-white",
-    amber: isDarkMode ? "bg-[#D8913D] text-white" : "bg-[#D8913D] text-white",
-    emerald: isDarkMode ? "bg-[#6F8A3A] text-white" : "bg-[#6F8A3A] text-white",
+  const iconBg = {
+    slate: isDarkMode ? "#7A4328" : "#5B3320",
+    amber: "#D8913D",
+    emerald: "#6F8A3A",
   };
+
+  const cardStyle = isDarkMode
+    ? {
+        backgroundColor: "#102019",
+        borderColor: "#425549",
+        color: "#F6EEE3",
+      }
+    : {
+        backgroundColor: "#FCF8F2",
+        borderColor: "#D4C3AD",
+        color: "#2B1A12",
+      };
 
   return (
     <Card
-      className={`rounded-[1.4rem] !border shadow-md transition-colors ${
-        isDarkMode
-          ? "!border-[#425549] !bg-[#102019] !text-[#F6EEE3]"
-          : "!border-[#D4C3AD] !bg-[#FCF8F2] !text-[#2B1A12]"
-      }`}
+      className="rounded-[1.4rem] border shadow-md transition-colors"
+      style={cardStyle}
     >
       <CardContent className="flex items-start justify-between gap-3 p-4">
         <div className="min-w-0">
           <p
-            className={`text-xs font-semibold ${
-              isDarkMode ? "!text-[#D9C9B4]" : "!text-[#8A6A55]"
-            }`}
+            className="text-xs font-semibold"
+            style={{ color: isDarkMode ? "#D9C9B4" : "#8A6A55" }}
           >
             {label}
           </p>
 
           <p
-            className={`mt-2 truncate text-2xl font-black ${
-              isDarkMode ? "!text-[#FFFFFF]" : "!text-[#2B1A12]"
-            }`}
+            className="mt-2 truncate text-2xl font-black"
+            style={{ color: isDarkMode ? "#FFFFFF" : "#2B1A12" }}
           >
             {value}
           </p>
 
           <p
-            className={`mt-1 text-xs ${
-              isDarkMode ? "!text-[#D9C9B4]" : "!text-[#8A6A55]"
-            }`}
+            className="mt-1 text-xs"
+            style={{ color: isDarkMode ? "#D9C9B4" : "#8A6A55" }}
           >
             {helper}
           </p>
         </div>
 
         <div
-          className={`grid h-10 w-10 shrink-0 place-items-center rounded-full ${
-            toneClasses[tone] || toneClasses.slate
-          }`}
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-white"
+          style={{ backgroundColor: iconBg[tone] || iconBg.slate }}
         >
           {React.cloneElement(icon, { className: "h-5 w-5" })}
         </div>

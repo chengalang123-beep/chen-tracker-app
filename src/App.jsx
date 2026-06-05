@@ -2511,6 +2511,52 @@ function DarkModeStyleFix() {
         color: #F7EFE2 !important;
         border-color: #52685B !important;
       }
+
+      /* FORCE STAT CARDS DARK - this targets the top metric cards specifically */
+      .dark-tracker .stat-card-strip > * {
+        background-color: #102019 !important;
+        background-image: none !important;
+        border-color: #425549 !important;
+        color: #ffffff !important;
+      }
+
+      .dark-tracker .stat-card-strip .stat-card-force {
+        background-color: #102019 !important;
+        background-image: none !important;
+        border-color: #425549 !important;
+        color: #ffffff !important;
+      }
+
+      .dark-tracker .stat-card-strip .stat-card-label,
+      .dark-tracker .stat-card-strip .stat-card-helper {
+        color: #D9C9B4 !important;
+      }
+
+      .dark-tracker .stat-card-strip .stat-card-value {
+        color: #FFFFFF !important;
+        font-size: 1rem !important;
+        line-height: 1.2 !important;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      @media (min-width: 768px) {
+        .dark-tracker .stat-card-strip .stat-card-value {
+          font-size: 1.125rem !important;
+        }
+      }
+
+      .dark-tracker .stat-card-strip .stat-card-icon,
+      .dark-tracker .stat-card-strip .stat-card-icon * {
+        color: #ffffff !important;
+      }
+
+      .dark-tracker .stat-card-strip svg {
+        color: #ffffff !important;
+        stroke: currentColor !important;
+      }
     `}</style>
   );
 }
@@ -2522,47 +2568,42 @@ function StatCard({ icon, label, value, helper, tone = "slate", isDarkMode = fal
     emerald: "#6F8A3A",
   };
 
-  const cardBg = isDarkMode ? "#102019" : "#FCF8F2";
-  const border = isDarkMode ? "#425549" : "#D4C3AD";
-  const mainText = isDarkMode ? "#FFFFFF" : "#2B1A12";
-  const mutedText = isDarkMode ? "#D9C9B4" : "#8A6A55";
-
   return (
     <div
-      className="rounded-[1.4rem] shadow-md transition-colors"
+      className="stat-card-force rounded-[1.4rem] border shadow-md transition-colors"
       style={{
-        backgroundColor: cardBg,
-        border: `1px solid ${border}`,
-        color: mainText,
+        backgroundColor: isDarkMode ? "#102019" : "#FCF8F2",
+        borderColor: isDarkMode ? "#425549" : "#D4C3AD",
+        color: isDarkMode ? "#FFFFFF" : "#2B1A12",
       }}
     >
       <div className="flex items-start justify-between gap-3 p-3.5">
         <div className="min-w-0 flex-1">
           <p
-            className="text-xs font-medium"
-            style={{ color: mutedText }}
+            className="stat-card-label text-xs font-medium"
+            style={{ color: isDarkMode ? "#D9C9B4" : "#8A6A55" }}
           >
             {label}
           </p>
 
           <div
-            className="mt-1 truncate text-base font-bold leading-tight md:text-lg"
-            style={{ color: mainText }}
+            className="stat-card-value mt-1 truncate text-base font-bold leading-tight md:text-lg"
+            style={{ color: isDarkMode ? "#FFFFFF" : "#2B1A12" }}
             title={String(value)}
           >
             {value}
           </div>
 
           <p
-            className="mt-0.5 text-[11px] leading-snug"
-            style={{ color: mutedText }}
+            className="stat-card-helper mt-0.5 text-[11px] leading-snug"
+            style={{ color: isDarkMode ? "#D9C9B4" : "#8A6A55" }}
           >
             {helper}
           </p>
         </div>
 
         <div
-          className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl text-white"
+          className="stat-card-icon grid h-10 w-10 shrink-0 place-items-center rounded-2xl text-white"
           style={{ backgroundColor: iconBg[tone] || iconBg.slate }}
         >
           {React.cloneElement(icon, { className: "h-4 w-4" })}

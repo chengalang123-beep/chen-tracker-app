@@ -668,6 +668,9 @@ export default function ChenTrackerApp() {
     setInboundCancellationForm(blankInboundCancellationForm);
     setSheetMessage("Inbound cancellation saved to the Inbound Cancellations list. Syncing to Google Sheets...");
     sendInboundCancellationToGoogleSheet(newInboundCancellation);
+    setTimeout(() => {
+      loadFromGoogleSheet();
+    }, 1200);
     setTimeout(() => setSheetMessage(""), 3000);
   }
 
@@ -725,6 +728,9 @@ export default function ChenTrackerApp() {
     updateInboundCancellationInGoogleSheet(editInboundCancellationRow, updatedInboundCancellation);
 
     setSheetMessage("Inbound cancellation updated. Syncing changes to Google Sheets...");
+    setTimeout(() => {
+      loadFromGoogleSheet();
+    }, 1200);
     setTimeout(() => setSheetMessage(""), 3000);
     closeInboundCancellationEditModal();
   }
@@ -925,6 +931,24 @@ export default function ChenTrackerApp() {
         const cleanRows = data.rows.filter(isRealTrackerRow);
         setRows(cleanRows);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(cleanRows));
+
+        if (Array.isArray(data.inboundCancellations)) {
+          const cleanInboundCancellations = data.inboundCancellations.map((item) => ({
+            id: item.id || crypto.randomUUID(),
+            createdAt: item.createdAt || "",
+            clientName: item.clientName || "",
+            phoneNumber: item.phoneNumber || "",
+            agentName: item.agentName || "",
+            specialistName: item.specialistName || "",
+            resolved: item.resolved || "No",
+            agentInformed: item.agentInformed || "No",
+            notes: item.notes || "",
+          }));
+
+          setInboundCancellations(cleanInboundCancellations);
+          localStorage.setItem(INBOUND_CANCELLATION_STORAGE_KEY, JSON.stringify(cleanInboundCancellations));
+        }
+
         setLastRefreshed(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
         setSheetMessage("Data refreshed successfully.");
       } else {

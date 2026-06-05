@@ -58,7 +58,6 @@ const GOOGLE_SHEET_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxbNbA
 const GOOGLE_SHEET_VIEW_URL = "https://docs.google.com/spreadsheets/d/1ZTk5rV-4qFQWTxC0VYovD45Y8bHtHDI8dA1tfREge0A/edit?usp=sharing";
 const EOD_JOTFORM_URL = "https://form.jotform.com/260420066600039";
 
-
 const blankForm = {
   clientName: "",
   policyNumber: "",
@@ -2517,52 +2516,54 @@ function DarkModeStyleFix() {
 }
 
 function StatCard({ icon, label, value, helper, tone = "slate", isDarkMode = false }) {
-  const iconClasses = {
-    slate: "bg-[#7A4328] text-white",
-    amber: "bg-[#D8913D] text-white",
-    emerald: "bg-[#6F8A3A] text-white",
+  const iconBg = {
+    slate: isDarkMode ? "#7A4328" : "#5B3320",
+    amber: "#D8913D",
+    emerald: "#6F8A3A",
   };
+
+  const cardBg = isDarkMode ? "#102019" : "#FCF8F2";
+  const border = isDarkMode ? "#425549" : "#D4C3AD";
+  const mainText = isDarkMode ? "#FFFFFF" : "#2B1A12";
+  const mutedText = isDarkMode ? "#D9C9B4" : "#8A6A55";
 
   return (
     <div
-      className={`rounded-[1.4rem] border shadow-md transition-colors ${
-        isDarkMode
-          ? "border-[#425549] bg-[#102019] text-[#F6EEE3]"
-          : "border-[#D4C3AD] bg-[#FCF8F2] text-[#2B1A12]"
-      }`}
+      className="rounded-[1.4rem] shadow-md transition-colors"
+      style={{
+        backgroundColor: cardBg,
+        border: `1px solid ${border}`,
+        color: mainText,
+      }}
     >
       <div className="flex items-start justify-between gap-3 p-3.5">
         <div className="min-w-0 flex-1">
           <p
-            className={`text-xs font-medium ${
-              isDarkMode ? "text-[#D9C9B4]" : "text-[#8A6A55]"
-            }`}
+            className="text-xs font-medium"
+            style={{ color: mutedText }}
           >
             {label}
           </p>
 
           <div
-            className={`mt-1 truncate text-lg font-bold leading-tight md:text-xl ${
-              isDarkMode ? "text-white" : "text-[#2B1A12]"
-            }`}
+            className="mt-1 truncate text-base font-bold leading-tight md:text-lg"
+            style={{ color: mainText }}
             title={String(value)}
           >
             {value}
           </div>
 
           <p
-            className={`mt-0.5 text-[11px] leading-snug ${
-              isDarkMode ? "text-[#D9C9B4]" : "text-[#8A6A55]"
-            }`}
+            className="mt-0.5 text-[11px] leading-snug"
+            style={{ color: mutedText }}
           >
             {helper}
           </p>
         </div>
 
         <div
-          className={`grid h-10 w-10 shrink-0 place-items-center rounded-2xl ${
-            iconClasses[tone] || iconClasses.slate
-          }`}
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl text-white"
+          style={{ backgroundColor: iconBg[tone] || iconBg.slate }}
         >
           {React.cloneElement(icon, { className: "h-4 w-4" })}
         </div>
@@ -2623,26 +2624,29 @@ function NotesHover({ text }) {
 }
 
 function ReportItem({ label, value, isDarkMode = false }) {
+  const cardBg = isDarkMode ? "#102019" : "#FCF8F2";
+  const border = isDarkMode ? "#425549" : "#D4C3AD";
+  const mainText = isDarkMode ? "#FFFFFF" : "#2B1A12";
+  const mutedText = isDarkMode ? "#D9C9B4" : "#8A6A55";
+
   return (
     <div
-      className={`rounded-2xl border p-3 ${
-        isDarkMode
-          ? "border-[#425549] bg-[#102019]"
-          : "border-[#D4C3AD] bg-[#FCF8F2]"
-      }`}
+      className="rounded-2xl p-3"
+      style={{
+        backgroundColor: cardBg,
+        border: `1px solid ${border}`,
+      }}
     >
       <div
-        className={`text-[10px] font-semibold uppercase tracking-wide ${
-          isDarkMode ? "text-[#D9C9B4]" : "text-[#8A6A55]"
-        }`}
+        className="text-[10px] font-semibold uppercase tracking-wide"
+        style={{ color: mutedText }}
       >
         {label}
       </div>
 
       <div
-        className={`mt-1 truncate text-sm font-bold leading-tight ${
-          isDarkMode ? "text-white" : "text-[#2B1A12]"
-        }`}
+        className="mt-1 truncate text-sm font-bold leading-tight"
+        style={{ color: mainText }}
         title={String(value)}
       >
         {value}

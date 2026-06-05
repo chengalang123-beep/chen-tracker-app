@@ -31,7 +31,7 @@ import { Card, CardContent } from "@/components/ui/card";
 
 const STORAGE_KEY = "chen-policy-tracker-v1";
 const WHATS_NEW_STORAGE_KEY = "eterna-whats-new-seen-v1";
-const WHATS_NEW_VERSION = "2026-06-05-full-dark-mode-inbound-lock";
+const WHATS_NEW_VERSION = "2026-06-05-full-dark-mode-inbound-edit";
 const REMINDER_STORAGE_KEY = "eterna-personal-reminders-v1";
 const REMINDER_SOUND_STORAGE_KEY = "eterna-reminder-sound-enabled-v1";
 const REMINDER_ALERTED_STORAGE_KEY = "eterna-reminder-alerted-ids-v1";
@@ -44,6 +44,7 @@ const blankInboundCancellationForm = {
   specialistName: "",
   resolved: "No",
   agentInformed: "No",
+  notes: "",
 };
 
 const blankReminderForm = {
@@ -226,6 +227,8 @@ export default function ChenTrackerApp() {
       return [];
     }
   });
+  const [editInboundCancellationRow, setEditInboundCancellationRow] = useState(null);
+  const [editInboundCancellationForm, setEditInboundCancellationForm] = useState(blankInboundCancellationForm);
   const [editForm, setEditForm] = useState(blankForm);
   const [editModalRow, setEditModalRow] = useState(null);
   const [editingId, setEditingId] = useState(null);
@@ -628,6 +631,7 @@ export default function ChenTrackerApp() {
       specialistName: String(inboundCancellationForm.specialistName || "").trim(),
       resolved: inboundCancellationForm.resolved || "No",
       agentInformed: inboundCancellationForm.agentInformed || "No",
+      notes: String(inboundCancellationForm.notes || "").trim(),
     };
 
     setInboundCancellations((current) => [newInboundCancellation, ...current]);
@@ -639,6 +643,60 @@ export default function ChenTrackerApp() {
 
   function deleteInboundCancellation(id) {
     setInboundCancellations((current) => current.filter((item) => item.id !== id));
+  }
+
+  function editInboundCancellation(item) {
+    setEditInboundCancellationRow(item);
+    setEditInboundCancellationForm({
+      clientName: item.clientName || "",
+      phoneNumber: item.phoneNumber || "",
+      agentName: item.agentName || "",
+      specialistName: item.specialistName || "",
+      resolved: item.resolved || "No",
+      agentInformed: item.agentInformed || "No",
+      notes: item.notes || "",
+    });
+  }
+
+  function updateEditInboundCancellationForm(field, value) {
+    setEditInboundCancellationForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function closeInboundCancellationEditModal() {
+    setEditInboundCancellationRow(null);
+    setEditInboundCancellationForm(blankInboundCancellationForm);
+  }
+
+  function saveInboundCancellationEditModal(event) {
+    event.preventDefault();
+
+    if (!editInboundCancellationRow || !String(editInboundCancellationForm.clientName || "").trim()) {
+      return;
+    }
+
+    const updatedInboundCancellation = {
+      ...editInboundCancellationRow,
+      clientName: String(editInboundCancellationForm.clientName || "").trim(),
+      phoneNumber: String(editInboundCancellationForm.phoneNumber || "").trim(),
+      agentName: String(editInboundCancellationForm.agentName || "").trim(),
+      specialistName: String(editInboundCancellationForm.specialistName || "").trim(),
+      resolved: editInboundCancellationForm.resolved || "No",
+      agentInformed: editInboundCancellationForm.agentInformed || "No",
+      notes: String(editInboundCancellationForm.notes || "").trim(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    setInboundCancellations((current) =>
+      current.map((item) =>
+        item.id === editInboundCancellationRow.id ? updatedInboundCancellation : item
+      )
+    );
+
+    updateInboundCancellationInGoogleSheet(editInboundCancellationRow, updatedInboundCancellation);
+
+    setSheetMessage("Inbound cancellation updated. Syncing changes to Google Sheets...");
+    setTimeout(() => setSheetMessage(""), 3000);
+    closeInboundCancellationEditModal();
   }
 
   function updateEditForm(field, value) {
@@ -706,6 +764,7 @@ export default function ChenTrackerApp() {
 
       formData.append("resolved", data.resolved || "No");
       formData.append("agentInformed", data.agentInformed || "No");
+      formData.append("notes", data.notes || "");
 
       await fetch(GOOGLE_SHEET_WEB_APP_URL, {
         method: "POST",
@@ -714,6 +773,42 @@ export default function ChenTrackerApp() {
       });
     } catch (error) {
       console.error("Inbound cancellation sync failed:", error);
+    }
+  }
+
+  async function updateInboundCancellationInGoogleSheet(originalData, updatedData) {
+    try {
+      const formData = new URLSearchParams();
+
+      formData.append("recordType", "updateInboundCancellation");
+      formData.append("forceSheet", "Inbound Cancellations");
+      formData.append("inboundOnly", "true");
+
+      // Match fields help Apps Script find the original row.
+      formData.append("originalCreatedAt", originalData.createdAt || "");
+      formData.append("originalClientName", originalData.clientName || "");
+      formData.append("originalPhoneNumber", originalData.phoneNumber || "");
+      formData.append("originalAgentName", originalData.agentName || "");
+
+      // Updated values.
+      formData.append("createdAt", updatedData.createdAt || originalData.createdAt || "");
+      formData.append("clientName", updatedData.clientName || "");
+      formData.append("phoneNumber", updatedData.phoneNumber || "");
+      formData.append("agentName", updatedData.agentName || "");
+      formData.append("inboundSpecialist", updatedData.specialistName || "");
+      formData.append("selectedSpecialist", updatedData.specialistName || "");
+      formData.append("specialist", updatedData.specialistName || "");
+      formData.append("resolved", updatedData.resolved || "No");
+      formData.append("agentInformed", updatedData.agentInformed || "No");
+      formData.append("notes", updatedData.notes || "");
+
+      await fetch(GOOGLE_SHEET_WEB_APP_URL, {
+        method: "POST",
+        mode: "no-cors",
+        body: formData,
+      });
+    } catch (error) {
+      console.error("Inbound cancellation update failed:", error);
     }
   }
 
@@ -1356,6 +1451,12 @@ export default function ChenTrackerApp() {
                         options={["No", "Yes"]}
                       />
                     </div>
+                    <Textarea
+                      label="Notes"
+                      value={inboundCancellationForm.notes}
+                      onChange={(v) => updateInboundCancellationForm("notes", v)}
+                      placeholder="Add cancellation details, next steps, or agent update notes..."
+                    />
                     <div className="grid grid-cols-[1fr_auto] gap-2">
                       <Button
                         type="button"
@@ -1510,7 +1611,7 @@ export default function ChenTrackerApp() {
                   </div>
 
                   <div className="w-full overflow-x-auto rounded-b-[1.6rem]">
-                    <table className="w-full min-w-[980px] table-fixed text-left text-[11px]">
+                    <table className="w-full min-w-[1120px] table-fixed text-left text-[11px]">
                       <thead className="bg-[#F7E8D6] text-[11px] uppercase tracking-wide text-[#8A6A55]">
                         <tr>
                           <th className="w-[16%] px-3 py-3">Client</th>
@@ -1518,9 +1619,10 @@ export default function ChenTrackerApp() {
                           <th className="w-[14%] px-2 py-3">Agent</th>
                           <th className="w-[12%] px-2 py-3">Specialist</th>
                           <th className="w-[12%] px-2 py-3">Resolved</th>
-                          <th className="w-[18%] px-2 py-3">Agent informed</th>
-                          <th className="w-[10%] px-2 py-3">Date</th>
-                          <th className="w-[5%] px-2 py-3 text-right">Tools</th>
+                          <th className="w-[14%] px-2 py-3">Agent informed</th>
+                          <th className="w-[18%] px-2 py-3">Notes</th>
+                          <th className="w-[9%] px-2 py-3">Date</th>
+                          <th className="w-[7%] px-2 py-3 text-right">Tools</th>
                         </tr>
                       </thead>
 
@@ -1543,11 +1645,25 @@ export default function ChenTrackerApp() {
                                 {item.agentInformed}
                               </span>
                             </td>
+                            <td className="break-words px-2 py-3">
+                              {item.notes ? <NotesHover text={item.notes} /> : <span className="text-[#8A6A55]">—</span>}
+                            </td>
                             <td className="break-words px-2 py-3 text-[10px] text-[#8A6A55]">
                               {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "—"}
                             </td>
                             <td className="px-2 py-3">
-                              <div className="flex justify-end">
+                              <div className="flex justify-end gap-1">
+                                <Button
+                                  type="button"
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => editInboundCancellation(item)}
+                                  className="h-7 w-7 rounded-xl text-[#5C7768] hover:text-[#2E443A]"
+                                  title="Edit inbound cancellation"
+                                >
+                                  <Edit3 className="h-3.5 w-3.5" />
+                                </Button>
+
                                 <Button
                                   type="button"
                                   size="icon"
@@ -1825,6 +1941,18 @@ export default function ChenTrackerApp() {
                   </div>
                 </div>
               </div>
+
+              <div className="rounded-2xl border border-[#D4C3AD] bg-white p-4">
+                <div className="flex gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[#5C7768] text-white">
+                    <Edit3 className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-[#2B1A12]">Edit Inbound Cancellations</h3>
+                    <p className="mt-1 text-xs leading-5 text-[#8A6A55]">The Inbound Cancellation list now has an edit button so you can correct the client name, phone, agent, specialist, resolved status, and agent update status.</p>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div className="flex justify-end border-t border-[#D4C3AD] bg-[#F6EEE3] px-5 py-4">
@@ -2045,6 +2173,86 @@ export default function ChenTrackerApp() {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {editInboundCancellationRow && (
+        <div className="fixed inset-0 z-[102] flex items-center justify-center bg-black/40 px-4 py-6">
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-[1.8rem] border border-[#D4C3AD] bg-[#FCF8F2] p-5 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-bold text-[#2B1A12]">Edit inbound cancellation</h2>
+                <p className="text-xs text-[#8A6A55]">Update the inbound cancellation details below.</p>
+              </div>
+              <Button type="button" variant="ghost" size="sm" onClick={closeInboundCancellationEditModal} className="rounded-xl">
+                <X className="mr-1 h-4 w-4" /> Close
+              </Button>
+            </div>
+
+            <form onSubmit={saveInboundCancellationEditModal} className="space-y-3">
+              <Input
+                label="Client name"
+                value={editInboundCancellationForm.clientName}
+                onChange={(v) => updateEditInboundCancellationForm("clientName", v)}
+                required
+              />
+
+              <div className="grid gap-3 md:grid-cols-2">
+                <Input
+                  label="Phone number"
+                  value={editInboundCancellationForm.phoneNumber}
+                  onChange={(v) => updateEditInboundCancellationForm("phoneNumber", v)}
+                />
+                <Input
+                  label="Agent"
+                  value={editInboundCancellationForm.agentName}
+                  onChange={(v) => updateEditInboundCancellationForm("agentName", v)}
+                />
+              </div>
+
+              <Select
+                label="Specialist"
+                value={editInboundCancellationForm.specialistName}
+                onChange={(v) => updateEditInboundCancellationForm("specialistName", v)}
+                options={["", "Nisha", "Rick", "Chen"]}
+              />
+
+              <div className="grid gap-3 md:grid-cols-2">
+                <Select
+                  label="Resolved"
+                  value={editInboundCancellationForm.resolved}
+                  onChange={(v) => updateEditInboundCancellationForm("resolved", v)}
+                  options={["No", "Yes"]}
+                />
+                <Select
+                  label="Agent informed with updates"
+                  value={editInboundCancellationForm.agentInformed}
+                  onChange={(v) => updateEditInboundCancellationForm("agentInformed", v)}
+                  options={["No", "Yes"]}
+                />
+              </div>
+              <Textarea
+                label="Notes"
+                value={editInboundCancellationForm.notes}
+                onChange={(v) => updateEditInboundCancellationForm("notes", v)}
+                placeholder="Add cancellation details, next steps, or agent update notes..."
+              />
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={closeInboundCancellationEditModal}
+                  className="rounded-2xl border-[#D4C3AD] text-[#5B3320]"
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" className="rounded-2xl bg-[#03071A] text-white hover:bg-[#10142B]">
+                  <Save className="mr-2 h-4 w-4" /> Save changes
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
       )}

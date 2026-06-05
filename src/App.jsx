@@ -31,7 +31,7 @@ import { Card, CardContent } from "@/components/ui/card";
 
 const STORAGE_KEY = "chen-policy-tracker-v1";
 const WHATS_NEW_STORAGE_KEY = "eterna-whats-new-seen-v1";
-const WHATS_NEW_VERSION = "2026-06-04-reminders-calendar-sound-sheet";
+const WHATS_NEW_VERSION = "2026-06-05-full-dark-mode-inbound-lock";
 const REMINDER_STORAGE_KEY = "eterna-personal-reminders-v1";
 const REMINDER_SOUND_STORAGE_KEY = "eterna-reminder-sound-enabled-v1";
 const REMINDER_ALERTED_STORAGE_KEY = "eterna-reminder-alerted-ids-v1";
@@ -1082,7 +1082,8 @@ export default function ChenTrackerApp() {
   }
 
   return (
-    <div className={isDarkMode ? "relative min-h-screen overflow-x-hidden bg-[#111A16] text-[#2B1A12]" : "relative min-h-screen overflow-x-hidden bg-[#EDE5D7] text-[#2B1A12]"}>
+    <div className={isDarkMode ? "dark-tracker relative min-h-screen overflow-x-hidden bg-[#111A16] text-[#F7EFE2]" : "relative min-h-screen overflow-x-hidden bg-[#EDE5D7] text-[#2B1A12]"}>
+      {isDarkMode && <DarkModeStyleFix />}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         {isDarkMode ? (
           <>
@@ -1800,6 +1801,30 @@ export default function ChenTrackerApp() {
                   </div>
                 </div>
               </div>
+
+              <div className="rounded-2xl border border-[#D4C3AD] bg-white p-4">
+                <div className="flex gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[#03071A] text-white">
+                    <Moon className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-[#2B1A12]">Full Dark Mode</h3>
+                    <p className="mt-1 text-xs leading-5 text-[#8A6A55]">Dark mode now applies to the full tracker, including cards, forms, search filters, tables, popups, inputs, and helper text so everything stays readable.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-[#D4C3AD] bg-white p-4">
+                <div className="flex gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[#5B3320] text-white">
+                    <XCircle className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-[#2B1A12]">Inbound Cancellation Updates</h3>
+                    <p className="mt-1 text-xs leading-5 text-[#8A6A55]">The Inbound Cancellation tab now uses its own workflow and is set up to send specialist details to the dedicated Inbound Cancellations sheet.</p>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div className="flex justify-end border-t border-[#D4C3AD] bg-[#F6EEE3] px-5 py-4">
@@ -2069,6 +2094,138 @@ export default function ChenTrackerApp() {
         </div>
       )}
     </div>
+  );
+}
+
+
+function DarkModeStyleFix() {
+  return (
+    <style>{`
+      .dark-tracker {
+        color-scheme: dark;
+      }
+
+      .dark-tracker [class*="bg-[#FCF8F2]"],
+      .dark-tracker [class*="bg-[#F6EEE3]"],
+      .dark-tracker [class*="bg-[#EFE6D8]"],
+      .dark-tracker [class*="bg-[#E9DECC]"],
+      .dark-tracker [class*="bg-[#F7E8D6]"],
+      .dark-tracker [class*="bg-[#F4EEE3]"],
+      .dark-tracker [class*="bg-[#E8D8C3]"],
+      .dark-tracker [class*="bg-[#F7F1E8]"],
+      .dark-tracker [class*="bg-white"] {
+        background-color: #111F1A !important;
+        background-image: none !important;
+      }
+
+      .dark-tracker [class*="hover:bg-[#F6EEE3]"]:hover,
+      .dark-tracker [class*="hover:bg-[#E9DECC]"]:hover,
+      .dark-tracker tr:hover {
+        background-color: #182B23 !important;
+      }
+
+      .dark-tracker [class*="border-[#D4C3AD]"],
+      .dark-tracker [class*="border-[#CDBAA3]"],
+      .dark-tracker [class*="border-[#BFAE98]"],
+      .dark-tracker [class*="border-[#EEDBC6]"] {
+        border-color: #52685B !important;
+      }
+
+      .dark-tracker [class*="divide-[#EEDBC6]"] > :not([hidden]) ~ :not([hidden]) {
+        border-color: #344A40 !important;
+      }
+
+      .dark-tracker [class*="text-[#2B1A12]"],
+      .dark-tracker [class*="text-[#3A2417]"],
+      .dark-tracker [class*="text-[#5B3320]"],
+      .dark-tracker [class*="text-[#4D6659]"],
+      .dark-tracker [class*="text-[#2E443A]"] {
+        color: #F7EFE2 !important;
+      }
+
+      .dark-tracker [class*="text-[#8A6A55]"],
+      .dark-tracker [class*="text-[#6D6256]"],
+      .dark-tracker [class*="text-[#8A7A67]"],
+      .dark-tracker [class*="text-[#7C5A45]"] {
+        color: #CDBFAE !important;
+      }
+
+      .dark-tracker label span,
+      .dark-tracker th,
+      .dark-tracker p,
+      .dark-tracker h1,
+      .dark-tracker h2,
+      .dark-tracker h3,
+      .dark-tracker td,
+      .dark-tracker div,
+      .dark-tracker span {
+        text-shadow: none;
+      }
+
+      .dark-tracker input,
+      .dark-tracker select,
+      .dark-tracker textarea {
+        background-color: #0C1713 !important;
+        color: #F7EFE2 !important;
+        border-color: #52685B !important;
+      }
+
+      .dark-tracker input::placeholder,
+      .dark-tracker textarea::placeholder {
+        color: #A89B8A !important;
+      }
+
+      .dark-tracker option {
+        background-color: #0C1713;
+        color: #F7EFE2;
+      }
+
+      .dark-tracker table thead,
+      .dark-tracker thead tr,
+      .dark-tracker th {
+        background-color: #17271F !important;
+        color: #EADAC6 !important;
+      }
+
+      .dark-tracker tbody tr,
+      .dark-tracker td {
+        background-color: #0F1D18 !important;
+        color: #F7EFE2 !important;
+      }
+
+      .dark-tracker [class*="shadow"] {
+        box-shadow: 0 16px 38px rgba(0, 0, 0, 0.38) !important;
+      }
+
+      .dark-tracker [class*="bg-[#03071A]"] {
+        background-color: #050914 !important;
+      }
+
+      .dark-tracker [class*="bg-[#5B3320]"] {
+        background-color: #6A3B25 !important;
+      }
+
+      .dark-tracker [class*="bg-[#5C7768]"] {
+        background-color: #355F50 !important;
+      }
+
+      .dark-tracker [class*="bg-[#D8913D]"] {
+        background-color: #D8913D !important;
+      }
+
+      .dark-tracker [class*="bg-[#6F8A3A]"] {
+        background-color: #6F8A3A !important;
+      }
+
+      .dark-tracker .rounded-full[class*="bg-[#F7E8D6]"],
+      .dark-tracker .rounded-full[class*="bg-[#FFF1D8]"],
+      .dark-tracker .rounded-full[class*="bg-[#EEF7E8]"],
+      .dark-tracker .rounded-full[class*="bg-[#FCE8DF]"] {
+        background-color: #24352C !important;
+        color: #F7EFE2 !important;
+        border-color: #52685B !important;
+      }
+    `}</style>
   );
 }
 

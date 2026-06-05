@@ -679,12 +679,22 @@ export default function ChenTrackerApp() {
   async function sendInboundCancellationToGoogleSheet(data) {
     try {
       const formData = new URLSearchParams();
+
+      // Strict route for inbound cancellations.
+      // This prevents the Google Apps Script from treating it as a normal case
+      // and prevents it from being added to Nisha/Rick/Chen specialist sheets.
       formData.append("recordType", "inboundCancellation");
+      formData.append("forceSheet", "Inbound Cancellations");
+
       formData.append("createdAt", data.createdAt || "");
       formData.append("clientName", data.clientName || "");
       formData.append("phoneNumber", data.phoneNumber || "");
       formData.append("agentName", data.agentName || "");
-      formData.append("specialistName", data.specialistName || "");
+
+      // Do NOT send this as specialistName.
+      // specialistName is used by the normal case sync to route to Nisha/Rick/Chen.
+      formData.append("inboundSpecialist", data.specialistName || "");
+
       formData.append("resolved", data.resolved || "No");
       formData.append("agentInformed", data.agentInformed || "No");
 

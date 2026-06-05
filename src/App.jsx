@@ -613,6 +613,12 @@ export default function ChenTrackerApp() {
       return;
     }
 
+    if (!String(inboundCancellationForm.specialistName || "").trim()) {
+      setSheetMessage("Please select a specialist before saving inbound cancellation.");
+      setTimeout(() => setSheetMessage(""), 2500);
+      return;
+    }
+
     const newInboundCancellation = {
       id: crypto.randomUUID(),
       createdAt: new Date().toISOString(),
@@ -680,20 +686,22 @@ export default function ChenTrackerApp() {
     try {
       const formData = new URLSearchParams();
 
-      // Strict route for inbound cancellations.
-      // This prevents the Google Apps Script from treating it as a normal case
-      // and prevents it from being added to Nisha/Rick/Chen specialist sheets.
+      // HARD route: this is NOT a normal client/case record.
+      // Google Apps Script must put this ONLY in the Inbound Cancellations sheet.
       formData.append("recordType", "inboundCancellation");
       formData.append("forceSheet", "Inbound Cancellations");
+      formData.append("inboundOnly", "true");
 
       formData.append("createdAt", data.createdAt || "");
       formData.append("clientName", data.clientName || "");
       formData.append("phoneNumber", data.phoneNumber || "");
       formData.append("agentName", data.agentName || "");
 
-      // Do NOT send this as specialistName.
-      // specialistName is used by the normal case sync to route to Nisha/Rick/Chen.
+      // Send the specialist under inbound-specific names only.
+      // Do NOT send specialistName here, because specialistName is used by normal cases.
       formData.append("inboundSpecialist", data.specialistName || "");
+      formData.append("selectedSpecialist", data.specialistName || "");
+      formData.append("specialist", data.specialistName || "");
 
       formData.append("resolved", data.resolved || "No");
       formData.append("agentInformed", data.agentInformed || "No");

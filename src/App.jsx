@@ -54,7 +54,7 @@ const blankReminderForm = {
 
 const GOOGLE_SHEET_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxQbzGV243t3Tyfyzc7kcZuvNEmscoGf0lpdSRft5VhUIL1Y_ALEc3mA7HIO4WgF_x4/exec";
 // Paste your Google Sheet share/edit link here to view the live sheet inside the tracker.
-const GOOGLE_SHEET_VIEW_URL = "";
+const GOOGLE_SHEET_VIEW_URL = "https://docs.google.com/spreadsheets/d/1ZTk5rV-4qFQWTxC0VYovD45Y8bHtHDI8dA1tfREge0A/edit?usp=sharing";
 const EOD_JOTFORM_URL = "https://form.jotform.com/260420066600039";
 
 const blankForm = {
@@ -605,27 +605,30 @@ export default function ChenTrackerApp() {
   }
 
   function submitInboundCancellation(event) {
-    event.preventDefault();
+  event.preventDefault();
 
-    if (!inboundCancellationForm.clientName.trim()) return;
+  if (!inboundForm.clientName.trim()) return;
 
-    const newInboundCancellation = {
-      id: crypto.randomUUID(),
-      createdAt: new Date().toISOString(),
-      clientName: inboundCancellationForm.clientName.trim(),
-      phoneNumber: inboundCancellationForm.phoneNumber.trim(),
-      agentName: inboundCancellationForm.agentName.trim(),
-      specialistName: inboundCancellationForm.specialistName.trim(),
-      resolved: inboundCancellationForm.resolved,
-      agentInformed: inboundCancellationForm.agentInformed,
-    };
+  const newInbound = {
+    id: crypto.randomUUID(),
+    createdAt: new Date().toISOString().slice(0, 10),
+    clientName: inboundForm.clientName.trim(),
+    phoneNumber: inboundForm.phoneNumber.trim(),
+    agentName: inboundForm.agentName.trim(),
+    specialistName: inboundForm.specialistName || "",
+    resolved: inboundForm.resolved || "No",
+    agentInformed: inboundForm.agentInformed || "No",
+  };
 
-    setInboundCancellations((current) => [newInboundCancellation, ...current]);
-    sendInboundCancellationToGoogleSheet(newInboundCancellation);
-    setInboundCancellationForm(blankInboundCancellationForm);
-    setSheetMessage("Inbound cancellation saved. Syncing to Google Sheets...");
-    setTimeout(() => setSheetMessage(""), 2500);
-  }
+  setInboundCancellations((current) => [newInbound, ...current]);
+
+  sendInboundCancellationToGoogleSheet(newInbound);
+
+  setInboundMessage("Inbound cancellation saved to Inbound Cancellations sheet.");
+  setInboundForm(blankInboundForm);
+
+  setTimeout(() => setInboundMessage(""), 3000);
+}
 
   function deleteInboundCancellation(id) {
     setInboundCancellations((current) => current.filter((item) => item.id !== id));

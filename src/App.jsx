@@ -74,7 +74,7 @@ const blankForm = {
 
 const resultOptions = ["PENDING", "RESOLVED", "LOST"];
 const priorityOptions = ["Normal", "High", "Urgent"];
-const specialistOptions = ["", "Nisha", "Rick", "Chen"];
+const specialistOptions = ["", "Nisha", "Rick", "Chen", "Fernando", "Angie"];
 const leadStatusOptions = ["", "NA", "NAA", "SRWT", "AS", "RTR", "CEP", "AYAR", "CWCC", "IUW", "UWAN", "UWAR", "UWSRWT"];
 const actionOptions = [
   "",
@@ -1310,6 +1310,8 @@ export default function ChenTrackerApp() {
                   <option value="Nisha">Nisha</option>
                   <option value="Rick">Rick</option>
                   <option value="Chen">Chen</option>
+                  <option value="Fernando">Fernando</option>
+                  <option value="Angie">Angie</option>
                 </select>
 
                 <Button
@@ -2317,7 +2319,7 @@ export default function ChenTrackerApp() {
                 label="Specialist"
                 value={editInboundCancellationForm.specialistName}
                 onChange={(v) => updateEditInboundCancellationForm("specialistName", v)}
-                options={["", "Nisha", "Rick", "Chen"]}
+                options={["", "Nisha", "Rick", "Chen", "Fernando", "Angie"]}
               />
 
               <div className="grid gap-3 md:grid-cols-2">

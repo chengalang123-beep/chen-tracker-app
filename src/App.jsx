@@ -911,7 +911,7 @@ export default function ChenTrackerApp() {
     if (!clientName) return false;
     if (badLabels.includes(clientName.toLowerCase())) return false;
     if (badLabels.includes(createdAt.toLowerCase())) return false;
-    if (!specialistName || !["Nisha", "Rick", "Chen", "Unassigned"].includes(specialistName)) return false;
+    if (!specialistName || !["Nisha", "Rick", "Chen", "Fernando", "Angie", "Unassigned"].includes(specialistName)) return false;
 
     const hasValidDate = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(createdAt) || /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(updatedAt);
     if (!hasValidDate) return false;
@@ -1819,7 +1819,7 @@ export default function ChenTrackerApp() {
                       </div>
                       <MiniSelect value={resultFilter} onChange={setResultFilter} options={["Status", ...resultOptions]} />
                       <MiniSelect value={priorityFilter} onChange={setPriorityFilter} options={["Priority", ...priorityOptions]} />
-                      <MiniSelect value={specialistFilter} onChange={setSpecialistFilter} options={["Specialist", "Nisha", "Rick", "Chen"]} />
+                      <MiniSelect value={specialistFilter} onChange={setSpecialistFilter} options={["Specialist", "Nisha", "Rick", "Chen", "Fernando", "Angie"]} />
                       <MiniSelect value={sortBy} onChange={setSortBy} options={["updatedAt", "ap", "clientName"]} />
                       <input
                         type="date"

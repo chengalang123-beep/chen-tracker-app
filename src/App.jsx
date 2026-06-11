@@ -1030,6 +1030,38 @@ export default function ChenTrackerApp() {
     return true;
   }
 
+  function dedupeTrackerRows(sourceRows) {
+    const map = new Map();
+
+    sourceRows.forEach((row) => {
+      const policyNumber = String(row.policyNumber || "").trim().toLowerCase();
+      const clientName = String(row.clientName || "").trim().toLowerCase();
+      const specialistName = String(row.specialistName || "").trim().toLowerCase();
+      const ap = String(row.ap || "").trim();
+
+      const key = policyNumber
+        ? `policy:${policyNumber}`
+        : `client:${clientName}|specialist:${specialistName}|ap:${ap}`;
+
+      const existing = map.get(key);
+
+      if (!existing) {
+        map.set(key, row);
+        return;
+      }
+
+      const existingDate = String(existing.updatedAt || existing.createdAt || "");
+      const rowDate = String(row.updatedAt || row.createdAt || "");
+
+      if (rowDate >= existingDate) {
+        map.set(key, row);
+      }
+    });
+
+    return Array.from(map.values());
+  }
+
+
   async function loadFromGoogleSheet() {
     setIsLoadingSheet(true);
     setSheetMessage("Refreshing data...");
@@ -1039,7 +1071,7 @@ export default function ChenTrackerApp() {
       const data = await response.json();
 
       if (data.success && Array.isArray(data.rows)) {
-        const cleanRows = data.rows.filter(isRealTrackerRow);
+        const cleanRows = dedupeTrackerRows(data.rows.filter(isRealTrackerRow));
         setRows(cleanRows);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(cleanRows));
 
@@ -1202,8 +1234,41 @@ export default function ChenTrackerApp() {
     closeEditModal();
   }
 
-  function deleteRow(id) {
-    setRows((current) => current.filter((row) => row.id !== id));
+  async function deleteGoogleSheetRow(row) {
+    try {
+      const formData = new URLSearchParams();
+
+      formData.append("recordType", "delete");
+      formData.append("rowId", row.id || "");
+      formData.append("clientName", row.clientName || "");
+      formData.append("policyNumber", row.policyNumber || "");
+      formData.append("specialistName", row.specialistName || "");
+      formData.append("agentName", row.agentName || "");
+
+      await fetch(GOOGLE_SHEET_WEB_APP_URL, {
+        method: "POST",
+        mode: "no-cors",
+        body: formData,
+      });
+    } catch (error) {
+      console.error("Google Sheet delete failed:", error);
+    }
+  }
+
+  function deleteRow(rowOrId) {
+    const row = typeof rowOrId === "object" ? rowOrId : rows.find((item) => item.id === rowOrId);
+    const rowId = typeof rowOrId === "object" ? rowOrId.id : rowOrId;
+
+    setRows((current) => current.filter((item) => item.id !== rowId));
+
+    if (row) {
+      setSheetMessage("Case deleted. Removing it from Google Sheets...");
+      deleteGoogleSheetRow(row);
+      setTimeout(() => {
+        loadFromGoogleSheet();
+      }, 1200);
+      setTimeout(() => setSheetMessage(""), 4000);
+    }
   }
 
   function quickStatus(id, result) {
@@ -2244,7 +2309,7 @@ export default function ChenTrackerApp() {
                                     <Button size="icon" variant="ghost" className="h-7 w-7 rounded-xl" onClick={() => editRow(row)} title="Edit">
                                       <Edit3 className="h-3.5 w-3.5" />
                                     </Button>
-                                    <Button size="icon" variant="ghost" className="h-8 w-8 rounded-xl text-[#B44A2B] hover:text-[#8F321D]" onClick={() => deleteRow(row.id)} title="Delete">
+                                    <Button size="icon" variant="ghost" className="h-8 w-8 rounded-xl text-[#B44A2B] hover:text-[#8F321D]" onClick={() => deleteRow(row)} title="Delete">
                                       <Trash2 className="h-3.5 w-3.5" />
                                     </Button>
                                   </div>

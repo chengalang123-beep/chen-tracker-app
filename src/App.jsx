@@ -714,7 +714,7 @@ export default function ChenTrackerApp() {
       date: new Date().toISOString().slice(0, 10),
     });
 
-    setSheetMessage("EOD Test saved. Syncing shared list so everyone can see it.");
+    setSheetMessage("EOD Test saved. Syncing shared list and sending email...");
     sendEodTestToGoogleSheet(newEodTestEntry);
     setTimeout(() => {
       loadFromGoogleSheet();

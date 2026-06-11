@@ -714,12 +714,12 @@ export default function ChenTrackerApp() {
       date: new Date().toISOString().slice(0, 10),
     });
 
-    setSheetMessage("EOD Test saved. Syncing shared list and sending email...");
+    setSheetMessage("EOD Test saved. Syncing shared list so everyone can see it.");
     sendEodTestToGoogleSheet(newEodTestEntry);
     setTimeout(() => {
       loadFromGoogleSheet();
-    }, 1800);
-    setTimeout(() => setSheetMessage(""), 5000);
+    }, 2500);
+    setTimeout(() => setSheetMessage(""), 6000);
   }
 
   function deleteEodTestEntry(id) {

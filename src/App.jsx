@@ -36,6 +36,7 @@ const REMINDER_STORAGE_KEY = "eterna-personal-reminders-v1";
 const REMINDER_SOUND_STORAGE_KEY = "eterna-reminder-sound-enabled-v1";
 const REMINDER_ALERTED_STORAGE_KEY = "eterna-reminder-alerted-ids-v1";
 const INBOUND_CANCELLATION_STORAGE_KEY = "eterna-inbound-cancellations-v1";
+const EOD_TEST_STORAGE_KEY = "eterna-eod-test-entries-v1";
 
 const blankInboundCancellationForm = {
   clientName: "",
@@ -53,9 +54,29 @@ const blankReminderForm = {
   note: "",
 };
 
+const blankEodTestForm = {
+  specialistName: "",
+  date: new Date().toISOString().slice(0, 10),
+  totalDials: "",
+  totalTalkTime: "",
+  clientsReached: "",
+  welcomeCallsCompleted: "",
+  atRiskResolvedPre: "",
+  atRiskResolvedConfirmed: "",
+  apSavedPre: "",
+  apSavedConfirmed: "",
+  uwPoliciesResolved: "",
+  pendingResolution: "",
+  savedPendingConfirmation: "",
+  savedConfirmed: "",
+  uwResolvedNotConfirmedDetails: "",
+  uwConfirmedResolvedDetails: "",
+  escalationsAgentActionNeeded: "",
+};
+
 const GOOGLE_SHEET_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxbNbAYvCGjA2oNLjEa_qVi_p4RWxMo9vHm9hXicdHcuIzZIYb_nGzXo9xzVHE_Bfc9/exec";
 // Paste your Google Sheet share/edit link here to view the live sheet inside the tracker.
-const GOOGLE_SHEET_VIEW_URL = "https://docs.google.com/spreadsheets/d/1ZTk5rV-4qFQWTxC0VYovD45Y8bHtHDI8dA1tfREge0A/edit?usp=sharing";
+const GOOGLE_SHEET_VIEW_URL = "";
 const EOD_JOTFORM_URL = "https://form.jotform.com/260420066600039";
 
 const blankForm = {
@@ -227,6 +248,16 @@ export default function ChenTrackerApp() {
       return [];
     }
   });
+
+  const [eodTestForm, setEodTestForm] = useState(blankEodTestForm);
+  const [eodTestEntries, setEodTestEntries] = useState(() => {
+    try {
+      const saved = localStorage.getItem(EOD_TEST_STORAGE_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const [editInboundCancellationRow, setEditInboundCancellationRow] = useState(null);
   const [editInboundCancellationForm, setEditInboundCancellationForm] = useState(blankInboundCancellationForm);
   const [inboundSearchQuery, setInboundSearchQuery] = useState("");
@@ -296,6 +327,10 @@ export default function ChenTrackerApp() {
   useEffect(() => {
     localStorage.setItem(INBOUND_CANCELLATION_STORAGE_KEY, JSON.stringify(inboundCancellations));
   }, [inboundCancellations]);
+
+  useEffect(() => {
+    localStorage.setItem(EOD_TEST_STORAGE_KEY, JSON.stringify(eodTestEntries));
+  }, [eodTestEntries]);
 
   useEffect(() => {
     localStorage.setItem(REMINDER_STORAGE_KEY, JSON.stringify(reminders));
@@ -611,13 +646,17 @@ export default function ChenTrackerApp() {
     ? (editingId ? "Edit case" : "Add new case")
     : activeEntryTab === "inbound"
       ? "Inbound cancellation"
-      : "EOD";
+      : activeEntryTab === "eodTest"
+        ? "EOD Test"
+        : "EOD";
 
   const entryHelper = activeEntryTab === "case"
     ? "Fast entry for daily tracking."
     : activeEntryTab === "inbound"
       ? "Log inbound cancellation calls and agent updates."
-      : "Fill out your EOD Jotform inside the tracker.";
+      : activeEntryTab === "eodTest"
+        ? "Fill out the daily EOD test form."
+        : "Fill out your EOD Jotform inside the tracker.";
 
 
   function closeWhatsNew() {
@@ -636,6 +675,51 @@ export default function ChenTrackerApp() {
   function updateInboundCancellationForm(field, value) {
     setInboundCancellationForm((current) => ({ ...current, [field]: value }));
   }
+
+  function updateEodTestForm(field, value) {
+    setEodTestForm((current) => ({ ...current, [field]: value }));
+  }
+
+  function submitEodTestForm(event) {
+    event.preventDefault();
+
+    if (!String(eodTestForm.specialistName || "").trim()) {
+      setSheetMessage("Please select a specialist before saving EOD Test.");
+      setTimeout(() => setSheetMessage(""), 3000);
+      return;
+    }
+
+    if (!String(eodTestForm.date || "").trim()) {
+      setSheetMessage("Please select a date before saving EOD Test.");
+      setTimeout(() => setSheetMessage(""), 3000);
+      return;
+    }
+
+    const newEodTestEntry = {
+      id: crypto.randomUUID(),
+      createdAt: new Date().toISOString(),
+      ...eodTestForm,
+    };
+
+    setEodTestEntries((current) => [newEodTestEntry, ...current]);
+    setEodTestForm({
+      ...blankEodTestForm,
+      specialistName: eodTestForm.specialistName || "",
+      date: new Date().toISOString().slice(0, 10),
+    });
+
+    setSheetMessage("EOD Test saved. Syncing to Google Sheets...");
+    sendEodTestToGoogleSheet(newEodTestEntry);
+    setTimeout(() => {
+      loadFromGoogleSheet();
+    }, 1200);
+    setTimeout(() => setSheetMessage(""), 4000);
+  }
+
+  function deleteEodTestEntry(id) {
+    setEodTestEntries((current) => current.filter((entry) => entry.id !== id));
+  }
+
 
   function submitInboundCancellation() {
     const clientName = String(inboundCancellationForm.clientName || "").trim();
@@ -848,6 +932,27 @@ export default function ChenTrackerApp() {
     }
   }
 
+  async function sendEodTestToGoogleSheet(data) {
+    try {
+      const formData = new URLSearchParams();
+
+      formData.append("recordType", "eodTest");
+      formData.append("forceSheet", "EOD Test");
+
+      Object.entries(data).forEach(([key, value]) => {
+        formData.append(key, value ?? "");
+      });
+
+      await fetch(GOOGLE_SHEET_WEB_APP_URL, {
+        method: "POST",
+        mode: "no-cors",
+        body: formData,
+      });
+    } catch (error) {
+      console.error("EOD Test sync failed:", error);
+    }
+  }
+
   async function updateGoogleSheetRow(rowId, data) {
     try {
       const formData = new URLSearchParams();
@@ -947,6 +1052,33 @@ export default function ChenTrackerApp() {
 
           setInboundCancellations(cleanInboundCancellations);
           localStorage.setItem(INBOUND_CANCELLATION_STORAGE_KEY, JSON.stringify(cleanInboundCancellations));
+        }
+
+        if (Array.isArray(data.eodTestEntries)) {
+          const cleanEodTestEntries = data.eodTestEntries.map((entry) => ({
+            id: entry.id || crypto.randomUUID(),
+            createdAt: entry.createdAt || "",
+            specialistName: entry.specialistName || "",
+            date: entry.date || "",
+            totalDials: entry.totalDials || "",
+            totalTalkTime: entry.totalTalkTime || "",
+            clientsReached: entry.clientsReached || "",
+            welcomeCallsCompleted: entry.welcomeCallsCompleted || "",
+            atRiskResolvedPre: entry.atRiskResolvedPre || "",
+            atRiskResolvedConfirmed: entry.atRiskResolvedConfirmed || "",
+            apSavedPre: entry.apSavedPre || "",
+            apSavedConfirmed: entry.apSavedConfirmed || "",
+            uwPoliciesResolved: entry.uwPoliciesResolved || "",
+            pendingResolution: entry.pendingResolution || "",
+            savedPendingConfirmation: entry.savedPendingConfirmation || "",
+            savedConfirmed: entry.savedConfirmed || "",
+            uwResolvedNotConfirmedDetails: entry.uwResolvedNotConfirmedDetails || "",
+            uwConfirmedResolvedDetails: entry.uwConfirmedResolvedDetails || "",
+            escalationsAgentActionNeeded: entry.escalationsAgentActionNeeded || "",
+          }));
+
+          setEodTestEntries(cleanEodTestEntries);
+          localStorage.setItem(EOD_TEST_STORAGE_KEY, JSON.stringify(cleanEodTestEntries));
         }
 
         setLastRefreshed(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
@@ -1420,6 +1552,13 @@ export default function ChenTrackerApp() {
                     >
                       EOD
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveEntryTab("eodTest")}
+                      className={`rounded-xl px-3 py-1.5 text-xs font-bold ${activeEntryTab === "eodTest" ? "bg-[#5B3320] text-white" : "text-[#5B3320]"}`}
+                    >
+                      EOD Test
+                    </button>
                   </div>
                   <h2 className="text-lg font-bold">{entryTitle}</h2>
                   <p className="text-xs text-[#8A6A55]">{entryHelper}</p>
@@ -1649,7 +1788,95 @@ export default function ChenTrackerApp() {
           </Card>
 
           <div className="h-fit min-w-0 self-start">
-            {activeEntryTab === "inbound" ? (
+            {activeEntryTab === "eodTest" ? (
+              <Card className="h-fit min-w-0 self-start rounded-[1.6rem] border border-[#D4C3AD] bg-[#FCF8F2] shadow-md">
+                <CardContent className="p-0">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#D4C3AD] bg-[#F6EEE3] px-4 py-3">
+                    <div>
+                      <h2 className="flex items-center gap-1.5 text-sm font-bold text-[#2B1A12]">
+                        <FileSpreadsheet className="h-4 w-4" /> EOD Test submissions
+                      </h2>
+                      <p className="text-[10px] leading-3 text-[#8A6A55]">
+                        Saved EOD Test entries from Google Sheets and this tracker.
+                      </p>
+                    </div>
+                    <div className="rounded-full bg-[#5B3320] px-3 py-1 text-xs font-bold text-white">
+                      {eodTestEntries.length} total
+                    </div>
+                  </div>
+
+                  <div className="w-full overflow-x-auto rounded-b-[1.6rem]">
+                    <table className="w-full min-w-[1100px] table-fixed text-left text-[11px]">
+                      <thead className="bg-[#F7E8D6] text-[11px] uppercase tracking-wide text-[#8A6A55]">
+                        <tr>
+                          <th className="w-[12%] px-3 py-3">Date</th>
+                          <th className="w-[13%] px-2 py-3">Specialist</th>
+                          <th className="w-[9%] px-2 py-3">Dials</th>
+                          <th className="w-[10%] px-2 py-3">Talk Time</th>
+                          <th className="w-[10%] px-2 py-3">Reached</th>
+                          <th className="w-[10%] px-2 py-3">Welcome</th>
+                          <th className="w-[12%] px-2 py-3">AP Saved Pre</th>
+                          <th className="w-[12%] px-2 py-3">AP Saved Confirmed</th>
+                          <th className="w-[22%] px-2 py-3">Notes / Details</th>
+                          <th className="w-[8%] px-2 py-3 text-right">Tools</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#EEDBC6]">
+                        {eodTestEntries.map((entry) => (
+                          <tr key={entry.id} className="bg-white align-top hover:bg-[#F6EEE3]">
+                            <td className="break-words px-3 py-3 font-semibold text-[#2B1A12]">{entry.date || "—"}</td>
+                            <td className="break-words px-2 py-3 text-[#5B3320]">{entry.specialistName || "—"}</td>
+                            <td className="break-words px-2 py-3 text-[#5B3320]">{entry.totalDials || "0"}</td>
+                            <td className="break-words px-2 py-3 text-[#5B3320]">{entry.totalTalkTime || "0"}</td>
+                            <td className="break-words px-2 py-3 text-[#5B3320]">{entry.clientsReached || "0"}</td>
+                            <td className="break-words px-2 py-3 text-[#5B3320]">{entry.welcomeCallsCompleted || "0"}</td>
+                            <td className="break-words px-2 py-3 text-[#5B3320]">{entry.apSavedPre || "0"}</td>
+                            <td className="break-words px-2 py-3 text-[#5B3320]">{entry.apSavedConfirmed || "0"}</td>
+                            <td className="break-words px-2 py-3">
+                              {(entry.savedPendingConfirmation || entry.savedConfirmed || entry.uwResolvedNotConfirmedDetails || entry.uwConfirmedResolvedDetails || entry.escalationsAgentActionNeeded) ? (
+                                <NotesHover
+                                  text={[
+                                    entry.savedPendingConfirmation ? `Saved pending confirmation:\n${entry.savedPendingConfirmation}` : "",
+                                    entry.savedConfirmed ? `Saved confirmed:\n${entry.savedConfirmed}` : "",
+                                    entry.uwResolvedNotConfirmedDetails ? `UW resolved not confirmed:\n${entry.uwResolvedNotConfirmedDetails}` : "",
+                                    entry.uwConfirmedResolvedDetails ? `UW confirmed resolved:\n${entry.uwConfirmedResolvedDetails}` : "",
+                                    entry.escalationsAgentActionNeeded ? `Escalations / agent action needed:\n${entry.escalationsAgentActionNeeded}` : "",
+                                  ].filter(Boolean).join("\n\n")}
+                                />
+                              ) : (
+                                <span className="text-[#8A6A55]">—</span>
+                              )}
+                            </td>
+                            <td className="px-2 py-3">
+                              <div className="flex justify-end">
+                                <Button
+                                  type="button"
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => deleteEodTestEntry(entry.id)}
+                                  className="h-7 w-7 rounded-xl text-[#B44A2B] hover:text-[#8F321D]"
+                                  title="Delete local EOD Test entry"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+
+                    {!eodTestEntries.length && (
+                      <div className="flex h-auto flex-col items-center justify-center bg-white px-6 py-10 text-center">
+                        <AlertTriangle className="mb-2 h-6 w-6 text-[#F3D9BC]" />
+                        <h3 className="text-sm font-bold text-[#2B1A12]">No EOD Test submissions yet</h3>
+                        <p className="mt-1 text-xs text-[#8A6A55]">Use the EOD Test form on the left to add one.</p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ) : activeEntryTab === "inbound" ? (
               <Card className="h-fit min-w-0 self-start rounded-[1.6rem] border border-[#D4C3AD] bg-[#FCF8F2] shadow-md">
                 <CardContent className="p-0">
                   <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#D4C3AD] bg-[#F6EEE3] px-4 py-3">

@@ -76,7 +76,7 @@ const blankEodTestForm = {
 
 const GOOGLE_SHEET_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxbNbAYvCGjA2oNLjEa_qVi_p4RWxMo9vHm9hXicdHcuIzZIYb_nGzXo9xzVHE_Bfc9/exec";
 // Paste your Google Sheet share/edit link here to view the live sheet inside the tracker.
-const GOOGLE_SHEET_VIEW_URL = "";
+const GOOGLE_SHEET_VIEW_URL = "https://docs.google.com/spreadsheets/d/1ZTk5rV-4qFQWTxC0VYovD45Y8bHtHDI8dA1tfREge0A/edit?usp=sharing";
 const EOD_JOTFORM_URL = "https://form.jotform.com/260420066600039";
 
 const blankForm = {
@@ -1674,6 +1674,95 @@ export default function ChenTrackerApp() {
                     Saved inbound cancellations will appear in their own list on the right side.
                   </div>
                 </div>
+              ) : activeEntryTab === "eodTest" ? (
+                <form onSubmit={submitEodTestForm} className="space-y-3">
+                  <Select
+                    label="Specialist Name"
+                    value={eodTestForm.specialistName}
+                    onChange={(v) => updateEodTestForm("specialistName", v)}
+                    options={specialistOptions}
+                  />
+
+                  <Input
+                    label="Date"
+                    type="date"
+                    value={eodTestForm.date}
+                    onChange={(v) => updateEodTestForm("date", v)}
+                  />
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input label="Total Dials For The Day" type="number" value={eodTestForm.totalDials} onChange={(v) => updateEodTestForm("totalDials", v)} />
+                    <Input label="Total Talk Time for Today (In Minutes)" type="number" value={eodTestForm.totalTalkTime} onChange={(v) => updateEodTestForm("totalTalkTime", v)} />
+                  </div>
+
+                  <Input label="Amount of clients reached via call or text?" type="number" value={eodTestForm.clientsReached} onChange={(v) => updateEodTestForm("clientsReached", v)} />
+
+                  <Input label="Total Welcome Calls Completed" type="number" value={eodTestForm.welcomeCallsCompleted} onChange={(v) => updateEodTestForm("welcomeCallsCompleted", v)} />
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input label="Amount of at risk policies resolved today (pre-confirmation)?" type="number" value={eodTestForm.atRiskResolvedPre} onChange={(v) => updateEodTestForm("atRiskResolvedPre", v)} />
+                    <Input label="Amount of at risk policies resolved today (confirmed)?" type="number" value={eodTestForm.atRiskResolvedConfirmed} onChange={(v) => updateEodTestForm("atRiskResolvedConfirmed", v)} />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input label="Total Amount of AP saved today (pre-confirmation)?" type="number" value={eodTestForm.apSavedPre} onChange={(v) => updateEodTestForm("apSavedPre", v)} />
+                    <Input label="Total Amount of AP saved today (confirmed)?" type="number" value={eodTestForm.apSavedConfirmed} onChange={(v) => updateEodTestForm("apSavedConfirmed", v)} />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input label="Amount of UW Policies Resolved today" type="number" value={eodTestForm.uwPoliciesResolved} onChange={(v) => updateEodTestForm("uwPoliciesResolved", v)} />
+                    <Input label="Amount of policies pending resolution from today?" type="number" value={eodTestForm.pendingResolution} onChange={(v) => updateEodTestForm("pendingResolution", v)} />
+                  </div>
+
+                  <Textarea
+                    label="Client Name & Policy #'s for those that were saved (pending confirmation)"
+                    value={eodTestForm.savedPendingConfirmation}
+                    onChange={(v) => updateEodTestForm("savedPendingConfirmation", v)}
+                    placeholder="Example: John Smith - POLICY123"
+                  />
+
+                  <Textarea
+                    label="Client name & Policy #'s for those that were saved (confirmed)"
+                    value={eodTestForm.savedConfirmed}
+                    onChange={(v) => updateEodTestForm("savedConfirmed", v)}
+                    placeholder="Example: Jane Doe - POLICY456"
+                  />
+
+                  <Textarea
+                    label="Please list details of policies in UW that were resolved today but not yet confirmed (AP, Name, Resolution, Carrier & Policy #)?"
+                    value={eodTestForm.uwResolvedNotConfirmedDetails}
+                    onChange={(v) => updateEodTestForm("uwResolvedNotConfirmedDetails", v)}
+                    placeholder="AP, Name, Resolution, Carrier, Policy #"
+                  />
+
+                  <Textarea
+                    label="Please list details of policies in UW that were confirmed resolved today (AP, Name, Resolution, Carrier & Policy #)?"
+                    value={eodTestForm.uwConfirmedResolvedDetails}
+                    onChange={(v) => updateEodTestForm("uwConfirmedResolvedDetails", v)}
+                    placeholder="AP, Name, Resolution, Carrier, Policy #"
+                  />
+
+                  <Textarea
+                    label="Escalations where Agent Action is Needed (please share clients info & agents)"
+                    value={eodTestForm.escalationsAgentActionNeeded}
+                    onChange={(v) => updateEodTestForm("escalationsAgentActionNeeded", v)}
+                    placeholder="Client info, policy details, agent name, and action needed"
+                  />
+
+                  <div className="grid grid-cols-[1fr_auto] gap-2">
+                    <Button type="submit" className="h-11 rounded-2xl bg-[#03071A] text-white hover:bg-[#10142B]">
+                      <Save className="mr-2 h-4 w-4" /> Save EOD Test
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setEodTestForm({ ...blankEodTestForm, date: new Date().toISOString().slice(0, 10) })}
+                      className="h-11 rounded-2xl border-[#D4C3AD] px-4 text-xs text-[#5B3320]"
+                    >
+                      Clear
+                    </Button>
+                  </div>
+                </form>
               ) : (
                 <div className="overflow-hidden rounded-2xl border border-[#D4C3AD] bg-[#F6EEE3]">
                   <iframe

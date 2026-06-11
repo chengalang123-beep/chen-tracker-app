@@ -382,6 +382,12 @@ export default function ChenTrackerApp() {
     loadFromGoogleSheet();
   }, []);
 
+  useEffect(() => {
+    if (activeEntryTab === "eodTest") {
+      loadFromGoogleSheet();
+    }
+  }, [activeEntryTab]);
+
   const stats = useMemo(() => {
     const getToday = () => {
       const now = new Date();
@@ -708,12 +714,12 @@ export default function ChenTrackerApp() {
       date: new Date().toISOString().slice(0, 10),
     });
 
-    setSheetMessage("EOD Test saved. Syncing to Google Sheets...");
+    setSheetMessage("EOD Test saved. Syncing shared list so everyone can see it.");
     sendEodTestToGoogleSheet(newEodTestEntry);
     setTimeout(() => {
       loadFromGoogleSheet();
-    }, 1200);
-    setTimeout(() => setSheetMessage(""), 4000);
+    }, 1800);
+    setTimeout(() => setSheetMessage(""), 5000);
   }
 
   function deleteEodTestEntry(id) {
@@ -1077,8 +1083,32 @@ export default function ChenTrackerApp() {
             escalationsAgentActionNeeded: entry.escalationsAgentActionNeeded || "",
           }));
 
-          setEodTestEntries(cleanEodTestEntries);
-          localStorage.setItem(EOD_TEST_STORAGE_KEY, JSON.stringify(cleanEodTestEntries));
+          setEodTestEntries((current) => {
+            const mergedMap = new Map();
+
+            [...cleanEodTestEntries, ...current].forEach((entry) => {
+              const key = [
+                entry.id,
+                entry.date,
+                entry.specialistName,
+                entry.totalDials,
+                entry.totalTalkTime,
+                entry.clientsReached,
+                entry.welcomeCallsCompleted,
+              ].join("|");
+
+              if (!mergedMap.has(key)) {
+                mergedMap.set(key, entry);
+              }
+            });
+
+            const mergedEntries = Array.from(mergedMap.values()).sort((a, b) => {
+              return String(b.date || b.createdAt || "").localeCompare(String(a.date || a.createdAt || ""));
+            });
+
+            localStorage.setItem(EOD_TEST_STORAGE_KEY, JSON.stringify(mergedEntries));
+            return mergedEntries;
+          });
         }
 
         setLastRefreshed(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));

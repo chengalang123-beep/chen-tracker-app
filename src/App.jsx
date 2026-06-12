@@ -31,7 +31,7 @@ import { Card, CardContent } from "@/components/ui/card";
 
 const STORAGE_KEY = "chen-policy-tracker-v1";
 const WHATS_NEW_STORAGE_KEY = "eterna-whats-new-seen-v1";
-const WHATS_NEW_VERSION = "2026-06-05-full-dark-mode-inbound-edit";
+const WHATS_NEW_VERSION = "2026-06-12-eod-renamed-no-jotform";
 const REMINDER_STORAGE_KEY = "eterna-personal-reminders-v1";
 const REMINDER_SOUND_STORAGE_KEY = "eterna-reminder-sound-enabled-v1";
 const REMINDER_ALERTED_STORAGE_KEY = "eterna-reminder-alerted-ids-v1";
@@ -78,6 +78,7 @@ const GOOGLE_SHEET_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxbNbA
 // Paste your Google Sheet share/edit link here to view the live sheet inside the tracker.
 const GOOGLE_SHEET_VIEW_URL = "https://docs.google.com/spreadsheets/d/1ZTk5rV-4qFQWTxC0VYovD45Y8bHtHDI8dA1tfREge0A/edit?usp=sharing";
 const EOD_JOTFORM_URL = "https://form.jotform.com/260420066600039";
+
 
 const blankForm = {
   clientName: "",
@@ -652,17 +653,13 @@ export default function ChenTrackerApp() {
     ? (editingId ? "Edit case" : "Add new case")
     : activeEntryTab === "inbound"
       ? "Inbound cancellation"
-      : activeEntryTab === "eodTest"
-        ? "EOD Test"
-        : "EOD";
+      : "EOD";
 
   const entryHelper = activeEntryTab === "case"
     ? "Fast entry for daily tracking."
     : activeEntryTab === "inbound"
       ? "Log inbound cancellation calls and agent updates."
-      : activeEntryTab === "eodTest"
-        ? "Fill out the daily EOD test form."
-        : "Fill out your EOD Jotform inside the tracker.";
+      : "Fill out the daily EOD form.";
 
 
   function closeWhatsNew() {
@@ -690,13 +687,13 @@ export default function ChenTrackerApp() {
     event.preventDefault();
 
     if (!String(eodTestForm.specialistName || "").trim()) {
-      setSheetMessage("Please select a specialist before saving EOD Test.");
+      setSheetMessage("Please select a specialist before saving EOD.");
       setTimeout(() => setSheetMessage(""), 3000);
       return;
     }
 
     if (!String(eodTestForm.date || "").trim()) {
-      setSheetMessage("Please select a date before saving EOD Test.");
+      setSheetMessage("Please select a date before saving EOD.");
       setTimeout(() => setSheetMessage(""), 3000);
       return;
     }
@@ -714,7 +711,7 @@ export default function ChenTrackerApp() {
       date: new Date().toISOString().slice(0, 10),
     });
 
-    setSheetMessage("EOD Test saved. Syncing shared list so everyone can see it.");
+    setSheetMessage("EOD saved. Syncing shared list so everyone can see it.");
     sendEodTestToGoogleSheet(newEodTestEntry);
     setTimeout(() => {
       loadFromGoogleSheet();
@@ -1642,17 +1639,10 @@ export default function ChenTrackerApp() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => setActiveEntryTab("eod")}
-                      className={`rounded-xl px-3 py-1.5 text-xs font-bold ${activeEntryTab === "eod" ? "bg-[#5B3320] text-white" : "text-[#5B3320]"}`}
-                    >
-                      EOD
-                    </button>
-                    <button
-                      type="button"
                       onClick={() => setActiveEntryTab("eodTest")}
                       className={`rounded-xl px-3 py-1.5 text-xs font-bold ${activeEntryTab === "eodTest" ? "bg-[#5B3320] text-white" : "text-[#5B3320]"}`}
                     >
-                      EOD Test
+                      EOD
                     </button>
                   </div>
                   <h2 className="text-lg font-bold">{entryTitle}</h2>
@@ -1846,7 +1836,7 @@ export default function ChenTrackerApp() {
 
                   <div className="grid grid-cols-[1fr_auto] gap-2">
                     <Button type="submit" className="h-11 rounded-2xl bg-[#03071A] text-white hover:bg-[#10142B]">
-                      <Save className="mr-2 h-4 w-4" /> Save EOD Test
+                      <Save className="mr-2 h-4 w-4" /> Save EOD
                     </Button>
                     <Button
                       type="button"
@@ -1858,17 +1848,7 @@ export default function ChenTrackerApp() {
                     </Button>
                   </div>
                 </form>
-              ) : (
-                <div className="overflow-hidden rounded-2xl border border-[#D4C3AD] bg-[#F6EEE3]">
-                  <iframe
-                    title="EOD Jotform"
-                    src={EOD_JOTFORM_URL}
-                    className="h-[720px] w-full bg-white"
-                    frameBorder="0"
-                    allowFullScreen
-                  />
-                </div>
-              )}
+              ) : null}
 
               <div className="mt-4 rounded-[1.4rem] border border-[#D4C3AD] bg-[#F6EEE3] p-4">
                 <div className="mb-3 flex items-start justify-between gap-3">
@@ -1978,10 +1958,10 @@ export default function ChenTrackerApp() {
                   <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#D4C3AD] bg-[#F6EEE3] px-4 py-3">
                     <div>
                       <h2 className="flex items-center gap-1.5 text-sm font-bold text-[#2B1A12]">
-                        <FileSpreadsheet className="h-4 w-4" /> EOD Test submissions
+                        <FileSpreadsheet className="h-4 w-4" /> EOD submissions
                       </h2>
                       <p className="text-[10px] leading-3 text-[#8A6A55]">
-                        Saved EOD Test entries from Google Sheets and this tracker.
+                        Saved EOD entries from Google Sheets and this tracker.
                       </p>
                     </div>
                     <div className="rounded-full bg-[#5B3320] px-3 py-1 text-xs font-bold text-white">
@@ -2053,8 +2033,8 @@ export default function ChenTrackerApp() {
                     {!eodTestEntries.length && (
                       <div className="flex h-auto flex-col items-center justify-center bg-white px-6 py-10 text-center">
                         <AlertTriangle className="mb-2 h-6 w-6 text-[#F3D9BC]" />
-                        <h3 className="text-sm font-bold text-[#2B1A12]">No EOD Test submissions yet</h3>
-                        <p className="mt-1 text-xs text-[#8A6A55]">Use the EOD Test form on the left to add one.</p>
+                        <h3 className="text-sm font-bold text-[#2B1A12]">No EOD submissions yet</h3>
+                        <p className="mt-1 text-xs text-[#8A6A55]">Use the EOD form on the left to add one.</p>
                       </div>
                     )}
                   </div>

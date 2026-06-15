@@ -79,7 +79,6 @@ const GOOGLE_SHEET_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxbNbA
 const GOOGLE_SHEET_VIEW_URL = "https://docs.google.com/spreadsheets/d/1ZTk5rV-4qFQWTxC0VYovD45Y8bHtHDI8dA1tfREge0A/edit?usp=sharing";
 const EOD_JOTFORM_URL = "https://form.jotform.com/260420066600039";
 
-
 const blankForm = {
   clientName: "",
   policyNumber: "",
@@ -330,7 +329,7 @@ export default function ChenTrackerApp() {
   }, [inboundCancellations]);
 
   useEffect(() => {
-    localStorage.setItem(EOD_TEST_STORAGE_KEY, JSON.stringify(eodTestEntries));
+    localStorage.setItem(EOD_TEST_STORAGE_KEY, JSON.stringify(dedupeEodTestEntries(eodTestEntries)));
   }, [eodTestEntries]);
 
   useEffect(() => {
@@ -524,6 +523,11 @@ export default function ChenTrackerApp() {
     });
   }, [inboundCancellations, inboundSearchQuery, inboundResolvedFilter, inboundAgentInformedFilter]);
 
+
+  const visibleEodEntries = useMemo(() => {
+    return dedupeEodTestEntries(eodTestEntries);
+  }, [eodTestEntries]);
+
   useEffect(() => {
     setCurrentPage(1);
   }, [query, resultFilter, priorityFilter, specialistFilter, filterStartDate, filterEndDate, sortBy]);
@@ -704,7 +708,7 @@ export default function ChenTrackerApp() {
       ...eodTestForm,
     };
 
-    setEodTestEntries((current) => [newEodTestEntry, ...current]);
+    setEodTestEntries((current) => dedupeEodTestEntries([newEodTestEntry, ...current]));
     setEodTestForm({
       ...blankEodTestForm,
       specialistName: eodTestForm.specialistName || "",
@@ -1059,6 +1063,82 @@ export default function ChenTrackerApp() {
   }
 
 
+  function getEodEntryKey(entry) {
+    return [
+      String(entry.date || "").trim(),
+      String(entry.specialistName || "").trim().toLowerCase(),
+      String(entry.totalDials || "").trim(),
+      String(entry.totalTalkTime || "").trim(),
+      String(entry.clientsReached || "").trim(),
+      String(entry.welcomeCallsCompleted || "").trim(),
+      String(entry.atRiskResolvedPre || "").trim(),
+      String(entry.atRiskResolvedConfirmed || "").trim(),
+      String(entry.apSavedPre || "").trim(),
+      String(entry.apSavedConfirmed || "").trim(),
+      String(entry.uwPoliciesResolved || "").trim(),
+      String(entry.pendingResolution || "").trim(),
+      String(entry.savedPendingConfirmation || "").trim().toLowerCase(),
+      String(entry.savedConfirmed || "").trim().toLowerCase(),
+      String(entry.uwResolvedNotConfirmedDetails || "").trim().toLowerCase(),
+      String(entry.uwConfirmedResolvedDetails || "").trim().toLowerCase(),
+      String(entry.escalationsAgentActionNeeded || "").trim().toLowerCase(),
+    ].join("|");
+  }
+
+  function dedupeEodTestEntries(sourceEntries) {
+    const map = new Map();
+
+    sourceEntries.forEach((entry) => {
+      const key = getEodEntryKey(entry);
+      const existing = map.get(key);
+
+      if (!existing) {
+        map.set(key, entry);
+        return;
+      }
+
+      const existingDate = String(existing.createdAt || existing.date || "");
+      const entryDate = String(entry.createdAt || entry.date || "");
+
+      if (entryDate >= existingDate) {
+        map.set(key, entry);
+      }
+    });
+
+    return Array.from(map.values()).sort((a, b) =>
+      String(b.date || b.createdAt || "").localeCompare(String(a.date || a.createdAt || ""))
+    );
+  }
+
+  function getInboundEntryKey(item) {
+    return [
+      String(item.createdAt || "").slice(0, 10),
+      String(item.clientName || "").trim().toLowerCase(),
+      String(item.phoneNumber || "").trim().toLowerCase(),
+      String(item.agentName || "").trim().toLowerCase(),
+      String(item.specialistName || "").trim().toLowerCase(),
+      String(item.resolved || "").trim().toLowerCase(),
+      String(item.agentInformed || "").trim().toLowerCase(),
+      String(item.notes || "").trim().toLowerCase(),
+    ].join("|");
+  }
+
+  function dedupeInboundCancellations(sourceItems) {
+    const map = new Map();
+
+    sourceItems.forEach((item) => {
+      const key = getInboundEntryKey(item);
+      if (!map.has(key)) {
+        map.set(key, item);
+      }
+    });
+
+    return Array.from(map.values()).sort((a, b) =>
+      String(b.createdAt || "").localeCompare(String(a.createdAt || ""))
+    );
+  }
+
+
   async function loadFromGoogleSheet() {
     setIsLoadingSheet(true);
     setSheetMessage("Refreshing data...");
@@ -1085,8 +1165,9 @@ export default function ChenTrackerApp() {
             notes: item.notes || "",
           }));
 
-          setInboundCancellations(cleanInboundCancellations);
-          localStorage.setItem(INBOUND_CANCELLATION_STORAGE_KEY, JSON.stringify(cleanInboundCancellations));
+          const dedupedInboundCancellations = dedupeInboundCancellations(cleanInboundCancellations);
+          setInboundCancellations(dedupedInboundCancellations);
+          localStorage.setItem(INBOUND_CANCELLATION_STORAGE_KEY, JSON.stringify(dedupedInboundCancellations));
         }
 
         if (Array.isArray(data.eodTestEntries)) {
@@ -1113,28 +1194,7 @@ export default function ChenTrackerApp() {
           }));
 
           setEodTestEntries((current) => {
-            const mergedMap = new Map();
-
-            [...cleanEodTestEntries, ...current].forEach((entry) => {
-              const key = [
-                entry.id,
-                entry.date,
-                entry.specialistName,
-                entry.totalDials,
-                entry.totalTalkTime,
-                entry.clientsReached,
-                entry.welcomeCallsCompleted,
-              ].join("|");
-
-              if (!mergedMap.has(key)) {
-                mergedMap.set(key, entry);
-              }
-            });
-
-            const mergedEntries = Array.from(mergedMap.values()).sort((a, b) => {
-              return String(b.date || b.createdAt || "").localeCompare(String(a.date || a.createdAt || ""));
-            });
-
+            const mergedEntries = dedupeEodTestEntries([...cleanEodTestEntries, ...current]);
             localStorage.setItem(EOD_TEST_STORAGE_KEY, JSON.stringify(mergedEntries));
             return mergedEntries;
           });
@@ -1965,7 +2025,7 @@ export default function ChenTrackerApp() {
                       </p>
                     </div>
                     <div className="rounded-full bg-[#5B3320] px-3 py-1 text-xs font-bold text-white">
-                      {eodTestEntries.length} total
+                      {visibleEodEntries.length} total
                     </div>
                   </div>
 
@@ -1986,7 +2046,7 @@ export default function ChenTrackerApp() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#EEDBC6]">
-                        {eodTestEntries.map((entry) => (
+                        {visibleEodEntries.map((entry) => (
                           <tr key={entry.id} className="bg-white align-top hover:bg-[#F6EEE3]">
                             <td className="break-words px-3 py-3 font-semibold text-[#2B1A12]">{entry.date || "—"}</td>
                             <td className="break-words px-2 py-3 text-[#5B3320]">{entry.specialistName || "—"}</td>
@@ -2030,7 +2090,7 @@ export default function ChenTrackerApp() {
                       </tbody>
                     </table>
 
-                    {!eodTestEntries.length && (
+                    {!visibleEodEntries.length && (
                       <div className="flex h-auto flex-col items-center justify-center bg-white px-6 py-10 text-center">
                         <AlertTriangle className="mb-2 h-6 w-6 text-[#F3D9BC]" />
                         <h3 className="text-sm font-bold text-[#2B1A12]">No EOD submissions yet</h3>

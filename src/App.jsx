@@ -115,6 +115,69 @@ function playAlertSound() {
 }
 
 // ─────────────────────────────────────────────
+// NOTES BUBBLE — icon that shows notes on hover, copies on click
+// ─────────────────────────────────────────────
+function NotesBubble({ notes, isDark }) {
+  const [hovered, setHovered] = useState(false);
+  const [copied,  setCopied]  = useState(false);
+  const ref = useRef(null);
+  const [pos, setPos] = useState({ top:0, left:0 });
+  if (!notes) return null;
+
+  function handleMouseEnter(e) {
+    setHovered(true);
+    const rect = e.currentTarget.getBoundingClientRect();
+    const popW = 260;
+    let left = rect.left + rect.width / 2 - popW / 2;
+    if (left < 8) left = 8;
+    if (left + popW > window.innerWidth - 8) left = window.innerWidth - popW - 8;
+    setPos({ top: rect.top - 8, left });
+  }
+
+  async function handleClick(e) {
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(notes);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {}
+  }
+
+  const iconColor = isDark ? "#7A9E8A" : "#8A6A55";
+  const iconHover = isDark ? "#C8B89A" : "#5B3320";
+
+  return (
+    <span ref={ref} style={{ position:"relative", display:"inline-flex" }}>
+      <button
+        onClick={handleClick}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={() => setHovered(false)}
+        title="Hover to read · Click to copy"
+        style={{ background:"none", border:"none", cursor:"pointer", padding:"2px 4px", borderRadius:5, color: copied ? "#4C6B2F" : iconColor, fontSize:14, lineHeight:1, display:"flex", alignItems:"center" }}
+        onMouseOver={(e) => (e.currentTarget.style.color = copied ? "#4C6B2F" : iconHover)}
+        onMouseOut={(e)  => (e.currentTarget.style.color = copied ? "#4C6B2F" : iconColor)}
+      >
+        {copied ? "✓" : "📋"}
+      </button>
+      {hovered && (
+        <div style={{
+          position:"fixed", top: pos.top, left: pos.left, zIndex:9999,
+          width:260, background: isDark ? "#1A2E22" : "#FCF8F2",
+          border:`1px solid ${isDark ? "#2D4035" : "#D4C3AD"}`,
+          borderRadius:10, padding:"10px 12px", boxShadow:"0 8px 32px rgba(0,0,0,0.3)",
+          transform:"translateY(-100%)",
+          pointerEvents:"none",
+        }}>
+          <div style={{ fontSize:10, fontWeight:700, color: isDark ? "#7A9E8A" : "#8A6A55", textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:6 }}>Notes</div>
+          <div style={{ fontSize:12, color: isDark ? "#EAE0D0" : "#2B1A12", lineHeight:1.5, whiteSpace:"pre-wrap", wordBreak:"break-word" }}>{notes}</div>
+          <div style={{ fontSize:10, color: isDark ? "#5A7A68" : "#B28A6B", marginTop:6 }}>Click icon to copy</div>
+        </div>
+      )}
+    </span>
+  );
+}
+
+// ─────────────────────────────────────────────
 // COLOR SYSTEM
 // ─────────────────────────────────────────────
 const STATUS_META = {
@@ -1239,18 +1302,24 @@ export default function ChenTrackerApp() {
 
   const kpi = useMemo(() => {
     const src = specFilter === "All" ? rows : rows.filter((r) => r.specialistName === specFilter);
-    const td  = src.filter((r) => r.updatedAt === TODAY);
-    const ps  = td.filter((r) => (r.action || "").toLowerCase() === "pending save");
-    const sv  = td.filter((r) => (r.action || "").toLowerCase() === "save");
-    const uwr = td.filter((r) => (r.action || "").toLowerCase() === "uw action resolved");
+    // When a date filter is active, KPI counts from the filtered set
+    const dateActive = filterStart || filterEnd;
+    const base = dateActive ? filtered : src;
+    const td   = src.filter((r) => r.updatedAt === TODAY);
+    const ps   = td.filter((r) => (r.action || "").toLowerCase() === "pending save");
+    const sv   = td.filter((r) => (r.action || "").toLowerCase() === "save");
+    const uwr  = td.filter((r) => (r.action || "").toLowerCase() === "uw action resolved");
     return {
-      total: src.length, resolved: src.filter((r) => r.result === "RESOLVED").length,
-      pending: src.filter((r) => r.result === "PENDING").length, lost: src.filter((r) => r.result === "LOST").length,
-      psCount: ps.length,  psAp:  ps.reduce((s, r) => s + Number(r.ap || 0), 0),
-      svCount: sv.length,  svAp:  sv.reduce((s, r) => s + Number(r.ap || 0), 0),
+      total:    base.length,
+      resolved: base.filter((r) => r.result === "RESOLVED").length,
+      pending:  base.filter((r) => r.result === "PENDING").length,
+      lost:     base.filter((r) => r.result === "LOST").length,
+      psCount:  ps.length,  psAp:  ps.reduce((s, r) => s + Number(r.ap || 0), 0),
+      svCount:  sv.length,  svAp:  sv.reduce((s, r) => s + Number(r.ap || 0), 0),
       uwrCount: uwr.length,
+      dateLabel: dateActive ? (filterStart && filterEnd ? `${filterStart} → ${filterEnd}` : filterStart || filterEnd) : TODAY,
     };
-  }, [rows, specFilter]);
+  }, [rows, specFilter, filtered, filterStart, filterEnd]);
 
   const rpt = useMemo(() => {
     const src   = specFilter === "All" ? rows : rows.filter((r) => r.specialistName === specFilter);
@@ -1371,7 +1440,7 @@ export default function ChenTrackerApp() {
 
       {/* 7 KPI CARDS */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:8 }}>
-        <KpiCard label="Total cases"        value={kpi.total}     sub={`${kpi.resolved} resolved · ${kpi.pending} pending`} colorKey="total" isDark={isDark} t={t} />
+        <KpiCard label="Total cases"        value={kpi.total}     sub={`${kpi.resolved} resolved · ${kpi.pending} pending · ${kpi.dateLabel}`} colorKey="total" isDark={isDark} t={t} />
         <KpiCard label="Pending save"       value={kpi.psCount}   sub={`${cur(kpi.psAp)} at stake`}   colorKey="ps"   isDark={isDark} t={t} />
         <KpiCard label="Saved today"        value={kpi.svCount}   sub={`${cur(kpi.svAp)} locked in`}  colorKey="sv"   isDark={isDark} t={t} />
         <KpiCard label="UW Action Resolved" value={kpi.uwrCount}  sub="Today"                         colorKey="uwr"  isDark={isDark} t={t} />
@@ -1399,104 +1468,118 @@ export default function ChenTrackerApp() {
       </div>
 
       {/* MAIN LAYOUT */}
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 300px", gap:14, alignItems:"start" }}>
+      <div style={{ display:"grid", gridTemplateColumns: activeTab === "case" ? "1fr 300px" : "1fr 300px", gap:14, alignItems:"start" }}>
 
         {/* ── LEFT PANEL — switches entirely based on activeTab ── */}
         <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
 
           {/* ════════════════════════════════
-              CASES TAB
+              CASES TAB — form on left, list on right
           ════════════════════════════════ */}
-          {activeTab === "case" && (<>
-            {/* Search + date + status filters */}
-            <div style={{ display:"flex", alignItems:"center", gap:7, flexWrap:"wrap" }}>
-              <div style={{ position:"relative", flex:1, minWidth:180 }}>
-                <span style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", fontSize:15, color:t.mutedColor, pointerEvents:"none" }}>⌕</span>
-                <input value={query} onChange={(e) => { setQuery(e.target.value); setPage(1); }} placeholder="Search client, policy, agent, notes…"
-                  style={{ ...toolInp, width:"100%", paddingLeft:29 }} />
-              </div>
-              <input type="date" value={filterStart} title="Exact date (or range start)" onChange={(e) => { setFilterStart(e.target.value); setPage(1); }} style={toolInp} />
-              <input type="date" value={filterEnd}   title="Range end (optional)"         onChange={(e) => { setFilterEnd(e.target.value);   setPage(1); }} style={toolInp} />
-              {["All","PENDING","RESOLVED","LOST"].map((v) => {
-                const m = STATUS_META[v];
-                return (
-                  <GhostBtn key={v} active={resultFilter === v} onClick={() => { setResultFilter(v); setPage(1); }} isDark={isDark} style={{ fontSize:11 }}>
-                    {v === "All" ? "All" : <><span style={{ width:6, height:6, borderRadius:"50%", background:m?.dot, display:"inline-block", marginRight:3 }} />{m?.label}</>}
-                  </GhostBtn>
-                );
-              })}
-              {(filterStart || filterEnd) && (
-                <GhostBtn onClick={() => { setFilterStart(""); setFilterEnd(""); }} isDark={isDark} style={{ fontSize:11 }}>✕ Clear dates</GhostBtn>
-              )}
-              <span style={{ fontSize:11, color:t.mutedColor, marginLeft:"auto" }}>{filtered.length} case{filtered.length !== 1 ? "s" : ""}</span>
-            </div>
+          {activeTab === "case" && (
+            <div style={{ display:"grid", gridTemplateColumns:"280px 1fr", gap:14, alignItems:"start" }}>
 
-            {/* Column headers */}
-            <div style={{ display:"grid", gridTemplateColumns:"1fr auto", gap:10, padding:"0 14px" }}>
-              <div style={{ display:"grid", gridTemplateColumns:"170px 100px 78px 88px 1fr", gap:10 }}>
-                {["Client","AP","Stage","Status","Action / notes"].map((h) => (
-                  <div key={h} style={{ fontSize:10, fontWeight:700, color:t.dimColor, textTransform:"uppercase", letterSpacing:"0.08em" }}>{h}</div>
-                ))}
-              </div>
-              <div style={{ width:95 }} />
-            </div>
+              {/* LEFT: Add new case form */}
+              <SideSection title="Add new case" t={t}>
+                <CaseForm form={form} setForm={setForm} onAdd={addCase} onClear={() => setForm(BLANK_FORM)} t={t} />
+              </SideSection>
 
-            {/* Case cards */}
-            <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
-              {paged.length ? paged.map((row) => (
-                <div key={row.id}
-                  style={{ background:t.cardBg, border:`1px solid ${t.cardBorder}`, borderRadius:10, padding:"11px 14px", display:"grid", gridTemplateColumns:"1fr auto", gap:10, alignItems:"center", cursor:"default", transition:"border-color .14s,background .14s" }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.borderColor = t.cardHoverBorder; e.currentTarget.querySelector(".rt").style.opacity = "1"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = t.cardBg;    e.currentTarget.style.borderColor = t.cardBorder;      e.currentTarget.querySelector(".rt").style.opacity = "0"; }}
-                >
-                  <div style={{ display:"grid", gridTemplateColumns:"170px 100px 78px 88px 1fr", gap:10, alignItems:"center", minWidth:0 }}>
-                    <div>
-                      <div style={{ fontWeight:700, fontSize:13, color:t.color, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{row.clientName}</div>
-                      <div style={{ display:"flex", alignItems:"center", gap:5, marginTop:3 }}>
-                        <span style={{ fontSize:10, color:t.mutedColor, fontFamily:"monospace" }}>{row.policyNumber || "—"}</span>
-                        <PriorityChip priority={row.priority} />
+              {/* RIGHT: Case list */}
+              <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
+                {/* Search + date + status filters */}
+                <div style={{ display:"flex", alignItems:"center", gap:7, flexWrap:"wrap" }}>
+                  <div style={{ position:"relative", flex:1, minWidth:160 }}>
+                    <span style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", fontSize:15, color:t.mutedColor, pointerEvents:"none" }}>⌕</span>
+                    <input value={query} onChange={(e) => { setQuery(e.target.value); setPage(1); }} placeholder="Search client, policy, agent, notes…"
+                      style={{ ...toolInp, width:"100%", paddingLeft:29 }} />
+                  </div>
+                  <input type="date" value={filterStart} title="Exact date (or range start)" onChange={(e) => { setFilterStart(e.target.value); setPage(1); }} style={toolInp} />
+                  <input type="date" value={filterEnd}   title="Range end (optional)"         onChange={(e) => { setFilterEnd(e.target.value);   setPage(1); }} style={toolInp} />
+                  {["All","PENDING","RESOLVED","LOST"].map((v) => {
+                    const m = STATUS_META[v];
+                    return (
+                      <GhostBtn key={v} active={resultFilter === v} onClick={() => { setResultFilter(v); setPage(1); }} isDark={isDark} style={{ fontSize:11 }}>
+                        {v === "All" ? "All" : <><span style={{ width:6, height:6, borderRadius:"50%", background:m?.dot, display:"inline-block", marginRight:3 }} />{m?.label}</>}
+                      </GhostBtn>
+                    );
+                  })}
+                  {(filterStart || filterEnd) && (
+                    <GhostBtn onClick={() => { setFilterStart(""); setFilterEnd(""); }} isDark={isDark} style={{ fontSize:11 }}>✕ Clear</GhostBtn>
+                  )}
+                  <span style={{ fontSize:11, color:t.mutedColor, marginLeft:"auto" }}>{filtered.length} case{filtered.length !== 1 ? "s" : ""}</span>
+                </div>
+
+                {/* Column headers */}
+                <div style={{ display:"grid", gridTemplateColumns:"1fr auto", gap:10, padding:"0 14px" }}>
+                  <div style={{ display:"grid", gridTemplateColumns:"160px 95px 72px 84px 1fr 28px", gap:10 }}>
+                    {["Client","AP","Stage","Status","Action","Notes"].map((h) => (
+                      <div key={h} style={{ fontSize:10, fontWeight:700, color:t.dimColor, textTransform:"uppercase", letterSpacing:"0.08em" }}>{h}</div>
+                    ))}
+                  </div>
+                  <div style={{ width:95 }} />
+                </div>
+
+                {/* Case cards */}
+                <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
+                  {paged.length ? paged.map((row) => (
+                    <div key={row.id}
+                      style={{ background:t.cardBg, border:`1px solid ${t.cardBorder}`, borderRadius:10, padding:"11px 14px", display:"grid", gridTemplateColumns:"1fr auto", gap:10, alignItems:"center", cursor:"default", transition:"border-color .14s,background .14s" }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.borderColor = t.cardHoverBorder; e.currentTarget.querySelector(".rt").style.opacity = "1"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = t.cardBg;    e.currentTarget.style.borderColor = t.cardBorder;      e.currentTarget.querySelector(".rt").style.opacity = "0"; }}
+                    >
+                      <div style={{ display:"grid", gridTemplateColumns:"160px 95px 72px 84px 1fr 28px", gap:10, alignItems:"center", minWidth:0 }}>
+                        <div>
+                          <div style={{ fontWeight:700, fontSize:13, color:t.color, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{row.clientName}</div>
+                          <div style={{ display:"flex", alignItems:"center", gap:5, marginTop:3 }}>
+                            <span style={{ fontSize:10, color:t.mutedColor, fontFamily:"monospace" }}>{row.policyNumber || "—"}</span>
+                            <PriorityChip priority={row.priority} />
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize:14, fontWeight:800, color: isDark ? "#E8B87A" : "#5B3320", letterSpacing:"-0.02em" }}>{cur(row.ap)}</div>
+                          <div style={{ fontSize:10, color:t.mutedColor, marginTop:1 }}>premium</div>
+                        </div>
+                        <div><StageTag s={row.leadStatus} t={t} /></div>
+                        <div><StatusChip status={row.result} /></div>
+                        <div style={{ minWidth:0 }}>
+                          <div style={{ fontSize:12, fontWeight:600, color: isDark ? "#C8B89A" : "#6D6256", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{row.action || "—"}</div>
+                        </div>
+                        {/* Notes icon — hover to read, click to copy */}
+                        <div style={{ display:"flex", alignItems:"center", justifyContent:"center" }}>
+                          <NotesBubble notes={row.notes} isDark={isDark} />
+                        </div>
+                      </div>
+                      <div className="rt" style={{ display:"flex", gap:4, opacity:0, transition:"opacity .14s" }}>
+                        {row.result !== "RESOLVED" && (
+                          <button onClick={() => quickResolve(row.id)} title="Mark resolved" style={{ width:29, height:29, background:t.toolResBg, border:`1px solid ${t.toolResBorder}`, borderRadius:7, cursor:"pointer", color:t.toolResColor, fontSize:14, display:"flex", alignItems:"center", justifyContent:"center" }}>✓</button>
+                        )}
+                        <button onClick={() => setEditRow({ ...row })} title="Edit" style={{ width:29, height:29, background:t.toolEditBg, border:`1px solid ${t.toolEditBorder}`, borderRadius:7, cursor:"pointer", color:t.toolEditColor, fontSize:13, display:"flex", alignItems:"center", justifyContent:"center" }}>✎</button>
+                        <button onClick={() => deleteRow(row.id)} title="Delete" style={{ width:29, height:29, background:t.toolDelBg, border:`1px solid ${t.toolDelBorder}`, borderRadius:7, cursor:"pointer", color:t.toolDelColor, fontSize:13, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
                       </div>
                     </div>
-                    <div>
-                      <div style={{ fontSize:15, fontWeight:800, color: isDark ? "#E8B87A" : "#5B3320", letterSpacing:"-0.02em" }}>{cur(row.ap)}</div>
-                      <div style={{ fontSize:10, color:t.mutedColor, marginTop:2 }}>annual premium</div>
+                  )) : (
+                    <div style={{ textAlign:"center", padding:"52px 20px", background:t.emptyBg, borderRadius:10 }}>
+                      <div style={{ fontSize:28, marginBottom:8, opacity:0.35 }}>◈</div>
+                      <div style={{ fontSize:14, fontWeight:700, color:t.mutedColor }}>No cases match your filters</div>
+                      <div style={{ fontSize:12, marginTop:4, color:t.dimColor }}>Try clearing your search or filters</div>
                     </div>
-                    <div><StageTag s={row.leadStatus} t={t} /></div>
-                    <div><StatusChip status={row.result} /></div>
-                    <div style={{ minWidth:0 }}>
-                      <div style={{ fontSize:12, fontWeight:600, color: isDark ? "#C8B89A" : "#6D6256", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{row.action || "—"}</div>
-                      {row.notes && <div style={{ fontSize:11, color:t.mutedColor, marginTop:2, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{row.notes}</div>}
-                    </div>
-                  </div>
-                  <div className="rt" style={{ display:"flex", gap:4, opacity:0, transition:"opacity .14s" }}>
-                    {row.result !== "RESOLVED" && (
-                      <button onClick={() => quickResolve(row.id)} title="Mark resolved" style={{ width:29, height:29, background:t.toolResBg, border:`1px solid ${t.toolResBorder}`, borderRadius:7, cursor:"pointer", color:t.toolResColor, fontSize:14, display:"flex", alignItems:"center", justifyContent:"center" }}>✓</button>
-                    )}
-                    <button onClick={() => setEditRow({ ...row })} title="Edit" style={{ width:29, height:29, background:t.toolEditBg, border:`1px solid ${t.toolEditBorder}`, borderRadius:7, cursor:"pointer", color:t.toolEditColor, fontSize:13, display:"flex", alignItems:"center", justifyContent:"center" }}>✎</button>
-                    <button onClick={() => deleteRow(row.id)} title="Delete" style={{ width:29, height:29, background:t.toolDelBg, border:`1px solid ${t.toolDelBorder}`, borderRadius:7, cursor:"pointer", color:t.toolDelColor, fontSize:13, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
-                  </div>
+                  )}
                 </div>
-              )) : (
-                <div style={{ textAlign:"center", padding:"52px 20px", background:t.emptyBg, borderRadius:10 }}>
-                  <div style={{ fontSize:28, marginBottom:8, opacity:0.35 }}>◈</div>
-                  <div style={{ fontSize:14, fontWeight:700, color:t.mutedColor }}>No cases match your filters</div>
-                  <div style={{ fontSize:12, marginTop:4, color:t.dimColor }}>Try clearing your search or filters</div>
-                </div>
-              )}
-            </div>
 
-            {/* Pagination */}
-            {filtered.length > PER && (
-              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", fontSize:11, color:t.mutedColor }}>
-                <span>{(safePage - 1) * PER + 1}–{Math.min(safePage * PER, filtered.length)} of {filtered.length}</span>
-                <div style={{ display:"flex", gap:6, alignItems:"center" }}>
-                  <GhostBtn onClick={() => setPage((p) => Math.max(1, p - 1))} isDark={isDark} style={{ fontSize:11, opacity: safePage === 1 ? 0.3 : 1 }} disabled={safePage === 1}>← Prev</GhostBtn>
-                  <span>{safePage} / {totalPages}</span>
-                  <GhostBtn onClick={() => setPage((p) => Math.min(totalPages, p + 1))} isDark={isDark} style={{ fontSize:11, opacity: safePage >= totalPages ? 0.3 : 1 }} disabled={safePage >= totalPages}>Next →</GhostBtn>
-                </div>
+                {/* Pagination */}
+                {filtered.length > PER && (
+                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", fontSize:11, color:t.mutedColor }}>
+                    <span>{(safePage - 1) * PER + 1}–{Math.min(safePage * PER, filtered.length)} of {filtered.length}</span>
+                    <div style={{ display:"flex", gap:6, alignItems:"center" }}>
+                      <GhostBtn onClick={() => setPage((p) => Math.max(1, p - 1))} isDark={isDark} style={{ fontSize:11, opacity: safePage === 1 ? 0.3 : 1 }} disabled={safePage === 1}>← Prev</GhostBtn>
+                      <span>{safePage} / {totalPages}</span>
+                      <GhostBtn onClick={() => setPage((p) => Math.min(totalPages, p + 1))} isDark={isDark} style={{ fontSize:11, opacity: safePage >= totalPages ? 0.3 : 1 }} disabled={safePage >= totalPages}>Next →</GhostBtn>
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
-          </>)}
+            </div>
+          )}
 
           {/* ════════════════════════════════
               INBOUND TAB — full left panel, inbound data only
@@ -1524,15 +1607,8 @@ export default function ChenTrackerApp() {
           )}
         </div>
 
-        {/* RIGHT SIDEBAR — always visible regardless of tab */}
+        {/* RIGHT SIDEBAR — report + agent load, always visible */}
         <div style={{ display:"flex", flexDirection:"column", gap:11 }}>
-
-          {/* Case form — only shown on Cases tab */}
-          {activeTab === "case" && (
-            <SideSection title="Add new case" t={t}>
-              <CaseForm form={form} setForm={setForm} onAdd={addCase} onClear={() => setForm(BLANK_FORM)} t={t} />
-            </SideSection>
-          )}
 
           {/* Report panel — always visible */}
           <SideSection title={rptMode === "mtd" ? "Month to date" : "Week to date"} t={t}>

@@ -115,23 +115,25 @@ function playAlertSound() {
 }
 
 // ─────────────────────────────────────────────
-// NOTES BUBBLE — icon that shows notes on hover, copies on click
+// NOTES BADGE — styled like a status chip, hover shows popup, click copies
 // ─────────────────────────────────────────────
 function NotesBubble({ notes, isDark }) {
   const [hovered, setHovered] = useState(false);
   const [copied,  setCopied]  = useState(false);
-  const ref = useRef(null);
-  const [pos, setPos] = useState({ top:0, left:0 });
+  const [pos,     setPos]     = useState({ top:0, left:0 });
   if (!notes) return null;
 
   function handleMouseEnter(e) {
     setHovered(true);
     const rect = e.currentTarget.getBoundingClientRect();
-    const popW = 260;
+    const popW = 280;
     let left = rect.left + rect.width / 2 - popW / 2;
     if (left < 8) left = 8;
     if (left + popW > window.innerWidth - 8) left = window.innerWidth - popW - 8;
-    setPos({ top: rect.top - 8, left });
+    // prefer above; if too close to top, go below
+    const top = rect.top > 160 ? rect.top - 8 : rect.bottom + 8;
+    const above = rect.top > 160;
+    setPos({ top, left, above });
   }
 
   async function handleClick(e) {
@@ -143,34 +145,57 @@ function NotesBubble({ notes, isDark }) {
     } catch {}
   }
 
-  const iconColor = isDark ? "#7A9E8A" : "#8A6A55";
-  const iconHover = isDark ? "#C8B89A" : "#5B3320";
+  // Badge colours — match pending chip palette but in a neutral slate
+  const bg     = isDark ? (copied ? "rgba(76,107,47,0.25)"  : "rgba(122,158,138,0.15)") : (copied ? "#EEF7E8"  : "#F0EBE3");
+  const border = isDark ? (copied ? "#4A8050"               : "#2D4035")                  : (copied ? "#BDD6A6"  : "#C8B89A");
+  const color  = isDark ? (copied ? "#7DC860"               : "#C8B89A")                  : (copied ? "#4C6B2F"  : "#6D6256");
+  const dot    = copied
+    ? (isDark ? "#7DC860" : "#4C6B2F")
+    : (isDark ? "#7A9E8A" : "#8A6A55");
 
   return (
-    <span ref={ref} style={{ position:"relative", display:"inline-flex" }}>
+    <span style={{ position:"relative", display:"inline-flex" }}>
       <button
         onClick={handleClick}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={() => setHovered(false)}
         title="Hover to read · Click to copy"
-        style={{ background:"none", border:"none", cursor:"pointer", padding:"2px 4px", borderRadius:5, color: copied ? "#4C6B2F" : iconColor, fontSize:14, lineHeight:1, display:"flex", alignItems:"center" }}
-        onMouseOver={(e) => (e.currentTarget.style.color = copied ? "#4C6B2F" : iconHover)}
-        onMouseOut={(e)  => (e.currentTarget.style.color = copied ? "#4C6B2F" : iconColor)}
+        style={{
+          display:"inline-flex", alignItems:"center", gap:5,
+          background:bg, color, border:`1px solid ${border}`,
+          borderRadius:6, padding:"2px 8px", fontSize:11, fontWeight:700,
+          cursor:"pointer", whiteSpace:"nowrap", fontFamily:"inherit",
+          transition:"all .15s",
+        }}
       >
-        {copied ? "✓" : "📋"}
+        <span style={{ width:6, height:6, borderRadius:"50%", background:dot, flexShrink:0 }} />
+        {copied ? "Copied!" : "Notes"}
       </button>
-      {hovered && (
+
+      {hovered && !copied && (
         <div style={{
-          position:"fixed", top: pos.top, left: pos.left, zIndex:9999,
-          width:260, background: isDark ? "#1A2E22" : "#FCF8F2",
+          position:"fixed",
+          top:  pos.above ? pos.top : pos.top,
+          left: pos.left,
+          zIndex:9999,
+          width:280,
+          background: isDark ? "#1A2E22" : "#FDFAF6",
           border:`1px solid ${isDark ? "#2D4035" : "#D4C3AD"}`,
-          borderRadius:10, padding:"10px 12px", boxShadow:"0 8px 32px rgba(0,0,0,0.3)",
-          transform:"translateY(-100%)",
+          borderRadius:10,
+          padding:"11px 13px",
+          boxShadow:"0 10px 36px rgba(0,0,0,0.35)",
+          transform: pos.above ? "translateY(-100%)" : "translateY(0)",
           pointerEvents:"none",
         }}>
-          <div style={{ fontSize:10, fontWeight:700, color: isDark ? "#7A9E8A" : "#8A6A55", textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:6 }}>Notes</div>
-          <div style={{ fontSize:12, color: isDark ? "#EAE0D0" : "#2B1A12", lineHeight:1.5, whiteSpace:"pre-wrap", wordBreak:"break-word" }}>{notes}</div>
-          <div style={{ fontSize:10, color: isDark ? "#5A7A68" : "#B28A6B", marginTop:6 }}>Click icon to copy</div>
+          <div style={{ fontSize:10, fontWeight:700, color: isDark ? "#7A9E8A" : "#8A6A55", textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:6 }}>
+            Notes
+          </div>
+          <div style={{ fontSize:12, color: isDark ? "#EAE0D0" : "#2B1A12", lineHeight:1.55, whiteSpace:"pre-wrap", wordBreak:"break-word", maxHeight:160, overflowY:"auto" }}>
+            {notes}
+          </div>
+          <div style={{ fontSize:10, color: isDark ? "#5A7A68" : "#B28A6B", marginTop:7, borderTop:`1px solid ${isDark ? "#2D4035" : "#E8DDD0"}`, paddingTop:5 }}>
+            Click to copy to clipboard
+          </div>
         </div>
       )}
     </span>
@@ -969,7 +994,7 @@ function InboundMainPanel({ ibDate, setIbDate, inboundRows, onSave, onDelete, t,
               <div>
                 <StatusChip status={item.resolved === "Yes" ? "RESOLVED" : "PENDING"} />
               </div>
-              <div style={{ fontSize:11, color:t.mutedColor, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }} title={item.notes}>{item.notes || "—"}</div>
+              <div><NotesBubble notes={item.notes} isDark={isDark} /></div>
               <button onClick={() => onDelete(item.id)}
                 style={{ width:28, height:28, background:t.toolDelBg, border:`1px solid ${t.toolDelBorder}`, borderRadius:7, cursor:"pointer", color:t.toolDelColor, fontSize:12, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
             </div>

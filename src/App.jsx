@@ -981,25 +981,72 @@ function EodTab({ onSave, eodEntries, onDeleteEod, t, isDark }) {
 }
 
 // ─────────────────────────────────────────────
+// INBOUND EDIT MODAL
+// ─────────────────────────────────────────────
+function InboundEditModal({ item, onClose, onSave, t, isDark }) {
+  const [f, setF] = useState({ ...item });
+  const u = (k, v) => setF((x) => ({ ...x, [k]: v }));
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:400, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+      <div style={{ background:t.modalBg, border:`1px solid ${t.cardBorder}`, borderRadius:14, width:"100%", maxWidth:480, maxHeight:"90vh", overflowY:"auto", boxShadow:"0 24px 64px rgba(0,0,0,0.3)" }}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"13px 17px", borderBottom:`1px solid ${t.cardBorder}`, background:t.sideHeadBg }}>
+          <span style={{ fontSize:14, fontWeight:700, color:t.color }}>Edit inbound entry</span>
+          <button onClick={onClose} style={{ background:"none", border:"none", cursor:"pointer", fontSize:18, color:t.mutedColor, fontFamily:"inherit" }}>✕</button>
+        </div>
+        <div style={{ padding:"15px 17px", display:"flex", flexDirection:"column", gap:9 }}>
+          <FRow label="Client name" t={t}><FI value={f.clientName} onChange={(v) => u("clientName", v)} placeholder="Full name" t={t} /></FRow>
+          <FRow label="Phone number" t={t}><FI type="tel" value={f.phoneNumber} onChange={(v) => u("phoneNumber", v)} placeholder="305-555-0000" t={t} /></FRow>
+          <G2>
+            <FRow label="Agent" t={t}><FI value={f.agentName} onChange={(v) => u("agentName", v)} placeholder="Agent name" t={t} /></FRow>
+            <FRow label="Specialist" t={t}><FS value={f.specialistName} onChange={(v) => u("specialistName", v)} options={SPEC_OPTS} t={t} /></FRow>
+          </G2>
+          <FRow label="Date of call" t={t}><FI type="date" value={f.dateOfCall || ""} onChange={(v) => u("dateOfCall", v)} t={t} /></FRow>
+          <G2>
+            <FRow label="Resolved" t={t}><FS value={f.resolved} onChange={(v) => u("resolved", v)} options={["No","Yes"]} t={t} /></FRow>
+            <FRow label="Agent informed" t={t}><FS value={f.agentInformed} onChange={(v) => u("agentInformed", v)} options={["No","Yes"]} t={t} /></FRow>
+          </G2>
+          <FRow label="Notes" t={t}><FTA value={f.notes} onChange={(v) => u("notes", v)} placeholder="Cancellation details, next steps…" rows={3} t={t} /></FRow>
+        </div>
+        <div style={{ padding:"11px 17px", borderTop:`1px solid ${t.cardBorder}`, background:t.sideHeadBg, display:"flex", justifyContent:"flex-end", gap:7 }}>
+          <button onClick={onClose} style={{ height:31, padding:"0 14px", background:"transparent", border:`1px solid ${t.cardBorder}`, borderRadius:8, cursor:"pointer", color:t.mutedColor, fontSize:12, fontFamily:"inherit" }}>Cancel</button>
+          <button onClick={() => onSave(f)} style={{ height:31, padding:"0 17px", background:t.saveBtnBg, color:t.saveBtnColor, border:"none", borderRadius:8, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Save changes</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
 // INBOUND MAIN PANEL — replaces entire left area when Inbound tab active
 // ─────────────────────────────────────────────
-function InboundMainPanel({ ibDate, setIbDate, inboundRows, onSave, onDelete, t, isDark }) {
+function InboundMainPanel({ ibDate, setIbDate, inboundRows, onSave, onDelete, onEdit, t, isDark }) {
   const [f, setF] = useState({ clientName:"", phoneNumber:"", agentName:"", specialistName:"", resolved:"No", agentInformed:"No", notes:"" });
   const u = (k, v) => setF((x) => ({ ...x, [k]: v }));
-  const [ibQ,    setIbQ]    = useState("");
-  const [ibRes,  setIbRes]  = useState("All");
-  const [ibSpec, setIbSpec] = useState("All");
-  const [ibPage, setIbPage] = useState(1);
+  const [ibQ,       setIbQ]       = useState("");
+  const [ibRes,     setIbRes]     = useState("All");
+  const [ibSpec,    setIbSpec]    = useState("All");
+  const [ibPage,    setIbPage]    = useState(1);
+  const [ibStart,   setIbStart]   = useState("");
+  const [ibEnd,     setIbEnd]     = useState("");
+  const [editItem,  setEditItem]  = useState(null);
   const IB_PER = 15;
 
   const filtered = useMemo(() => {
     const q = ibQ.trim().toLowerCase();
-    return inboundRows.filter((r) =>
-      (ibRes  === "All" || r.resolved       === ibRes) &&
-      (ibSpec === "All" || r.specialistName === ibSpec) &&
-      (!q || [r.clientName, r.agentName, r.phoneNumber, r.notes, r.specialistName].join(" ").toLowerCase().includes(q))
-    );
-  }, [inboundRows, ibQ, ibRes, ibSpec]);
+    return inboundRows.filter((r) => {
+      const rowDate = r.dateOfCall || r.createdAt?.slice(0,10) || "";
+      let md = true;
+      if (ibStart && ibEnd)   md = rowDate >= ibStart && rowDate <= ibEnd;
+      else if (ibStart)       md = rowDate === ibStart;
+      else if (ibEnd)         md = rowDate === ibEnd;
+      return (
+        (ibRes  === "All" || r.resolved       === ibRes) &&
+        (ibSpec === "All" || r.specialistName === ibSpec) &&
+        md &&
+        (!q || [r.clientName, r.agentName, r.phoneNumber, r.notes, r.specialistName].join(" ").toLowerCase().includes(q))
+      );
+    });
+  }, [inboundRows, ibQ, ibRes, ibSpec, ibStart, ibEnd]);
 
   const totalPg = Math.max(1, Math.ceil(filtered.length / IB_PER));
   const safePg  = Math.min(ibPage, totalPg);
@@ -1009,6 +1056,16 @@ function InboundMainPanel({ ibDate, setIbDate, inboundRows, onSave, onDelete, t,
 
   return (
     <div style={{ display:"grid", gridTemplateColumns:"300px 1fr", gap:14, alignItems:"start" }}>
+      {/* Edit modal */}
+      {editItem && (
+        <InboundEditModal
+          item={editItem}
+          onClose={() => setEditItem(null)}
+          onSave={(updated) => { onEdit(updated); setEditItem(null); }}
+          t={t} isDark={isDark}
+        />
+      )}
+
       {/* LEFT: Inbound entry form */}
       <div style={{ background:t.cardBg, border:`1px solid ${t.cardBorder}`, borderRadius:12, overflow:"hidden" }}>
         <div style={{ padding:"11px 15px", borderBottom:`1px solid ${t.cardBorder}`, background:t.sideHeadBg }}>
@@ -1043,6 +1100,15 @@ function InboundMainPanel({ ibDate, setIbDate, inboundRows, onSave, onDelete, t,
             <input value={ibQ} onChange={(e) => { setIbQ(e.target.value); setIbPage(1); }} placeholder="Search inbound entries…"
               style={{ ...toolInp, width:"100%", paddingLeft:28 }} />
           </div>
+
+          {/* Date range picker — same component as cases */}
+          <DateRangePicker
+            filterStart={ibStart} filterEnd={ibEnd}
+            setFilterStart={(v) => { setIbStart(v); setIbPage(1); }}
+            setFilterEnd={(v)   => { setIbEnd(v);   setIbPage(1); }}
+            t={t} isDark={isDark}
+          />
+
           <select value={ibRes} onChange={(e) => { setIbRes(e.target.value); setIbPage(1); }}
             style={{ ...toolInp, width:"auto" }}>
             <option value="All">All statuses</option>
@@ -1058,7 +1124,7 @@ function InboundMainPanel({ ibDate, setIbDate, inboundRows, onSave, onDelete, t,
         </div>
 
         {/* Column headers */}
-        <div style={{ display:"grid", gridTemplateColumns:"160px 110px 90px 90px 80px 1fr 32px", gap:10, padding:"0 14px" }}>
+        <div style={{ display:"grid", gridTemplateColumns:"150px 105px 90px 85px 75px 1fr 64px", gap:8, padding:"0 14px" }}>
           {["Client","Agent","Phone","Date","Resolved","Notes",""].map((h) => (
             <div key={h} style={{ fontSize:10, fontWeight:700, color:t.dimColor, textTransform:"uppercase", letterSpacing:"0.07em" }}>{h}</div>
           ))}
@@ -1068,7 +1134,9 @@ function InboundMainPanel({ ibDate, setIbDate, inboundRows, onSave, onDelete, t,
         <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
           {paged.length ? paged.map((item) => (
             <div key={item.id}
-              style={{ background:t.cardBg, border:`1px solid ${t.cardBorder}`, borderRadius:10, padding:"10px 14px", display:"grid", gridTemplateColumns:"160px 110px 90px 90px 80px 1fr 32px", gap:10, alignItems:"center" }}
+              style={{ background:t.cardBg, border:`1px solid ${t.cardBorder}`, borderRadius:10, padding:"10px 14px", display:"grid", gridTemplateColumns:"150px 105px 90px 85px 75px 1fr 64px", gap:8, alignItems:"center", transition:"border-color .14s,background .14s" }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.borderColor = t.cardHoverBorder; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = t.cardBg;    e.currentTarget.style.borderColor = t.cardBorder; }}
             >
               <div>
                 <div style={{ fontWeight:700, fontSize:12, color:t.color, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{item.clientName}</div>
@@ -1077,18 +1145,21 @@ function InboundMainPanel({ ibDate, setIbDate, inboundRows, onSave, onDelete, t,
               <div style={{ fontSize:11, color: isDark ? "#C8B89A" : "#6D6256", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{item.agentName || "—"}</div>
               <div style={{ fontSize:11, color:t.mutedColor, fontFamily:"monospace" }}>{item.phoneNumber || "—"}</div>
               <div style={{ fontSize:11, color:t.mutedColor }}>{item.dateOfCall || item.createdAt?.slice(0,10) || "—"}</div>
-              <div>
-                <StatusChip status={item.resolved === "Yes" ? "RESOLVED" : "PENDING"} />
-              </div>
+              <div><StatusChip status={item.resolved === "Yes" ? "RESOLVED" : "PENDING"} /></div>
               <div><NotesBubble notes={item.notes} isDark={isDark} /></div>
-              <button onClick={() => onDelete(item.id)}
-                style={{ width:28, height:28, background:t.toolDelBg, border:`1px solid ${t.toolDelBorder}`, borderRadius:7, cursor:"pointer", color:t.toolDelColor, fontSize:12, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+              {/* Edit + Delete buttons */}
+              <div style={{ display:"flex", gap:4, justifyContent:"flex-end" }}>
+                <button onClick={() => setEditItem({ ...item })} title="Edit"
+                  style={{ width:28, height:28, background:t.toolEditBg, border:`1px solid ${t.toolEditBorder}`, borderRadius:7, cursor:"pointer", color:t.toolEditColor, fontSize:13, display:"flex", alignItems:"center", justifyContent:"center" }}>✎</button>
+                <button onClick={() => onDelete(item.id)} title="Delete"
+                  style={{ width:28, height:28, background:t.toolDelBg, border:`1px solid ${t.toolDelBorder}`, borderRadius:7, cursor:"pointer", color:t.toolDelColor, fontSize:12, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+              </div>
             </div>
           )) : (
             <div style={{ textAlign:"center", padding:"40px 20px", background:t.emptyBg, borderRadius:10 }}>
               <div style={{ fontSize:24, marginBottom:8, opacity:0.35 }}>◈</div>
-              <div style={{ fontSize:13, fontWeight:700, color:t.mutedColor }}>No inbound entries yet</div>
-              <div style={{ fontSize:11, marginTop:4, color:t.dimColor }}>Use the form on the left to log a cancellation call</div>
+              <div style={{ fontSize:13, fontWeight:700, color:t.mutedColor }}>No inbound entries found</div>
+              <div style={{ fontSize:11, marginTop:4, color:t.dimColor }}>Try adjusting your filters or log a new entry on the left</div>
             </div>
           )}
         </div>
@@ -1710,6 +1781,10 @@ export default function ChenTrackerApp() {
               inboundRows={inboundRows}
               onSave={saveInbound}
               onDelete={(id) => setInboundRows((r) => r.filter((x) => x.id !== id))}
+              onEdit={(updated) => {
+                setInboundRows((r) => r.map((x) => x.id === updated.id ? updated : x));
+                showToast("Inbound entry updated.", t.toastSuccess);
+              }}
               t={t} isDark={isDark}
             />
           )}

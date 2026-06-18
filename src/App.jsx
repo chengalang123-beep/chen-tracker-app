@@ -807,6 +807,263 @@ function EodTab({ onSave, eodEntries, onDeleteEod, t, isDark }) {
 }
 
 // ─────────────────────────────────────────────
+// INBOUND MAIN PANEL — replaces entire left area when Inbound tab active
+// ─────────────────────────────────────────────
+function InboundMainPanel({ ibDate, setIbDate, inboundRows, onSave, onDelete, t, isDark }) {
+  const [f, setF] = useState({ clientName:"", phoneNumber:"", agentName:"", specialistName:"", resolved:"No", agentInformed:"No", notes:"" });
+  const u = (k, v) => setF((x) => ({ ...x, [k]: v }));
+  const [ibQ,    setIbQ]    = useState("");
+  const [ibRes,  setIbRes]  = useState("All");
+  const [ibSpec, setIbSpec] = useState("All");
+  const [ibPage, setIbPage] = useState(1);
+  const IB_PER = 15;
+
+  const filtered = useMemo(() => {
+    const q = ibQ.trim().toLowerCase();
+    return inboundRows.filter((r) =>
+      (ibRes  === "All" || r.resolved       === ibRes) &&
+      (ibSpec === "All" || r.specialistName === ibSpec) &&
+      (!q || [r.clientName, r.agentName, r.phoneNumber, r.notes, r.specialistName].join(" ").toLowerCase().includes(q))
+    );
+  }, [inboundRows, ibQ, ibRes, ibSpec]);
+
+  const totalPg = Math.max(1, Math.ceil(filtered.length / IB_PER));
+  const safePg  = Math.min(ibPage, totalPg);
+  const paged   = filtered.slice((safePg - 1) * IB_PER, safePg * IB_PER);
+
+  const toolInp = { height:32, background:t.inputBg, border:`1px solid ${t.inputBorder}`, borderRadius:8, padding:"0 9px", fontSize:12, color:t.inputColor, outline:"none", fontFamily:"inherit" };
+
+  return (
+    <div style={{ display:"grid", gridTemplateColumns:"300px 1fr", gap:14, alignItems:"start" }}>
+      {/* LEFT: Inbound entry form */}
+      <div style={{ background:t.cardBg, border:`1px solid ${t.cardBorder}`, borderRadius:12, overflow:"hidden" }}>
+        <div style={{ padding:"11px 15px", borderBottom:`1px solid ${t.cardBorder}`, background:t.sideHeadBg }}>
+          <span style={{ fontSize:11, fontWeight:700, color:t.sideTitle, textTransform:"uppercase", letterSpacing:"0.09em" }}>Log inbound cancellation</span>
+        </div>
+        <div style={{ padding:14, display:"flex", flexDirection:"column", gap:8 }}>
+          <FRow label="Client name" t={t}><FI value={f.clientName} onChange={(v) => u("clientName", v)} placeholder="Full name" t={t} /></FRow>
+          <FRow label="Phone number" t={t}><FI type="tel" value={f.phoneNumber} onChange={(v) => u("phoneNumber", v)} placeholder="305-555-0000" t={t} /></FRow>
+          <G2>
+            <FRow label="Agent" t={t}><FI value={f.agentName} onChange={(v) => u("agentName", v)} placeholder="Agent name" t={t} /></FRow>
+            <FRow label="Specialist" t={t}><FS value={f.specialistName} onChange={(v) => u("specialistName", v)} options={SPEC_OPTS} t={t} /></FRow>
+          </G2>
+          <FRow label="Date of call" t={t}><FI type="date" value={ibDate} onChange={setIbDate} t={t} /></FRow>
+          <G2>
+            <FRow label="Resolved" t={t}><FS value={f.resolved} onChange={(v) => u("resolved", v)} options={["No","Yes"]} t={t} /></FRow>
+            <FRow label="Agent informed" t={t}><FS value={f.agentInformed} onChange={(v) => u("agentInformed", v)} options={["No","Yes"]} t={t} /></FRow>
+          </G2>
+          <FRow label="Notes" t={t}><FTA value={f.notes} onChange={(v) => u("notes", v)} placeholder="Cancellation details, next steps…" t={t} /></FRow>
+          <PrimaryBtn onClick={() => {
+            onSave({ ...f, dateOfCall:ibDate });
+            setF({ clientName:"", phoneNumber:"", agentName:"", specialistName:"", resolved:"No", agentInformed:"No", notes:"" });
+          }}>+ Save inbound cancellation</PrimaryBtn>
+        </div>
+      </div>
+
+      {/* RIGHT: Full inbound list */}
+      <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
+        {/* Toolbar */}
+        <div style={{ display:"flex", alignItems:"center", gap:7, flexWrap:"wrap" }}>
+          <div style={{ position:"relative", flex:1, minWidth:180 }}>
+            <span style={{ position:"absolute", left:9, top:"50%", transform:"translateY(-50%)", fontSize:14, color:t.mutedColor, pointerEvents:"none" }}>⌕</span>
+            <input value={ibQ} onChange={(e) => { setIbQ(e.target.value); setIbPage(1); }} placeholder="Search inbound entries…"
+              style={{ ...toolInp, width:"100%", paddingLeft:28 }} />
+          </div>
+          <select value={ibRes} onChange={(e) => { setIbRes(e.target.value); setIbPage(1); }}
+            style={{ ...toolInp, width:"auto" }}>
+            <option value="All">All statuses</option>
+            <option value="Yes">Resolved</option>
+            <option value="No">Unresolved</option>
+          </select>
+          <select value={ibSpec} onChange={(e) => { setIbSpec(e.target.value); setIbPage(1); }}
+            style={{ ...toolInp, width:"auto" }}>
+            <option value="All">All specialists</option>
+            {["Nisha","Rick","Chen","Fernando","Angie"].map((s) => <option key={s}>{s}</option>)}
+          </select>
+          <span style={{ fontSize:11, color:t.mutedColor, marginLeft:"auto" }}>{filtered.length} entr{filtered.length !== 1 ? "ies" : "y"}</span>
+        </div>
+
+        {/* Column headers */}
+        <div style={{ display:"grid", gridTemplateColumns:"160px 110px 90px 90px 80px 1fr 32px", gap:10, padding:"0 14px" }}>
+          {["Client","Agent","Phone","Date","Resolved","Notes",""].map((h) => (
+            <div key={h} style={{ fontSize:10, fontWeight:700, color:t.dimColor, textTransform:"uppercase", letterSpacing:"0.07em" }}>{h}</div>
+          ))}
+        </div>
+
+        {/* Inbound rows */}
+        <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
+          {paged.length ? paged.map((item) => (
+            <div key={item.id}
+              style={{ background:t.cardBg, border:`1px solid ${t.cardBorder}`, borderRadius:10, padding:"10px 14px", display:"grid", gridTemplateColumns:"160px 110px 90px 90px 80px 1fr 32px", gap:10, alignItems:"center" }}
+            >
+              <div>
+                <div style={{ fontWeight:700, fontSize:12, color:t.color, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{item.clientName}</div>
+                {item.specialistName && <div style={{ fontSize:10, color:t.mutedColor, marginTop:1 }}>{item.specialistName}</div>}
+              </div>
+              <div style={{ fontSize:11, color: isDark ? "#C8B89A" : "#6D6256", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{item.agentName || "—"}</div>
+              <div style={{ fontSize:11, color:t.mutedColor, fontFamily:"monospace" }}>{item.phoneNumber || "—"}</div>
+              <div style={{ fontSize:11, color:t.mutedColor }}>{item.dateOfCall || item.createdAt?.slice(0,10) || "—"}</div>
+              <div>
+                <StatusChip status={item.resolved === "Yes" ? "RESOLVED" : "PENDING"} />
+              </div>
+              <div style={{ fontSize:11, color:t.mutedColor, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }} title={item.notes}>{item.notes || "—"}</div>
+              <button onClick={() => onDelete(item.id)}
+                style={{ width:28, height:28, background:t.toolDelBg, border:`1px solid ${t.toolDelBorder}`, borderRadius:7, cursor:"pointer", color:t.toolDelColor, fontSize:12, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+            </div>
+          )) : (
+            <div style={{ textAlign:"center", padding:"40px 20px", background:t.emptyBg, borderRadius:10 }}>
+              <div style={{ fontSize:24, marginBottom:8, opacity:0.35 }}>◈</div>
+              <div style={{ fontSize:13, fontWeight:700, color:t.mutedColor }}>No inbound entries yet</div>
+              <div style={{ fontSize:11, marginTop:4, color:t.dimColor }}>Use the form on the left to log a cancellation call</div>
+            </div>
+          )}
+        </div>
+
+        {/* Pagination */}
+        {filtered.length > IB_PER && (
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", fontSize:11, color:t.mutedColor }}>
+            <span>{(safePg - 1) * IB_PER + 1}–{Math.min(safePg * IB_PER, filtered.length)} of {filtered.length}</span>
+            <div style={{ display:"flex", gap:6, alignItems:"center" }}>
+              <button onClick={() => setIbPage((p) => Math.max(1, p - 1))} disabled={safePg === 1}
+                style={{ height:28, padding:"0 12px", background:"transparent", border:`1px solid ${t.cardBorder}`, borderRadius:7, cursor: safePg === 1 ? "not-allowed" : "pointer", color:t.mutedColor, fontSize:11, fontFamily:"inherit", opacity: safePg === 1 ? 0.3 : 1 }}>← Prev</button>
+              <span>{safePg} / {totalPg}</span>
+              <button onClick={() => setIbPage((p) => Math.min(totalPg, p + 1))} disabled={safePg >= totalPg}
+                style={{ height:28, padding:"0 12px", background:"transparent", border:`1px solid ${t.cardBorder}`, borderRadius:7, cursor: safePg >= totalPg ? "not-allowed" : "pointer", color:t.mutedColor, fontSize:11, fontFamily:"inherit", opacity: safePg >= totalPg ? 0.3 : 1 }}>Next →</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// EOD MAIN PANEL — replaces entire left area when EOD tab active
+// ─────────────────────────────────────────────
+function EodMainPanel({ onSave, eodEntries, onDeleteEod, t, isDark }) {
+  const [f, setF] = useState({ ...BLANK_EOD });
+  const u = (k, v) => setF((x) => ({ ...x, [k]: v }));
+  const [eodSpec, setEodSpec] = useState("All");
+  const [eodPage, setEodPage] = useState(1);
+  const EOD_PER = 10;
+
+  const filtered = useMemo(() =>
+    eodEntries
+      .filter((e) => eodSpec === "All" || e.specialistName === eodSpec)
+      .sort((a, b) => (b.date || b.createdAt || "").localeCompare(a.date || a.createdAt || "")),
+    [eodEntries, eodSpec]
+  );
+
+  const totalPg = Math.max(1, Math.ceil(filtered.length / EOD_PER));
+  const safePg  = Math.min(eodPage, totalPg);
+  const paged   = filtered.slice((safePg - 1) * EOD_PER, safePg * EOD_PER);
+
+  const toolInp = { height:32, background:t.inputBg, border:`1px solid ${t.inputBorder}`, borderRadius:8, padding:"0 9px", fontSize:12, color:t.inputColor, outline:"none", fontFamily:"inherit" };
+
+  return (
+    <div style={{ display:"grid", gridTemplateColumns:"300px 1fr", gap:14, alignItems:"start" }}>
+      {/* LEFT: EOD entry form */}
+      <div style={{ background:t.cardBg, border:`1px solid ${t.cardBorder}`, borderRadius:12, overflow:"hidden" }}>
+        <div style={{ padding:"11px 15px", borderBottom:`1px solid ${t.cardBorder}`, background:t.sideHeadBg }}>
+          <span style={{ fontSize:11, fontWeight:700, color:t.sideTitle, textTransform:"uppercase", letterSpacing:"0.09em" }}>Submit EOD report</span>
+        </div>
+        <div style={{ padding:14, display:"flex", flexDirection:"column", gap:8 }}>
+          <FRow label="Specialist name" t={t}><FS value={f.specialistName} onChange={(v) => u("specialistName", v)} options={SPEC_OPTS} t={t} /></FRow>
+          <FRow label="Date" t={t}><FI type="date" value={f.date} onChange={(v) => u("date", v)} t={t} /></FRow>
+          <G2>
+            <FRow label="Total dials" t={t}><FI type="number" value={f.totalDials} onChange={(v) => u("totalDials", v)} placeholder="0" t={t} /></FRow>
+            <FRow label="Talk time (min)" t={t}><FI type="number" value={f.totalTalkTime} onChange={(v) => u("totalTalkTime", v)} placeholder="0" t={t} /></FRow>
+          </G2>
+          <FRow label="Clients reached" t={t}><FI type="number" value={f.clientsReached} onChange={(v) => u("clientsReached", v)} placeholder="0" t={t} /></FRow>
+          <FRow label="Welcome calls completed" t={t}><FI type="number" value={f.welcomeCallsCompleted} onChange={(v) => u("welcomeCallsCompleted", v)} placeholder="0" t={t} /></FRow>
+          <G2>
+            <FRow label="At risk resolved (pre)" t={t}><FI type="number" value={f.atRiskResolvedPre} onChange={(v) => u("atRiskResolvedPre", v)} placeholder="0" t={t} /></FRow>
+            <FRow label="At risk resolved (conf)" t={t}><FI type="number" value={f.atRiskResolvedConfirmed} onChange={(v) => u("atRiskResolvedConfirmed", v)} placeholder="0" t={t} /></FRow>
+          </G2>
+          <G2>
+            <FRow label="AP saved (pre)" t={t}><FI type="number" value={f.apSavedPre} onChange={(v) => u("apSavedPre", v)} placeholder="0" t={t} /></FRow>
+            <FRow label="AP saved (conf)" t={t}><FI type="number" value={f.apSavedConfirmed} onChange={(v) => u("apSavedConfirmed", v)} placeholder="0" t={t} /></FRow>
+          </G2>
+          <G2>
+            <FRow label="UW policies resolved" t={t}><FI type="number" value={f.uwPoliciesResolved} onChange={(v) => u("uwPoliciesResolved", v)} placeholder="0" t={t} /></FRow>
+            <FRow label="Pending resolution" t={t}><FI type="number" value={f.pendingResolution} onChange={(v) => u("pendingResolution", v)} placeholder="0" t={t} /></FRow>
+          </G2>
+          <FRow label="Saved — pending confirmation" t={t}><FTA value={f.savedPendingConfirmation} onChange={(v) => u("savedPendingConfirmation", v)} placeholder="Client Name - POLICY123" t={t} /></FRow>
+          <FRow label="Saved — confirmed" t={t}><FTA value={f.savedConfirmed} onChange={(v) => u("savedConfirmed", v)} placeholder="Client Name - POLICY456" t={t} /></FRow>
+          <FRow label="UW resolved not yet confirmed (AP, Name, Resolution, Carrier & Policy #)" t={t}><FTA value={f.uwResolvedNotConfirmedDetails} onChange={(v) => u("uwResolvedNotConfirmedDetails", v)} placeholder="AP, Name, Resolution, Carrier, Policy #" t={t} /></FRow>
+          <FRow label="UW confirmed resolved (AP, Name, Resolution, Carrier & Policy #)" t={t}><FTA value={f.uwConfirmedResolvedDetails} onChange={(v) => u("uwConfirmedResolvedDetails", v)} placeholder="AP, Name, Resolution, Carrier, Policy #" t={t} /></FRow>
+          <FRow label="Escalations / agent action needed" t={t}><FTA value={f.escalationsAgentActionNeeded} onChange={(v) => u("escalationsAgentActionNeeded", v)} placeholder="Client info, policy details, agent name, action needed" t={t} /></FRow>
+          <PrimaryBtn onClick={() => { onSave(f); setF({ ...BLANK_EOD }); }}>💾 Save EOD</PrimaryBtn>
+          <ClearBtn onClick={() => setF({ ...BLANK_EOD })} t={t}>Clear</ClearBtn>
+        </div>
+      </div>
+
+      {/* RIGHT: EOD history list */}
+      <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
+        {/* Toolbar */}
+        <div style={{ display:"flex", alignItems:"center", gap:7, flexWrap:"wrap" }}>
+          <select value={eodSpec} onChange={(e) => { setEodSpec(e.target.value); setEodPage(1); }}
+            style={{ ...toolInp, width:"auto" }}>
+            <option value="All">All specialists</option>
+            {["Nisha","Rick","Chen","Fernando","Angie"].map((s) => <option key={s}>{s}</option>)}
+          </select>
+          <span style={{ fontSize:11, color:t.mutedColor, marginLeft:"auto" }}>{filtered.length} EOD entr{filtered.length !== 1 ? "ies" : "y"}</span>
+        </div>
+
+        {/* Column headers */}
+        <div style={{ padding:"0 14px", display:"grid", gridTemplateColumns:"100px 80px 70px 80px 80px 80px 80px 1fr 32px", gap:8 }}>
+          {["Date","Specialist","Dials","Talk (min)","Reached","AP Pre","AP Conf","Escalations",""].map((h) => (
+            <div key={h} style={{ fontSize:10, fontWeight:700, color:t.dimColor, textTransform:"uppercase", letterSpacing:"0.07em" }}>{h}</div>
+          ))}
+        </div>
+
+        {/* EOD rows */}
+        <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
+          {paged.length ? paged.map((entry) => (
+            <div key={entry.id}
+              style={{ background:t.cardBg, border:`1px solid ${t.cardBorder}`, borderRadius:10, padding:"10px 14px", display:"grid", gridTemplateColumns:"100px 80px 70px 80px 80px 80px 80px 1fr 32px", gap:8, alignItems:"center" }}
+            >
+              <div style={{ fontSize:12, fontWeight:700, color:t.color }}>{entry.date}</div>
+              <div style={{ fontSize:11, color: isDark ? "#C8B89A" : "#6D6256" }}>{entry.specialistName || "—"}</div>
+              <div style={{ fontSize:11, color:t.mutedColor }}>{entry.totalDials || 0}</div>
+              <div style={{ fontSize:11, color:t.mutedColor }}>{entry.totalTalkTime || 0}</div>
+              <div style={{ fontSize:11, color:t.mutedColor }}>{entry.clientsReached || 0}</div>
+              <div style={{ fontSize:11, color: isDark ? "#F0B84A" : "#C07820", fontWeight:600 }}>{cur(entry.apSavedPre)}</div>
+              <div style={{ fontSize:11, color: isDark ? "#7DC860" : "#4C6B2F", fontWeight:600 }}>{cur(entry.apSavedConfirmed)}</div>
+              <div style={{ fontSize:11, color: entry.escalationsAgentActionNeeded ? (isDark ? "#F08060" : "#9D3F23") : t.dimColor, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }} title={entry.escalationsAgentActionNeeded}>
+                {entry.escalationsAgentActionNeeded ? `⚠ ${entry.escalationsAgentActionNeeded}` : "—"}
+              </div>
+              <button onClick={() => onDeleteEod(entry.id)}
+                style={{ width:28, height:28, background:t.toolDelBg, border:`1px solid ${t.toolDelBorder}`, borderRadius:7, cursor:"pointer", color:t.toolDelColor, fontSize:12, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+            </div>
+          )) : (
+            <div style={{ textAlign:"center", padding:"40px 20px", background:t.emptyBg, borderRadius:10 }}>
+              <div style={{ fontSize:24, marginBottom:8, opacity:0.35 }}>◈</div>
+              <div style={{ fontSize:13, fontWeight:700, color:t.mutedColor }}>No EOD entries yet</div>
+              <div style={{ fontSize:11, marginTop:4, color:t.dimColor }}>Use the form on the left to submit your first EOD</div>
+            </div>
+          )}
+        </div>
+
+        {/* Pagination */}
+        {filtered.length > EOD_PER && (
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", fontSize:11, color:t.mutedColor }}>
+            <span>{(safePg - 1) * EOD_PER + 1}–{Math.min(safePg * EOD_PER, filtered.length)} of {filtered.length}</span>
+            <div style={{ display:"flex", gap:6, alignItems:"center" }}>
+              <button onClick={() => setEodPage((p) => Math.max(1, p - 1))} disabled={safePg === 1}
+                style={{ height:28, padding:"0 12px", background:"transparent", border:`1px solid ${t.cardBorder}`, borderRadius:7, cursor: safePg === 1 ? "not-allowed" : "pointer", color:t.mutedColor, fontSize:11, fontFamily:"inherit", opacity: safePg === 1 ? 0.3 : 1 }}>← Prev</button>
+              <span>{safePg} / {totalPg}</span>
+              <button onClick={() => setEodPage((p) => Math.min(totalPg, p + 1))} disabled={safePg >= totalPg}
+                style={{ height:28, padding:"0 12px", background:"transparent", border:`1px solid ${t.cardBorder}`, borderRadius:7, cursor: safePg >= totalPg ? "not-allowed" : "pointer", color:t.mutedColor, fontSize:11, fontFamily:"inherit", opacity: safePg >= totalPg ? 0.3 : 1 }}>Next →</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
 // GOOGLE SHEETS API FUNCTIONS
 // ─────────────────────────────────────────────
 async function sendCaseToSheet(data) {
@@ -1123,127 +1380,161 @@ export default function ChenTrackerApp() {
         <KpiCard label="Save AP"            value={cur(kpi.svAp)} sub="Action: Save"                  colorKey="svAp" isDark={isDark} t={t} />
       </div>
 
+      {/* ── TAB SWITCHER — sits above everything, controls the entire left panel ── */}
+      <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+        {[["case","📋 Cases"],["inbound","📞 Inbound"],["eod","📝 EOD"]].map(([id, lbl]) => (
+          <button key={id} onClick={() => setActiveTab(id)} style={{
+            height:34, padding:"0 18px", borderRadius:9, fontFamily:"inherit",
+            fontSize:12, fontWeight:700, cursor:"pointer", border:"none",
+            background: activeTab === id ? t.pillOnBg : t.cardBg,
+            color:      activeTab === id ? t.pillOnColor : t.mutedColor,
+            boxShadow:  activeTab === id ? "0 2px 8px rgba(0,0,0,0.15)" : "none",
+          }}>{lbl}</button>
+        ))}
+        {activeTab !== "case" && (
+          <span style={{ fontSize:11, color:t.dimColor, marginLeft:6 }}>
+            {activeTab === "inbound" ? `${inboundRows.length} inbound entries` : `${eodEntries.length} EOD entries`}
+          </span>
+        )}
+      </div>
+
       {/* MAIN LAYOUT */}
       <div style={{ display:"grid", gridTemplateColumns:"1fr 300px", gap:14, alignItems:"start" }}>
 
-        {/* LEFT: case list */}
+        {/* ── LEFT PANEL — switches entirely based on activeTab ── */}
         <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
-          <div style={{ display:"flex", alignItems:"center", gap:7, flexWrap:"wrap" }}>
-            <div style={{ position:"relative", flex:1, minWidth:180 }}>
-              <span style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", fontSize:15, color:t.mutedColor, pointerEvents:"none" }}>⌕</span>
-              <input value={query} onChange={(e) => { setQuery(e.target.value); setPage(1); }} placeholder="Search client, policy, agent, notes…"
-                style={{ ...toolInp, width:"100%", paddingLeft:29 }} />
-            </div>
-            <input type="date" value={filterStart} title="Exact date (or start of range)" onChange={(e) => { setFilterStart(e.target.value); setPage(1); }} style={toolInp} />
-            <input type="date" value={filterEnd}   title="End of range (optional)"         onChange={(e) => { setFilterEnd(e.target.value);   setPage(1); }} style={toolInp} />
-            {["All","PENDING","RESOLVED","LOST"].map((v) => {
-              const m = STATUS_META[v];
-              return (
-                <GhostBtn key={v} active={resultFilter === v} onClick={() => { setResultFilter(v); setPage(1); }} isDark={isDark} style={{ fontSize:11 }}>
-                  {v === "All" ? "All" : <><span style={{ width:6, height:6, borderRadius:"50%", background:m?.dot, display:"inline-block", marginRight:3 }} />{m?.label}</>}
-                </GhostBtn>
-              );
-            })}
-            {(filterStart || filterEnd) && (
-              <GhostBtn onClick={() => { setFilterStart(""); setFilterEnd(""); }} isDark={isDark} style={{ fontSize:11 }}>✕ Clear dates</GhostBtn>
-            )}
-            <span style={{ fontSize:11, color:t.mutedColor, marginLeft:"auto" }}>{filtered.length} case{filtered.length !== 1 ? "s" : ""}</span>
-          </div>
 
-          <div style={{ display:"grid", gridTemplateColumns:"1fr auto", gap:10, padding:"0 14px" }}>
-            <div style={{ display:"grid", gridTemplateColumns:"170px 100px 78px 88px 1fr", gap:10 }}>
-              {["Client","AP","Stage","Status","Action / notes"].map((h) => (
-                <div key={h} style={{ fontSize:10, fontWeight:700, color:t.dimColor, textTransform:"uppercase", letterSpacing:"0.08em" }}>{h}</div>
-              ))}
+          {/* ════════════════════════════════
+              CASES TAB
+          ════════════════════════════════ */}
+          {activeTab === "case" && (<>
+            {/* Search + date + status filters */}
+            <div style={{ display:"flex", alignItems:"center", gap:7, flexWrap:"wrap" }}>
+              <div style={{ position:"relative", flex:1, minWidth:180 }}>
+                <span style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", fontSize:15, color:t.mutedColor, pointerEvents:"none" }}>⌕</span>
+                <input value={query} onChange={(e) => { setQuery(e.target.value); setPage(1); }} placeholder="Search client, policy, agent, notes…"
+                  style={{ ...toolInp, width:"100%", paddingLeft:29 }} />
+              </div>
+              <input type="date" value={filterStart} title="Exact date (or range start)" onChange={(e) => { setFilterStart(e.target.value); setPage(1); }} style={toolInp} />
+              <input type="date" value={filterEnd}   title="Range end (optional)"         onChange={(e) => { setFilterEnd(e.target.value);   setPage(1); }} style={toolInp} />
+              {["All","PENDING","RESOLVED","LOST"].map((v) => {
+                const m = STATUS_META[v];
+                return (
+                  <GhostBtn key={v} active={resultFilter === v} onClick={() => { setResultFilter(v); setPage(1); }} isDark={isDark} style={{ fontSize:11 }}>
+                    {v === "All" ? "All" : <><span style={{ width:6, height:6, borderRadius:"50%", background:m?.dot, display:"inline-block", marginRight:3 }} />{m?.label}</>}
+                  </GhostBtn>
+                );
+              })}
+              {(filterStart || filterEnd) && (
+                <GhostBtn onClick={() => { setFilterStart(""); setFilterEnd(""); }} isDark={isDark} style={{ fontSize:11 }}>✕ Clear dates</GhostBtn>
+              )}
+              <span style={{ fontSize:11, color:t.mutedColor, marginLeft:"auto" }}>{filtered.length} case{filtered.length !== 1 ? "s" : ""}</span>
             </div>
-            <div style={{ width:95 }} />
-          </div>
 
-          <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
-            {paged.length ? paged.map((row) => (
-              <div key={row.id}
-                style={{ background:t.cardBg, border:`1px solid ${t.cardBorder}`, borderRadius:10, padding:"11px 14px", display:"grid", gridTemplateColumns:"1fr auto", gap:10, alignItems:"center", cursor:"default", transition:"border-color .14s,background .14s" }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.borderColor = t.cardHoverBorder; e.currentTarget.querySelector(".rt").style.opacity = "1"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = t.cardBg;    e.currentTarget.style.borderColor = t.cardBorder;      e.currentTarget.querySelector(".rt").style.opacity = "0"; }}
-              >
-                <div style={{ display:"grid", gridTemplateColumns:"170px 100px 78px 88px 1fr", gap:10, alignItems:"center", minWidth:0 }}>
-                  <div>
-                    <div style={{ fontWeight:700, fontSize:13, color:t.color, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{row.clientName}</div>
-                    <div style={{ display:"flex", alignItems:"center", gap:5, marginTop:3 }}>
-                      <span style={{ fontSize:10, color:t.mutedColor, fontFamily:"monospace" }}>{row.policyNumber || "—"}</span>
-                      <PriorityChip priority={row.priority} />
+            {/* Column headers */}
+            <div style={{ display:"grid", gridTemplateColumns:"1fr auto", gap:10, padding:"0 14px" }}>
+              <div style={{ display:"grid", gridTemplateColumns:"170px 100px 78px 88px 1fr", gap:10 }}>
+                {["Client","AP","Stage","Status","Action / notes"].map((h) => (
+                  <div key={h} style={{ fontSize:10, fontWeight:700, color:t.dimColor, textTransform:"uppercase", letterSpacing:"0.08em" }}>{h}</div>
+                ))}
+              </div>
+              <div style={{ width:95 }} />
+            </div>
+
+            {/* Case cards */}
+            <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
+              {paged.length ? paged.map((row) => (
+                <div key={row.id}
+                  style={{ background:t.cardBg, border:`1px solid ${t.cardBorder}`, borderRadius:10, padding:"11px 14px", display:"grid", gridTemplateColumns:"1fr auto", gap:10, alignItems:"center", cursor:"default", transition:"border-color .14s,background .14s" }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.borderColor = t.cardHoverBorder; e.currentTarget.querySelector(".rt").style.opacity = "1"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = t.cardBg;    e.currentTarget.style.borderColor = t.cardBorder;      e.currentTarget.querySelector(".rt").style.opacity = "0"; }}
+                >
+                  <div style={{ display:"grid", gridTemplateColumns:"170px 100px 78px 88px 1fr", gap:10, alignItems:"center", minWidth:0 }}>
+                    <div>
+                      <div style={{ fontWeight:700, fontSize:13, color:t.color, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{row.clientName}</div>
+                      <div style={{ display:"flex", alignItems:"center", gap:5, marginTop:3 }}>
+                        <span style={{ fontSize:10, color:t.mutedColor, fontFamily:"monospace" }}>{row.policyNumber || "—"}</span>
+                        <PriorityChip priority={row.priority} />
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize:15, fontWeight:800, color: isDark ? "#E8B87A" : "#5B3320", letterSpacing:"-0.02em" }}>{cur(row.ap)}</div>
+                      <div style={{ fontSize:10, color:t.mutedColor, marginTop:2 }}>annual premium</div>
+                    </div>
+                    <div><StageTag s={row.leadStatus} t={t} /></div>
+                    <div><StatusChip status={row.result} /></div>
+                    <div style={{ minWidth:0 }}>
+                      <div style={{ fontSize:12, fontWeight:600, color: isDark ? "#C8B89A" : "#6D6256", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{row.action || "—"}</div>
+                      {row.notes && <div style={{ fontSize:11, color:t.mutedColor, marginTop:2, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{row.notes}</div>}
                     </div>
                   </div>
-                  <div>
-                    <div style={{ fontSize:15, fontWeight:800, color: isDark ? "#E8B87A" : "#5B3320", letterSpacing:"-0.02em" }}>{cur(row.ap)}</div>
-                    <div style={{ fontSize:10, color:t.mutedColor, marginTop:2 }}>annual premium</div>
-                  </div>
-                  <div><StageTag s={row.leadStatus} t={t} /></div>
-                  <div><StatusChip status={row.result} /></div>
-                  <div style={{ minWidth:0 }}>
-                    <div style={{ fontSize:12, fontWeight:600, color: isDark ? "#C8B89A" : "#6D6256", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{row.action || "—"}</div>
-                    {row.notes && <div style={{ fontSize:11, color:t.mutedColor, marginTop:2, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{row.notes}</div>}
+                  <div className="rt" style={{ display:"flex", gap:4, opacity:0, transition:"opacity .14s" }}>
+                    {row.result !== "RESOLVED" && (
+                      <button onClick={() => quickResolve(row.id)} title="Mark resolved" style={{ width:29, height:29, background:t.toolResBg, border:`1px solid ${t.toolResBorder}`, borderRadius:7, cursor:"pointer", color:t.toolResColor, fontSize:14, display:"flex", alignItems:"center", justifyContent:"center" }}>✓</button>
+                    )}
+                    <button onClick={() => setEditRow({ ...row })} title="Edit" style={{ width:29, height:29, background:t.toolEditBg, border:`1px solid ${t.toolEditBorder}`, borderRadius:7, cursor:"pointer", color:t.toolEditColor, fontSize:13, display:"flex", alignItems:"center", justifyContent:"center" }}>✎</button>
+                    <button onClick={() => deleteRow(row.id)} title="Delete" style={{ width:29, height:29, background:t.toolDelBg, border:`1px solid ${t.toolDelBorder}`, borderRadius:7, cursor:"pointer", color:t.toolDelColor, fontSize:13, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
                   </div>
                 </div>
-                <div className="rt" style={{ display:"flex", gap:4, opacity:0, transition:"opacity .14s" }}>
-                  {row.result !== "RESOLVED" && (
-                    <button onClick={() => quickResolve(row.id)} title="Mark resolved" style={{ width:29, height:29, background:t.toolResBg, border:`1px solid ${t.toolResBorder}`, borderRadius:7, cursor:"pointer", color:t.toolResColor, fontSize:14, display:"flex", alignItems:"center", justifyContent:"center" }}>✓</button>
-                  )}
-                  <button onClick={() => setEditRow({ ...row })} title="Edit" style={{ width:29, height:29, background:t.toolEditBg, border:`1px solid ${t.toolEditBorder}`, borderRadius:7, cursor:"pointer", color:t.toolEditColor, fontSize:13, display:"flex", alignItems:"center", justifyContent:"center" }}>✎</button>
-                  <button onClick={() => deleteRow(row.id)} title="Delete" style={{ width:29, height:29, background:t.toolDelBg, border:`1px solid ${t.toolDelBorder}`, borderRadius:7, cursor:"pointer", color:t.toolDelColor, fontSize:13, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+              )) : (
+                <div style={{ textAlign:"center", padding:"52px 20px", background:t.emptyBg, borderRadius:10 }}>
+                  <div style={{ fontSize:28, marginBottom:8, opacity:0.35 }}>◈</div>
+                  <div style={{ fontSize:14, fontWeight:700, color:t.mutedColor }}>No cases match your filters</div>
+                  <div style={{ fontSize:12, marginTop:4, color:t.dimColor }}>Try clearing your search or filters</div>
                 </div>
-              </div>
-            )) : (
-              <div style={{ textAlign:"center", padding:"52px 20px", background:t.emptyBg, borderRadius:10 }}>
-                <div style={{ fontSize:28, marginBottom:8, opacity:0.35 }}>◈</div>
-                <div style={{ fontSize:14, fontWeight:700, color:t.mutedColor }}>No cases match your filters</div>
-                <div style={{ fontSize:12, marginTop:4, color:t.dimColor }}>Try clearing your search or filters</div>
+              )}
+            </div>
+
+            {/* Pagination */}
+            {filtered.length > PER && (
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", fontSize:11, color:t.mutedColor }}>
+                <span>{(safePage - 1) * PER + 1}–{Math.min(safePage * PER, filtered.length)} of {filtered.length}</span>
+                <div style={{ display:"flex", gap:6, alignItems:"center" }}>
+                  <GhostBtn onClick={() => setPage((p) => Math.max(1, p - 1))} isDark={isDark} style={{ fontSize:11, opacity: safePage === 1 ? 0.3 : 1 }} disabled={safePage === 1}>← Prev</GhostBtn>
+                  <span>{safePage} / {totalPages}</span>
+                  <GhostBtn onClick={() => setPage((p) => Math.min(totalPages, p + 1))} isDark={isDark} style={{ fontSize:11, opacity: safePage >= totalPages ? 0.3 : 1 }} disabled={safePage >= totalPages}>Next →</GhostBtn>
+                </div>
               </div>
             )}
-          </div>
+          </>)}
 
-          {filtered.length > PER && (
-            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", fontSize:11, color:t.mutedColor }}>
-              <span>{(safePage - 1) * PER + 1}–{Math.min(safePage * PER, filtered.length)} of {filtered.length}</span>
-              <div style={{ display:"flex", gap:6, alignItems:"center" }}>
-                <GhostBtn onClick={() => setPage((p) => Math.max(1, p - 1))} isDark={isDark} style={{ fontSize:11, opacity: safePage === 1 ? 0.3 : 1 }} disabled={safePage === 1}>← Prev</GhostBtn>
-                <span>{safePage} / {totalPages}</span>
-                <GhostBtn onClick={() => setPage((p) => Math.min(totalPages, p + 1))} isDark={isDark} style={{ fontSize:11, opacity: safePage >= totalPages ? 0.3 : 1 }} disabled={safePage >= totalPages}>Next →</GhostBtn>
-              </div>
-            </div>
+          {/* ════════════════════════════════
+              INBOUND TAB — full left panel, inbound data only
+          ════════════════════════════════ */}
+          {activeTab === "inbound" && (
+            <InboundMainPanel
+              ibDate={ibDate} setIbDate={setIbDate}
+              inboundRows={inboundRows}
+              onSave={saveInbound}
+              onDelete={(id) => setInboundRows((r) => r.filter((x) => x.id !== id))}
+              t={t} isDark={isDark}
+            />
+          )}
+
+          {/* ════════════════════════════════
+              EOD TAB — full left panel, EOD data only
+          ════════════════════════════════ */}
+          {activeTab === "eod" && (
+            <EodMainPanel
+              onSave={saveEod}
+              eodEntries={eodEntries}
+              onDeleteEod={(id) => setEodEntries((e) => e.filter((x) => x.id !== id))}
+              t={t} isDark={isDark}
+            />
           )}
         </div>
 
-        {/* RIGHT SIDEBAR */}
+        {/* RIGHT SIDEBAR — always visible regardless of tab */}
         <div style={{ display:"flex", flexDirection:"column", gap:11 }}>
-          <SideSection title={activeTab === "case" ? "Add new case" : activeTab === "inbound" ? "Inbound cancellation" : "EOD"} t={t}>
-            <div style={{ display:"flex", gap:4, marginBottom:13 }}>
-              {[["case","Add new case"],["inbound","Inbound"],["eod","EOD"]].map(([id, lbl]) => (
-                <TabPill key={id} label={lbl} active={activeTab === id} onClick={() => setActiveTab(id)} t={t} />
-              ))}
-            </div>
-            {activeTab === "case" && (
-              <CaseForm form={form} setForm={setForm} onAdd={addCase} onClear={() => setForm(BLANK_FORM)} t={t} />
-            )}
-            {activeTab === "inbound" && (
-              <InboundTab
-                ibDate={ibDate} setIbDate={setIbDate}
-                inboundRows={inboundRows}
-                onSave={saveInbound}
-                onDelete={(id) => setInboundRows((r) => r.filter((x) => x.id !== id))}
-                t={t} isDark={isDark}
-              />
-            )}
-            {activeTab === "eod" && (
-              <EodTab
-                onSave={saveEod}
-                eodEntries={eodEntries}
-                onDeleteEod={(id) => setEodEntries((e) => e.filter((x) => x.id !== id))}
-                t={t} isDark={isDark}
-              />
-            )}
-          </SideSection>
 
+          {/* Case form — only shown on Cases tab */}
+          {activeTab === "case" && (
+            <SideSection title="Add new case" t={t}>
+              <CaseForm form={form} setForm={setForm} onAdd={addCase} onClear={() => setForm(BLANK_FORM)} t={t} />
+            </SideSection>
+          )}
+
+          {/* Report panel — always visible */}
           <SideSection title={rptMode === "mtd" ? "Month to date" : "Week to date"} t={t}>
             <div style={{ display:"flex", gap:4, marginBottom:9 }}>
               <RptModeBtn mode="wtd" label="Week to date" />
@@ -1274,6 +1565,7 @@ export default function ChenTrackerApp() {
             </div>
           </SideSection>
 
+          {/* Agent load — always visible */}
           <SideSection title="Agent load" t={t}>
             <AgentLoad agentMap={agentMap} isDark={isDark} t={t} />
           </SideSection>

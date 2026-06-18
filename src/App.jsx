@@ -22,7 +22,7 @@ const REMINDER_KEY        = "eterna-reminders-v1";
 // ─────────────────────────────────────────────
 const TODAY = new Date().toISOString().slice(0, 10);
 
-const ACTION_OPTS   = ["", "Pending Save", "Welcome Call", "Onboarding Call", "Pending Agent Assist", "Save", "UW Action Needed", "UW Action Resolved", "Lost", "Hang up"];
+const ACTION_OPTS   = ["", "Pending", "Pending Save", "Welcome Call", "Onboarding Call", "Pending Agent Assist", "Save", "UW Action Needed", "UW Action Resolved", "Lost", "Hang up"];
 const LEAD_OPTS     = ["", "NA", "NAA", "SRWT", "AS", "RTR", "CEP", "AYAR", "CWCC", "IUW", "UWAN", "UWAR", "UWSRWT"];
 const SPEC_OPTS     = ["", "Nisha", "Rick", "Chen", "Fernando", "Angie"];
 const PRIORITY_OPTS = ["Normal", "High", "Urgent"];

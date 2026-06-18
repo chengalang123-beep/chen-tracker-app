@@ -115,6 +115,92 @@ function playAlertSound() {
 }
 
 // ─────────────────────────────────────────────
+// DATE RANGE PICKER — single button, click opens dropdown with from/to
+// ─────────────────────────────────────────────
+function DateRangePicker({ filterStart, filterEnd, setFilterStart, setFilterEnd, t, isDark }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  // Close on outside click
+  useEffect(() => {
+    function handler(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const hasFilter = filterStart || filterEnd;
+
+  // Button label
+  let label = "📅 Date range";
+  if (filterStart && filterEnd)   label = `${filterStart} → ${filterEnd}`;
+  else if (filterStart)           label = `From ${filterStart}`;
+  else if (filterEnd)             label = `Until ${filterEnd}`;
+
+  const btnStyle = {
+    height:33, display:"inline-flex", alignItems:"center", gap:6,
+    padding:"0 12px", borderRadius:9, fontFamily:"inherit",
+    fontSize:12, fontWeight:600, cursor:"pointer", whiteSpace:"nowrap",
+    background: hasFilter ? (isDark ? "rgba(90,160,120,0.2)" : "rgba(92,119,104,0.18)") : "transparent",
+    color:      hasFilter ? (isDark ? "#7DCFA0" : "#355F50")  : (isDark ? "#C8B89A" : "#6D6256"),
+    border: `1px solid ${hasFilter ? (isDark ? "#4A8A65" : "rgba(92,119,104,0.5)") : (isDark ? "#2D4035" : "#CDBAA3")}`,
+  };
+
+  const inpStyle = {
+    width:"100%", height:30, background:t.inputBg, border:`1px solid ${t.inputBorder}`,
+    borderRadius:7, padding:"0 9px", fontSize:12, color:t.inputColor,
+    outline:"none", fontFamily:"inherit", boxSizing:"border-box",
+  };
+
+  return (
+    <div ref={ref} style={{ position:"relative" }}>
+      <button style={btnStyle} onClick={() => setOpen((o) => !o)}>
+        {label}
+        <span style={{ fontSize:10, opacity:0.6 }}>{open ? "▲" : "▼"}</span>
+      </button>
+
+      {open && (
+        <div style={{
+          position:"absolute", top:"calc(100% + 6px)", left:0, zIndex:500,
+          background: isDark ? "#1A2E22" : "#FCF8F2",
+          border:`1px solid ${isDark ? "#2D4035" : "#D4C3AD"}`,
+          borderRadius:10, padding:14, boxShadow:"0 8px 32px rgba(0,0,0,0.25)",
+          minWidth:240,
+        }}>
+          <div style={{ fontSize:10, fontWeight:700, color: isDark ? "#7A9E8A" : "#8A6A55", textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:10 }}>
+            Filter by date
+          </div>
+          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+            <div>
+              <div style={{ fontSize:10, fontWeight:600, color: isDark ? "#7A9E8A" : "#8A6A55", marginBottom:3 }}>From</div>
+              <input type="date" value={filterStart} onChange={(e) => setFilterStart(e.target.value)} style={inpStyle}
+                onFocus={(e) => (e.target.style.borderColor = isDark ? "#4A8A65" : "#5C7768")}
+                onBlur={(e)  => (e.target.style.borderColor = t.inputBorder)} />
+            </div>
+            <div>
+              <div style={{ fontSize:10, fontWeight:600, color: isDark ? "#7A9E8A" : "#8A6A55", marginBottom:3 }}>To</div>
+              <input type="date" value={filterEnd} onChange={(e) => setFilterEnd(e.target.value)} style={inpStyle}
+                onFocus={(e) => (e.target.style.borderColor = isDark ? "#4A8A65" : "#5C7768")}
+                onBlur={(e)  => (e.target.style.borderColor = t.inputBorder)} />
+            </div>
+            <div style={{ fontSize:10, color: isDark ? "#5A7A68" : "#B28A6B", lineHeight:1.5, marginTop:2 }}>
+              Set only "From" to filter a single day.<br/>Set both for a date range.
+            </div>
+            {(filterStart || filterEnd) && (
+              <button onClick={() => { setFilterStart(""); setFilterEnd(""); setOpen(false); }}
+                style={{ height:28, background:"transparent", border:`1px solid ${isDark ? "#8A3520" : "#F0B49C"}`, borderRadius:7, cursor:"pointer", color: isDark ? "#F08060" : "#9D3F23", fontSize:11, fontWeight:600, fontFamily:"inherit" }}>
+                ✕ Clear dates
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
 // NOTES BADGE — styled like a status chip, hover shows popup, click copies
 // ─────────────────────────────────────────────
 function NotesBubble({ notes, isDark }) {
@@ -1520,8 +1606,15 @@ export default function ChenTrackerApp() {
                     <input value={query} onChange={(e) => { setQuery(e.target.value); setPage(1); }} placeholder="Search client, policy, agent, notes…"
                       style={{ ...toolInp, width:"100%", paddingLeft:29 }} />
                   </div>
-                  <input type="date" value={filterStart} title="Exact date (or range start)" onChange={(e) => { setFilterStart(e.target.value); setPage(1); }} style={toolInp} />
-                  <input type="date" value={filterEnd}   title="Range end (optional)"         onChange={(e) => { setFilterEnd(e.target.value);   setPage(1); }} style={toolInp} />
+
+                  {/* Single compact date range picker */}
+                  <DateRangePicker
+                    filterStart={filterStart} filterEnd={filterEnd}
+                    setFilterStart={(v) => { setFilterStart(v); setPage(1); }}
+                    setFilterEnd={(v)   => { setFilterEnd(v);   setPage(1); }}
+                    t={t} isDark={isDark}
+                  />
+
                   {["All","PENDING","RESOLVED","LOST"].map((v) => {
                     const m = STATUS_META[v];
                     return (

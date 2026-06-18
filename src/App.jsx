@@ -1301,14 +1301,14 @@ export default function ChenTrackerApp() {
   const paged      = filtered.slice((safePage - 1) * PER, safePage * PER);
 
   const kpi = useMemo(() => {
-    const src = specFilter === "All" ? rows : rows.filter((r) => r.specialistName === specFilter);
-    // When a date filter is active, KPI counts from the filtered set
+    // Always use the fully-filtered set (spec + date + status + search)
+    // so every KPI card reflects whatever the user has filtered to.
+    // When no date filter is active, filtered = all rows for that specialist.
+    const base = filtered;
+    const ps   = base.filter((r) => (r.action || "").toLowerCase() === "pending save");
+    const sv   = base.filter((r) => (r.action || "").toLowerCase() === "save");
+    const uwr  = base.filter((r) => (r.action || "").toLowerCase() === "uw action resolved");
     const dateActive = filterStart || filterEnd;
-    const base = dateActive ? filtered : src;
-    const td   = src.filter((r) => r.updatedAt === TODAY);
-    const ps   = td.filter((r) => (r.action || "").toLowerCase() === "pending save");
-    const sv   = td.filter((r) => (r.action || "").toLowerCase() === "save");
-    const uwr  = td.filter((r) => (r.action || "").toLowerCase() === "uw action resolved");
     return {
       total:    base.length,
       resolved: base.filter((r) => r.result === "RESOLVED").length,
@@ -1317,9 +1317,11 @@ export default function ChenTrackerApp() {
       psCount:  ps.length,  psAp:  ps.reduce((s, r) => s + Number(r.ap || 0), 0),
       svCount:  sv.length,  svAp:  sv.reduce((s, r) => s + Number(r.ap || 0), 0),
       uwrCount: uwr.length,
-      dateLabel: dateActive ? (filterStart && filterEnd ? `${filterStart} → ${filterEnd}` : filterStart || filterEnd) : TODAY,
+      dateLabel: dateActive
+        ? (filterStart && filterEnd ? `${filterStart} → ${filterEnd}` : filterStart || filterEnd)
+        : TODAY,
     };
-  }, [rows, specFilter, filtered, filterStart, filterEnd]);
+  }, [filtered, filterStart, filterEnd]);
 
   const rpt = useMemo(() => {
     const src   = specFilter === "All" ? rows : rows.filter((r) => r.specialistName === specFilter);
@@ -1441,12 +1443,12 @@ export default function ChenTrackerApp() {
       {/* 7 KPI CARDS */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:8 }}>
         <KpiCard label="Total cases"        value={kpi.total}     sub={`${kpi.resolved} resolved · ${kpi.pending} pending · ${kpi.dateLabel}`} colorKey="total" isDark={isDark} t={t} />
-        <KpiCard label="Pending save"       value={kpi.psCount}   sub={`${cur(kpi.psAp)} at stake`}   colorKey="ps"   isDark={isDark} t={t} />
-        <KpiCard label="Saved today"        value={kpi.svCount}   sub={`${cur(kpi.svAp)} locked in`}  colorKey="sv"   isDark={isDark} t={t} />
-        <KpiCard label="UW Action Resolved" value={kpi.uwrCount}  sub="Today"                         colorKey="uwr"  isDark={isDark} t={t} />
-        <KpiCard label="Lost cases"         value={kpi.lost}      sub="All time"                      colorKey="lost" isDark={isDark} t={t} />
-        <KpiCard label="Pending Save AP"    value={cur(kpi.psAp)} sub="Action: Pending Save"          colorKey="psAp" isDark={isDark} t={t} />
-        <KpiCard label="Save AP"            value={cur(kpi.svAp)} sub="Action: Save"                  colorKey="svAp" isDark={isDark} t={t} />
+        <KpiCard label="Pending save"       value={kpi.psCount}   sub={`${cur(kpi.psAp)} at stake`}                                             colorKey="ps"   isDark={isDark} t={t} />
+        <KpiCard label="Saved"              value={kpi.svCount}   sub={`${cur(kpi.svAp)} locked in`}                                            colorKey="sv"   isDark={isDark} t={t} />
+        <KpiCard label="UW Action Resolved" value={kpi.uwrCount}  sub={kpi.dateLabel}                                                           colorKey="uwr"  isDark={isDark} t={t} />
+        <KpiCard label="Lost cases"         value={kpi.lost}      sub={kpi.dateLabel}                                                           colorKey="lost" isDark={isDark} t={t} />
+        <KpiCard label="Pending Save AP"    value={cur(kpi.psAp)} sub="Action: Pending Save"                                                    colorKey="psAp" isDark={isDark} t={t} />
+        <KpiCard label="Save AP"            value={cur(kpi.svAp)} sub="Action: Save"                                                            colorKey="svAp" isDark={isDark} t={t} />
       </div>
 
       {/* ── TAB SWITCHER — sits above everything, controls the entire left panel ── */}

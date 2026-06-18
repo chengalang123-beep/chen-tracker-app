@@ -1,21 +1,21 @@
-import React, { useState, useMemo, useEffect, useCallback } from "react";
+import React, { useState, useMemo, useEffect, useCallback, useRef } from "react";
 
 // ─────────────────────────────────────────────
 // GOOGLE SHEETS URLS
 // ─────────────────────────────────────────────
 const GOOGLE_SHEET_WEB_APP_URL =
   "https://script.google.com/macros/s/AKfycbxbNbAYvCGjA2oNLjEa_qVi_p4RWxMo9vHm9hXicdHcuIzZIYb_nGzXo9xzVHE_Bfc9/exec";
-
 const GOOGLE_SHEET_VIEW_URL =
   "https://docs.google.com/spreadsheets/d/1ZTk5rV-4qFQWTxC0VYovD45Y8bHtHDI8dA1tfREge0A/edit?usp=sharing";
 
 // ─────────────────────────────────────────────
 // STORAGE KEYS
 // ─────────────────────────────────────────────
-const STORAGE_KEY          = "eterna-tracker-rows-v1";
-const INBOUND_STORAGE_KEY  = "eterna-inbound-v1";
-const EOD_STORAGE_KEY      = "eterna-eod-v1";
-const DARK_MODE_KEY        = "eterna-dark-mode-v1";
+const STORAGE_KEY         = "eterna-tracker-rows-v1";
+const INBOUND_STORAGE_KEY = "eterna-inbound-v1";
+const EOD_STORAGE_KEY     = "eterna-eod-v1";
+const DARK_MODE_KEY       = "eterna-dark-mode-v1";
+const REMINDER_KEY        = "eterna-reminders-v1";
 
 // ─────────────────────────────────────────────
 // CONSTANTS
@@ -62,43 +62,56 @@ const getMTD = () => {
 };
 
 function safeLoad(key, fallback) {
-  try {
-    const saved = localStorage.getItem(key);
-    return saved ? JSON.parse(saved) : fallback;
-  } catch { return fallback; }
+  try { const s = localStorage.getItem(key); return s ? JSON.parse(s) : fallback; }
+  catch { return fallback; }
 }
 function safeSave(key, value) {
-  try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* ignore */ }
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
 }
 
-// Deduplication for tracker rows
 function dedupeRows(sourceRows) {
   const map = new Map();
   sourceRows.forEach((row) => {
-    const pn = String(row.policyNumber || "").trim().toLowerCase();
-    const cn = String(row.clientName  || "").trim().toLowerCase();
-    const sn = String(row.specialistName || "").trim().toLowerCase();
-    const ap = String(row.ap || "").trim();
+    const pn  = String(row.policyNumber   || "").trim().toLowerCase();
+    const cn  = String(row.clientName     || "").trim().toLowerCase();
+    const sn  = String(row.specialistName || "").trim().toLowerCase();
+    const ap  = String(row.ap             || "").trim();
     const key = pn ? `policy:${pn}` : `client:${cn}|spec:${sn}|ap:${ap}`;
-    const existing = map.get(key);
-    if (!existing) { map.set(key, row); return; }
-    const ed = String(existing.updatedAt || existing.createdAt || "");
-    const rd = String(row.updatedAt      || row.createdAt      || "");
+    const ex  = map.get(key);
+    if (!ex) { map.set(key, row); return; }
+    const ed = String(ex.updatedAt  || ex.createdAt  || "");
+    const rd = String(row.updatedAt || row.createdAt || "");
     if (rd >= ed) map.set(key, row);
   });
   return Array.from(map.values());
 }
 
-// Validate a row is a real tracker row (not a header/junk row)
 function isRealRow(row) {
   const bad = ["save","pending save","welcome call","onboarding call","uw action needed","uw action resolved","lost","client name","policy number","ap","lead status","agent name","result","status","action","notes","priority","updated at","specialist name","created at"];
-  const cn = String(row?.clientName || "").trim();
+  const cn = String(row?.clientName     || "").trim();
   const sn = String(row?.specialistName || "").trim();
   if (!cn || bad.includes(cn.toLowerCase())) return false;
   if (!["Nisha","Rick","Chen","Fernando","Angie","Unassigned"].includes(sn)) return false;
-  const ud = String(row?.updatedAt || "");
-  const cd = String(row?.createdAt || "");
+  const ud = String(row?.updatedAt || ""), cd = String(row?.createdAt || "");
   return /^\d{4}-\d{2}-\d{2}$/.test(ud) || /^\d{4}-\d{2}-\d{2}$/.test(cd);
+}
+
+function playAlertSound() {
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    const ctx = new AC();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.setValueAtTime(740, ctx.currentTime + 0.15);
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.5);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(); osc.stop(ctx.currentTime + 0.5);
+  } catch {}
 }
 
 // ─────────────────────────────────────────────
@@ -109,15 +122,14 @@ const STATUS_META = {
   RESOLVED: { dot: "#5A9040", label: "Resolved", bg: "#EEF7E8", text: "#4C6B2F", border: "#BDD6A6" },
   LOST:     { dot: "#C04030", label: "Lost",     bg: "#FCE8DF", text: "#9D3F23", border: "#F0B49C" },
 };
-
 function kpiColor(key, isDark) {
   const L = { total:"#5B3320", ps:"#C07820", sv:"#4C6B2F", uwr:"#2E6680", lost:"#9D3F23", psAp:"#C07820", svAp:"#4C6B2F" };
-  const D = { total:"#D4A870", ps:"#F0B84A", sv:"#7DC860",  uwr:"#60C0E0", lost:"#F07850", psAp:"#F0B84A", svAp:"#7DC860" };
+  const D = { total:"#D4A870", ps:"#F0B84A", sv:"#7DC860", uwr:"#60C0E0", lost:"#F07850", psAp:"#F0B84A", svAp:"#7DC860" };
   return isDark ? D[key] : L[key];
 }
 function rptColor(key, isDark) {
   const L = { total:"#5B3320", sv:"#4C6B2F", ps:"#C07820", lost:"#9D3F23" };
-  const D = { total:"#D4A870", sv:"#7DC860",  ps:"#F0B84A", lost:"#F07850" };
+  const D = { total:"#D4A870", sv:"#7DC860", ps:"#F0B84A", lost:"#F07850" };
   return isDark ? D[key] : L[key];
 }
 
@@ -127,50 +139,34 @@ function rptColor(key, isDark) {
 function useTheme(isDark) {
   return useMemo(() => {
     if (isDark) return {
-      pageBg:         "linear-gradient(135deg,#0E1A15 0%,#162219 48%,#1A1A12 100%)",
-      color:          "#EAE0D0",
-      topbarBg:       "#162219",   topbarBorder:    "#2D4035",
-      cardBg:         "#162219",   cardBorder:      "#2D4035",
-      cardHover:      "#1C2E24",   cardHoverBorder: "#3A5045",
-      inputBg:        "#0E1A15",   inputBorder:     "#2D4035",
-      inputColor:     "#EAE0D0",   inputPh:         "#4A6A58",  inputFocus: "#4A8A65",
-      sideHeadBg:     "#1A2E22",   labelColor:      "#7A9E8A",
-      mutedColor:     "#7A9E8A",   dimColor:        "#5A7A68",
-      rptCellBg:      "#1A2E22",   inboundCardBg:   "#1A2E22",
-      agentTrackBg:   "#0E1A15",   agentFillBg:     "#3A6E50",
-      emptyBg:        "#162219",
-      pillOnBg:       "#7A4A28",   pillOnColor:     "#FFE0BC",  pillOnBorder: "#7A4A28",
-      sideTitle:      "#E8B87A",
-      saveBtnBg:      "#7A4A28",   saveBtnColor:    "#FFE0BC",
-      modalBg:        "#162219",
-      stageTagBg:     "#1A2E22",   stageTagColor:   "#C8B89A",  stageTagBorder: "#2D4035",
-      toolResBg:      "rgba(76,107,47,0.25)",  toolResBorder:  "#4A8050",  toolResColor:  "#7DC860",
-      toolEditBg:     "rgba(46,100,128,0.25)", toolEditBorder: "#2E6680",  toolEditColor: "#60B4DC",
-      toolDelBg:      "rgba(157,63,35,0.25)",  toolDelBorder:  "#8A3520",  toolDelColor:  "#F08060",
-      toastSuccess:   "#3A6E50",   toastError:      "#9D3F23",  toastInfo:    "#5C7768",
+      pageBg: "linear-gradient(135deg,#0E1A15 0%,#162219 48%,#1A1A12 100%)",
+      color: "#EAE0D0", topbarBg: "#162219", topbarBorder: "#2D4035",
+      cardBg: "#162219", cardBorder: "#2D4035", cardHover: "#1C2E24", cardHoverBorder: "#3A5045",
+      inputBg: "#0E1A15", inputBorder: "#2D4035", inputColor: "#EAE0D0", inputPh: "#4A6A58", inputFocus: "#4A8A65",
+      sideHeadBg: "#1A2E22", labelColor: "#7A9E8A", mutedColor: "#7A9E8A", dimColor: "#5A7A68",
+      rptCellBg: "#1A2E22", inboundCardBg: "#1A2E22", agentTrackBg: "#0E1A15", agentFillBg: "#3A6E50",
+      emptyBg: "#162219", pillOnBg: "#7A4A28", pillOnColor: "#FFE0BC", pillOnBorder: "#7A4A28",
+      sideTitle: "#E8B87A", saveBtnBg: "#7A4A28", saveBtnColor: "#FFE0BC", modalBg: "#162219",
+      stageTagBg: "#1A2E22", stageTagColor: "#C8B89A", stageTagBorder: "#2D4035",
+      toolResBg: "rgba(76,107,47,0.25)", toolResBorder: "#4A8050", toolResColor: "#7DC860",
+      toolEditBg: "rgba(46,100,128,0.25)", toolEditBorder: "#2E6680", toolEditColor: "#60B4DC",
+      toolDelBg: "rgba(157,63,35,0.25)", toolDelBorder: "#8A3520", toolDelColor: "#F08060",
+      toastSuccess: "#3A6E50", toastError: "#9D3F23", toastInfo: "#5C7768",
     };
     return {
-      pageBg:         "linear-gradient(135deg,#F6EFE4 0%,#E7DCCB 45%,#D6C8B5 100%)",
-      color:          "#2B1A12",
-      topbarBg:       "#E9DECC",   topbarBorder:    "#D4C3AD",
-      cardBg:         "#FCF8F2",   cardBorder:      "#DDD0BB",
-      cardHover:      "#F6EEE3",   cardHoverBorder: "#C4A882",
-      inputBg:        "#FFFFFF",   inputBorder:     "#D4C3AD",
-      inputColor:     "#2B1A12",   inputPh:         "#B28A6B",  inputFocus: "#5C7768",
-      sideHeadBg:     "#F6EEE3",   labelColor:      "#8A6A55",
-      mutedColor:     "#8A6A55",   dimColor:        "#B28A6B",
-      rptCellBg:      "#F6EEE3",   inboundCardBg:   "#F6EEE3",
-      agentTrackBg:   "#EDE5D7",   agentFillBg:     "#5C7768",
-      emptyBg:        "#FCF8F2",
-      pillOnBg:       "#5B3320",   pillOnColor:     "#FFFFFF",  pillOnBorder: "#5B3320",
-      sideTitle:      "#5B3320",
-      saveBtnBg:      "#5B3320",   saveBtnColor:    "#FFFFFF",
-      modalBg:        "#FCF8F2",
-      stageTagBg:     "#EFE6D8",   stageTagColor:   "#6D6256",  stageTagBorder: "#D4C3AD",
-      toolResBg:      "#EEF7E8",   toolResBorder:   "#BDD6A6",  toolResColor:   "#4C6B2F",
-      toolEditBg:     "#E8EEF0",   toolEditBorder:  "#AABFC8",  toolEditColor:  "#2E5566",
-      toolDelBg:      "#FCE8DF",   toolDelBorder:   "#F0B49C",  toolDelColor:   "#9D3F23",
-      toastSuccess:   "#4C6B2F",   toastError:      "#9D3F23",  toastInfo:      "#5C7768",
+      pageBg: "linear-gradient(135deg,#F6EFE4 0%,#E7DCCB 45%,#D6C8B5 100%)",
+      color: "#2B1A12", topbarBg: "#E9DECC", topbarBorder: "#D4C3AD",
+      cardBg: "#FCF8F2", cardBorder: "#DDD0BB", cardHover: "#F6EEE3", cardHoverBorder: "#C4A882",
+      inputBg: "#FFFFFF", inputBorder: "#D4C3AD", inputColor: "#2B1A12", inputPh: "#B28A6B", inputFocus: "#5C7768",
+      sideHeadBg: "#F6EEE3", labelColor: "#8A6A55", mutedColor: "#8A6A55", dimColor: "#B28A6B",
+      rptCellBg: "#F6EEE3", inboundCardBg: "#F6EEE3", agentTrackBg: "#EDE5D7", agentFillBg: "#5C7768",
+      emptyBg: "#FCF8F2", pillOnBg: "#5B3320", pillOnColor: "#FFFFFF", pillOnBorder: "#5B3320",
+      sideTitle: "#5B3320", saveBtnBg: "#5B3320", saveBtnColor: "#FFFFFF", modalBg: "#FCF8F2",
+      stageTagBg: "#EFE6D8", stageTagColor: "#6D6256", stageTagBorder: "#D4C3AD",
+      toolResBg: "#EEF7E8", toolResBorder: "#BDD6A6", toolResColor: "#4C6B2F",
+      toolEditBg: "#E8EEF0", toolEditBorder: "#AABFC8", toolEditColor: "#2E5566",
+      toolDelBg: "#FCE8DF", toolDelBorder: "#F0B49C", toolDelColor: "#9D3F23",
+      toastSuccess: "#4C6B2F", toastError: "#9D3F23", toastInfo: "#5C7768",
     };
   }, [isDark]);
 }
@@ -182,8 +178,7 @@ function StatusChip({ status }) {
   const m = STATUS_META[status] || STATUS_META.PENDING;
   return (
     <span style={{ display:"inline-flex", alignItems:"center", gap:5, background:m.bg, color:m.text, border:`1px solid ${m.border}`, borderRadius:6, padding:"2px 8px", fontSize:11, fontWeight:700 }}>
-      <span style={{ width:6, height:6, borderRadius:"50%", background:m.dot, flexShrink:0 }} />
-      {m.label}
+      <span style={{ width:6, height:6, borderRadius:"50%", background:m.dot, flexShrink:0 }} />{m.label}
     </span>
   );
 }
@@ -197,21 +192,17 @@ function PriorityChip({ priority }) {
 }
 
 function StageTag({ s, t }) {
-  return (
-    <span style={{ background:t.stageTagBg, color:t.stageTagColor, border:`1px solid ${t.stageTagBorder}`, borderRadius:5, padding:"2px 6px", fontSize:10, fontWeight:700, fontFamily:"monospace" }}>
-      {s || "—"}
-    </span>
-  );
+  return <span style={{ background:t.stageTagBg, color:t.stageTagColor, border:`1px solid ${t.stageTagBorder}`, borderRadius:5, padding:"2px 6px", fontSize:10, fontWeight:700, fontFamily:"monospace" }}>{s || "—"}</span>;
 }
 
 function FL({ children, t }) {
   return <span style={{ display:"block", fontSize:10, fontWeight:700, color:t.labelColor, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:3 }}>{children}</span>;
 }
 
-function FI({ value, onChange, type="text", placeholder="", t, style={} }) {
-  const base = { width:"100%", height:31, background:t.inputBg, border:`1px solid ${t.inputBorder}`, borderRadius:7, padding:"0 9px", fontSize:12, color:t.inputColor, outline:"none", boxSizing:"border-box", fontFamily:"inherit", ...style };
+function FI({ value, onChange, type = "text", placeholder = "", t, style = {} }) {
   return (
-    <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} style={base}
+    <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+      style={{ width:"100%", height:31, background:t.inputBg, border:`1px solid ${t.inputBorder}`, borderRadius:7, padding:"0 9px", fontSize:12, color:t.inputColor, outline:"none", boxSizing:"border-box", fontFamily:"inherit", ...style }}
       onFocus={(e) => (e.target.style.borderColor = t.inputFocus)}
       onBlur={(e)  => (e.target.style.borderColor = t.inputBorder)} />
   );
@@ -226,7 +217,7 @@ function FS({ value, onChange, options, t }) {
   );
 }
 
-function FTA({ value, onChange, placeholder="", rows=2, t }) {
+function FTA({ value, onChange, placeholder = "", rows = 2, t }) {
   return (
     <textarea value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} rows={rows}
       style={{ width:"100%", background:t.inputBg, border:`1px solid ${t.inputBorder}`, borderRadius:7, padding:"7px 9px", fontSize:12, color:t.inputColor, outline:"none", boxSizing:"border-box", resize:"none", lineHeight:1.4, fontFamily:"inherit" }}
@@ -239,8 +230,13 @@ function FRow({ label, children, t }) {
   return <div><FL t={t}>{label}</FL>{children}</div>;
 }
 
-function G2({ children }) { return <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:6 }}>{children}</div>; }
-function G3({ children }) { return <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:5 }}>{children}</div>; }
+function G2({ children }) {
+  return <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:6 }}>{children}</div>;
+}
+
+function G3({ children }) {
+  return <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:5 }}>{children}</div>;
+}
 
 function GhostBtn({ children, onClick, active, disabled, isDark, style }) {
   return (
@@ -255,7 +251,7 @@ function GhostBtn({ children, onClick, active, disabled, isDark, style }) {
   );
 }
 
-function PrimaryBtn({ children, onClick, color="#03071A" }) {
+function PrimaryBtn({ children, onClick, color = "#03071A" }) {
   return (
     <button onClick={onClick} style={{ width:"100%", height:33, background:color, color:"#fff", border:"none", borderRadius:8, fontSize:12, fontWeight:700, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:5, fontFamily:"inherit", marginTop:3 }}>
       {children}
@@ -299,7 +295,7 @@ function TabPill({ label, active, onClick, t }) {
     <button onClick={onClick} style={{
       flex:1, height:27,
       background: active ? t.pillOnBg : "transparent",
-      color:      active ? t.pillOnColor : t.mutedColor,
+      color: active ? t.pillOnColor : t.mutedColor,
       border: `1px solid ${active ? t.pillOnBorder : t.cardBorder}`,
       borderRadius:7, fontSize:11, fontWeight:700, cursor:"pointer", fontFamily:"inherit",
     }}>{label}</button>
@@ -330,7 +326,229 @@ function Toast({ message, color }) {
 }
 
 // ─────────────────────────────────────────────
-// VIEW SHEET MODAL
+// FIX 1: AGENT LOAD — paginated 5 per page
+// ─────────────────────────────────────────────
+function AgentLoad({ agentMap, isDark, t }) {
+  const PER_PAGE = 5;
+  const [pg, setPg] = useState(1);
+  const totalPg = Math.max(1, Math.ceil(agentMap.length / PER_PAGE));
+  const safePg  = Math.min(pg, totalPg);
+  const slice   = agentMap.slice((safePg - 1) * PER_PAGE, safePg * PER_PAGE);
+  const agMax   = agentMap[0]?.[1] || 1;
+
+  const navBtn = (label, onClick, disabled) => (
+    <button onClick={onClick} disabled={disabled}
+      style={{ width:26, height:26, background:"transparent", border:`1px solid ${t.cardBorder}`, borderRadius:7, cursor: disabled ? "not-allowed" : "pointer", color: disabled ? t.dimColor : t.mutedColor, fontSize:13, display:"flex", alignItems:"center", justifyContent:"center", opacity: disabled ? 0.3 : 1, fontFamily:"inherit" }}>
+      {label}
+    </button>
+  );
+
+  return (
+    <div>
+      {agentMap.length > PER_PAGE && (
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
+          <span style={{ fontSize:10, color:t.dimColor }}>{agentMap.length} total agents</span>
+          <div style={{ display:"flex", alignItems:"center", gap:5 }}>
+            {navBtn("‹", () => setPg((p) => Math.max(1, p - 1)), safePg === 1)}
+            <span style={{ fontSize:10, color:t.mutedColor }}>{safePg} / {totalPg}</span>
+            {navBtn("›", () => setPg((p) => Math.min(totalPg, p + 1)), safePg >= totalPg)}
+          </div>
+        </div>
+      )}
+      {slice.length ? slice.map(([agent, count]) => (
+        <div key={agent} style={{ marginBottom:9 }}>
+          <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, fontWeight:500, color: isDark ? "#C8B89A" : "#6D6256", marginBottom:3 }}>
+            <span style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{agent}</span>
+            <span>{count}</span>
+          </div>
+          <div style={{ height:3, background:t.agentTrackBg, borderRadius:99, overflow:"hidden" }}>
+            <div style={{ height:"100%", width:`${Math.round((count / agMax) * 100)}%`, background:t.agentFillBg, borderRadius:99 }} />
+          </div>
+        </div>
+      )) : <div style={{ fontSize:12, color:t.dimColor }}>No data yet — refresh to load.</div>}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// FIX 2: REMINDERS MODAL — calendar + alarm
+// ─────────────────────────────────────────────
+function RemindersModal({ reminders, setReminders, onClose, t, isDark }) {
+  const [title, setTitle]     = useState("");
+  const [date,  setDate]      = useState(TODAY);
+  const [time,  setTime]      = useState("09:00");
+  const [note,  setNote]      = useState("");
+  const [calMonth, setCalMonth] = useState(TODAY.slice(0, 7));
+
+  const calDays = useMemo(() => {
+    const [yr, mo] = calMonth.split("-").map(Number);
+    const first = new Date(yr, mo - 1, 1);
+    const daysInMonth = new Date(yr, mo, 0).getDate();
+    const lead = first.getDay();
+    const days = [];
+    for (let i = 0; i < lead; i++) days.push({ blank:true, key:`b${i}` });
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dk = `${yr}-${String(mo).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+      days.push({ blank:false, key:dk, day:d, dateKey:dk });
+    }
+    return days;
+  }, [calMonth]);
+
+  const byDate = useMemo(() => {
+    const m = {};
+    reminders.forEach((r) => {
+      const dk = r.datetime?.slice(0, 10);
+      if (!dk) return;
+      if (!m[dk]) m[dk] = [];
+      m[dk].push(r);
+    });
+    return m;
+  }, [reminders]);
+
+  function addReminder() {
+    if (!title.trim() || !date || !time) return;
+    const datetime = `${date}T${time}:00`;
+    const newR = { id:crypto.randomUUID(), title:title.trim(), datetime, note:note.trim(), done:false };
+    const updated = [...reminders, newR].sort((a, b) => a.datetime.localeCompare(b.datetime));
+    setReminders(updated); safeSave(REMINDER_KEY, updated);
+    setTitle(""); setNote(""); setDate(TODAY); setTime("09:00");
+  }
+
+  function toggleDone(id) {
+    const updated = reminders.map((r) => r.id === id ? { ...r, done:!r.done } : r);
+    setReminders(updated); safeSave(REMINDER_KEY, updated);
+  }
+
+  function deleteR(id) {
+    const updated = reminders.filter((r) => r.id !== id);
+    setReminders(updated); safeSave(REMINDER_KEY, updated);
+  }
+
+  const [yr, mo] = calMonth.split("-").map(Number);
+  const monthLabel = new Date(yr, mo - 1, 1).toLocaleString("en-US", { month:"long", year:"numeric" });
+
+  const inputS = { width:"100%", height:31, background:t.inputBg, border:`1px solid ${t.inputBorder}`, borderRadius:7, padding:"0 9px", fontSize:12, color:t.inputColor, outline:"none", boxSizing:"border-box", fontFamily:"inherit" };
+
+  function prevMonth() {
+    const d = new Date(yr, mo - 2, 1);
+    setCalMonth(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`);
+  }
+  function nextMonth() {
+    const d = new Date(yr, mo, 1);
+    setCalMonth(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`);
+  }
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.65)", zIndex:500, display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+      <div style={{ background:t.modalBg, border:`1px solid ${t.cardBorder}`, borderRadius:16, width:"100%", maxWidth:940, maxHeight:"92vh", overflowY:"auto", boxShadow:"0 24px 64px rgba(0,0,0,0.4)" }}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 20px", borderBottom:`1px solid ${t.cardBorder}`, background:t.sideHeadBg }}>
+          <span style={{ fontSize:15, fontWeight:700, color:t.color }}>🔔 Personal Reminders</span>
+          <button onClick={onClose} style={{ background:"none", border:"none", cursor:"pointer", fontSize:18, color:t.mutedColor, fontFamily:"inherit" }}>✕ Close</button>
+        </div>
+
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:0 }}>
+          {/* Add reminder panel */}
+          <div style={{ padding:18, borderRight:`1px solid ${t.cardBorder}` }}>
+            <div style={{ fontSize:11, fontWeight:700, color:t.sideTitle, textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:12 }}>Add reminder</div>
+            <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+              <div><FL t={t}>Title</FL><input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Call back client" style={inputS} /></div>
+              <G2>
+                <div><FL t={t}>Date</FL><input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={inputS} /></div>
+                <div><FL t={t}>Time</FL><input type="time" value={time} onChange={(e) => setTime(e.target.value)} style={inputS} /></div>
+              </G2>
+              <div><FL t={t}>Note (optional)</FL>
+                <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Details…" rows={3}
+                  style={{ ...inputS, height:"auto", padding:"7px 9px", resize:"none", lineHeight:1.4 }} />
+              </div>
+              <button onClick={addReminder} style={{ height:33, background:t.pillOnBg, color:t.pillOnColor, border:"none", borderRadius:8, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit", marginTop:4 }}>
+                + Set reminder
+              </button>
+              <div style={{ fontSize:10, color:t.dimColor, marginTop:4, lineHeight:1.5 }}>
+                🔔 An alarm sound will play 10 minutes before your reminder while the app is open.
+              </div>
+            </div>
+          </div>
+
+          {/* Calendar */}
+          <div style={{ padding:18, borderRight:`1px solid ${t.cardBorder}` }}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
+              <button onClick={prevMonth} style={{ background:"none", border:`1px solid ${t.cardBorder}`, borderRadius:6, width:28, height:28, cursor:"pointer", color:t.mutedColor, fontSize:15, display:"flex", alignItems:"center", justifyContent:"center" }}>‹</button>
+              <span style={{ fontSize:12, fontWeight:700, color:t.color }}>{monthLabel}</span>
+              <button onClick={nextMonth} style={{ background:"none", border:`1px solid ${t.cardBorder}`, borderRadius:6, width:28, height:28, cursor:"pointer", color:t.mutedColor, fontSize:15, display:"flex", alignItems:"center", justifyContent:"center" }}>›</button>
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:2, marginBottom:6 }}>
+              {["Su","Mo","Tu","We","Th","Fr","Sa"].map((d) => (
+                <div key={d} style={{ textAlign:"center", fontSize:9, fontWeight:700, color:t.dimColor }}>{d}</div>
+              ))}
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:2 }}>
+              {calDays.map((day) => {
+                if (day.blank) return <div key={day.key} />;
+                const hasR   = !!byDate[day.dateKey]?.length;
+                const isDue  = byDate[day.dateKey]?.some((r) => !r.done && new Date(r.datetime).getTime() <= Date.now());
+                const isToday = day.dateKey === TODAY;
+                const isSelected = day.dateKey === date;
+                return (
+                  <div key={day.key} onClick={() => setDate(day.dateKey)} style={{
+                    textAlign:"center", fontSize:11,
+                    fontWeight: isToday || isSelected ? 800 : 500,
+                    padding:"5px 2px", borderRadius:6, cursor:"pointer", position:"relative",
+                    background: isSelected ? t.pillOnBg : isToday ? (isDark ? "#1A2E22" : "#EEF7E8") : hasR ? (isDark ? "#1A2E22" : "#EEF7E8") : "transparent",
+                    color: isSelected ? t.pillOnColor : isToday ? (isDark ? "#7DC860" : "#4C6B2F") : hasR ? (isDark ? "#7DC860" : "#4C6B2F") : t.color,
+                    border: `1px solid ${isSelected ? t.pillOnBorder : isToday ? (isDark ? "#4A8050" : "#BDD6A6") : hasR ? (isDark ? "#4A8050" : "#BDD6A6") : "transparent"}`,
+                  }}>
+                    {day.day}
+                    {isDue && <span style={{ position:"absolute", top:1, right:2, width:5, height:5, borderRadius:"50%", background:"#F07850", display:"block" }} />}
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ marginTop:10, fontSize:10, color:t.dimColor, lineHeight:1.5 }}>
+              Click a date to select it. Green = has reminders. Orange dot = overdue.
+            </div>
+          </div>
+
+          {/* Reminder list */}
+          <div style={{ padding:18 }}>
+            <div style={{ fontSize:11, fontWeight:700, color:t.sideTitle, textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:12 }}>
+              All reminders ({reminders.filter((r) => !r.done).length} active)
+            </div>
+            <div style={{ display:"flex", flexDirection:"column", gap:7, maxHeight:420, overflowY:"auto" }}>
+              {reminders.length === 0 && <div style={{ fontSize:12, color:t.dimColor }}>No reminders yet.</div>}
+              {reminders.map((r) => {
+                const dt   = new Date(r.datetime);
+                const isDue = !r.done && dt.getTime() <= Date.now();
+                const soon  = !r.done && !isDue && dt.getTime() - Date.now() <= 10 * 60 * 1000;
+                return (
+                  <div key={r.id} style={{ background: isDue ? (isDark ? "#2A1A10" : "#FFF1D8") : t.cardBg, border:`1px solid ${isDue ? (isDark ? "#7A4A28" : "#F1C27D") : t.cardBorder}`, borderRadius:9, padding:"10px 12px", opacity:r.done ? 0.5 : 1 }}>
+                    <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:6 }}>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontWeight:700, fontSize:12, color:t.color, textDecoration:r.done ? "line-through" : "none" }}>{r.title}</div>
+                        <div style={{ fontSize:10, color:t.mutedColor, marginTop:2 }}>{dt.toLocaleString()}</div>
+                        {r.note && <div style={{ fontSize:11, color:t.mutedColor, marginTop:3 }}>{r.note}</div>}
+                        {isDue && <span style={{ display:"inline-block", marginTop:4, fontSize:10, fontWeight:700, background:"#F07850", color:"#fff", borderRadius:4, padding:"1px 6px" }}>Overdue</span>}
+                        {soon && <span style={{ display:"inline-block", marginTop:4, fontSize:10, fontWeight:700, background: isDark ? "#7A4A28" : "#D8913D", color:"#fff", borderRadius:4, padding:"1px 6px" }}>Due in 10 min</span>}
+                      </div>
+                      <div style={{ display:"flex", gap:4, flexShrink:0 }}>
+                        <button onClick={() => toggleDone(r.id)} title="Toggle done"
+                          style={{ width:24, height:24, background: r.done ? (isDark ? "#3A6E50" : "#EEF7E8") : "transparent", border:`1px solid ${isDark ? "#3A6E50" : "#BDD6A6"}`, borderRadius:6, cursor:"pointer", color: isDark ? "#7DC860" : "#4C6B2F", fontSize:12, display:"flex", alignItems:"center", justifyContent:"center" }}>✓</button>
+                        <button onClick={() => deleteR(r.id)} title="Delete"
+                          style={{ width:24, height:24, background:"transparent", border:`1px solid ${isDark ? "#8A3520" : "#F0B49C"}`, borderRadius:6, cursor:"pointer", color: isDark ? "#F08060" : "#9D3F23", fontSize:12, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// SHEET MODAL
 // ─────────────────────────────────────────────
 function SheetModal({ onClose, t }) {
   return (
@@ -338,14 +556,9 @@ function SheetModal({ onClose, t }) {
       <div style={{ background:t.modalBg, border:`1px solid ${t.cardBorder}`, borderRadius:14, width:"100%", maxWidth:1100, height:"88vh", display:"flex", flexDirection:"column", boxShadow:"0 24px 64px rgba(0,0,0,0.35)" }}>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"12px 18px", borderBottom:`1px solid ${t.cardBorder}`, background:t.sideHeadBg, flexShrink:0 }}>
           <span style={{ fontSize:14, fontWeight:700, color:t.color }}>📊 Google Sheet — Live View</span>
-          <button onClick={onClose} style={{ background:"none", border:"none", cursor:"pointer", fontSize:18, color:t.mutedColor, lineHeight:1, fontFamily:"inherit" }}>✕ Close</button>
+          <button onClick={onClose} style={{ background:"none", border:"none", cursor:"pointer", fontSize:18, color:t.mutedColor, fontFamily:"inherit" }}>✕ Close</button>
         </div>
-        <iframe
-          src={GOOGLE_SHEET_VIEW_URL}
-          title="Google Sheet"
-          style={{ flex:1, width:"100%", border:"none", borderRadius:"0 0 14px 14px" }}
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope"
-        />
+        <iframe src={GOOGLE_SHEET_VIEW_URL} title="Google Sheet" style={{ flex:1, width:"100%", border:"none", borderRadius:"0 0 14px 14px" }} />
       </div>
     </div>
   );
@@ -362,32 +575,30 @@ function EditModal({ row, onClose, onSave, t }) {
       <div style={{ background:t.modalBg, border:`1px solid ${t.cardBorder}`, borderRadius:14, width:"100%", maxWidth:500, maxHeight:"90vh", overflowY:"auto", boxShadow:"0 24px 64px rgba(0,0,0,0.3)" }}>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"13px 17px", borderBottom:`1px solid ${t.cardBorder}`, background:t.sideHeadBg }}>
           <span style={{ fontSize:14, fontWeight:700, color:t.color }}>Edit case</span>
-          <button onClick={onClose} style={{ background:"none", border:"none", cursor:"pointer", fontSize:18, color:t.mutedColor, lineHeight:1, fontFamily:"inherit" }}>✕</button>
+          <button onClick={onClose} style={{ background:"none", border:"none", cursor:"pointer", fontSize:18, color:t.mutedColor, fontFamily:"inherit" }}>✕</button>
         </div>
         <div style={{ padding:"15px 17px", display:"flex", flexDirection:"column", gap:9 }}>
-          <FRow label="Client name" t={t}><FI value={f.clientName}    onChange={(v)=>u("clientName",v)}    placeholder="Full name" t={t} /></FRow>
+          <FRow label="Client name" t={t}><FI value={f.clientName} onChange={(v) => u("clientName", v)} placeholder="Full name" t={t} /></FRow>
           <G2>
-            <FRow label="Policy #" t={t}><FI value={f.policyNumber}   onChange={(v)=>u("policyNumber",v)}  t={t} /></FRow>
-            <FRow label="AP" t={t}><FI type="number" value={f.ap}     onChange={(v)=>u("ap",v)}            t={t} /></FRow>
+            <FRow label="Policy #" t={t}><FI value={f.policyNumber} onChange={(v) => u("policyNumber", v)} t={t} /></FRow>
+            <FRow label="AP" t={t}><FI type="number" value={f.ap} onChange={(v) => u("ap", v)} t={t} /></FRow>
           </G2>
           <G2>
-            <FRow label="Lead status" t={t}><FS value={f.leadStatus}  onChange={(v)=>u("leadStatus",v)}    options={LEAD_OPTS}    t={t} /></FRow>
-            <FRow label="Agent" t={t}><FI value={f.agentName}         onChange={(v)=>u("agentName",v)}     t={t} /></FRow>
+            <FRow label="Lead status" t={t}><FS value={f.leadStatus} onChange={(v) => u("leadStatus", v)} options={LEAD_OPTS} t={t} /></FRow>
+            <FRow label="Agent" t={t}><FI value={f.agentName} onChange={(v) => u("agentName", v)} t={t} /></FRow>
           </G2>
-          <FRow label="Specialist" t={t}><FS value={f.specialistName} onChange={(v)=>u("specialistName",v)} options={SPEC_OPTS}   t={t} /></FRow>
+          <FRow label="Specialist" t={t}><FS value={f.specialistName} onChange={(v) => u("specialistName", v)} options={SPEC_OPTS} t={t} /></FRow>
           <G3>
-            <FRow label="Status" t={t}><FS value={f.result}           onChange={(v)=>u("result",v)}        options={RESULT_OPTS}  t={t} /></FRow>
-            <FRow label="Priority" t={t}><FS value={f.priority}       onChange={(v)=>u("priority",v)}      options={PRIORITY_OPTS} t={t} /></FRow>
-            <FRow label="Date" t={t}><FI type="date" value={f.updatedAt} onChange={(v)=>u("updatedAt",v)} t={t} /></FRow>
+            <FRow label="Status" t={t}><FS value={f.result} onChange={(v) => u("result", v)} options={RESULT_OPTS} t={t} /></FRow>
+            <FRow label="Priority" t={t}><FS value={f.priority} onChange={(v) => u("priority", v)} options={PRIORITY_OPTS} t={t} /></FRow>
+            <FRow label="Date" t={t}><FI type="date" value={f.updatedAt} onChange={(v) => u("updatedAt", v)} t={t} /></FRow>
           </G3>
-          <FRow label="Action" t={t}><FS value={f.action}             onChange={(v)=>u("action",v)}        options={ACTION_OPTS}  t={t} /></FRow>
-          <FRow label="Notes" t={t}><FTA value={f.notes}              onChange={(v)=>u("notes",v)}         placeholder="Callback time, issue, next step…" rows={3} t={t} /></FRow>
+          <FRow label="Action" t={t}><FS value={f.action} onChange={(v) => u("action", v)} options={ACTION_OPTS} t={t} /></FRow>
+          <FRow label="Notes" t={t}><FTA value={f.notes} onChange={(v) => u("notes", v)} placeholder="Callback time, issue, next step…" rows={3} t={t} /></FRow>
         </div>
         <div style={{ padding:"11px 17px", borderTop:`1px solid ${t.cardBorder}`, background:t.sideHeadBg, display:"flex", justifyContent:"flex-end", gap:7 }}>
           <GhostBtn onClick={onClose} isDark={false}>Cancel</GhostBtn>
-          <button onClick={() => onSave({ ...f, ap:Number(f.ap||0) })} style={{ background:t.saveBtnBg, color:t.saveBtnColor, border:"none", borderRadius:8, padding:"0 17px", height:31, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
-            Save changes
-          </button>
+          <button onClick={() => onSave({ ...f, ap:Number(f.ap||0) })} style={{ background:t.saveBtnBg, color:t.saveBtnColor, border:"none", borderRadius:8, padding:"0 17px", height:31, fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Save changes</button>
         </div>
       </div>
     </div>
@@ -395,104 +606,202 @@ function EditModal({ row, onClose, onSave, t }) {
 }
 
 // ─────────────────────────────────────────────
-// FORM PANELS
+// CASE FORM
 // ─────────────────────────────────────────────
 function CaseForm({ form, setForm, onAdd, onClear, t }) {
   const u = (f, v) => setForm((x) => ({ ...x, [f]: v }));
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-      <FRow label="Client name" t={t}><FI value={form.clientName}    onChange={(v)=>u("clientName",v)}    placeholder="Full name"    t={t} /></FRow>
+      <FRow label="Client name" t={t}><FI value={form.clientName} onChange={(v) => u("clientName", v)} placeholder="Full name" t={t} /></FRow>
       <G2>
-        <FRow label="Policy #" t={t}><FI value={form.policyNumber}   onChange={(v)=>u("policyNumber",v)}  placeholder="POL-00000"    t={t} /></FRow>
-        <FRow label="AP" t={t}><FI type="number" value={form.ap}     onChange={(v)=>u("ap",v)}            placeholder="0"            t={t} /></FRow>
+        <FRow label="Policy #" t={t}><FI value={form.policyNumber} onChange={(v) => u("policyNumber", v)} placeholder="POL-00000" t={t} /></FRow>
+        <FRow label="AP" t={t}><FI type="number" value={form.ap} onChange={(v) => u("ap", v)} placeholder="0" t={t} /></FRow>
       </G2>
       <G2>
-        <FRow label="Lead status" t={t}><FS value={form.leadStatus}  onChange={(v)=>u("leadStatus",v)}    options={LEAD_OPTS}        t={t} /></FRow>
-        <FRow label="Agent" t={t}><FI value={form.agentName}         onChange={(v)=>u("agentName",v)}     placeholder="Name"         t={t} /></FRow>
+        <FRow label="Lead status" t={t}><FS value={form.leadStatus} onChange={(v) => u("leadStatus", v)} options={LEAD_OPTS} t={t} /></FRow>
+        <FRow label="Agent" t={t}><FI value={form.agentName} onChange={(v) => u("agentName", v)} placeholder="Name" t={t} /></FRow>
       </G2>
-      <FRow label="Specialist" t={t}><FS value={form.specialistName} onChange={(v)=>u("specialistName",v)} options={SPEC_OPTS}       t={t} /></FRow>
+      <FRow label="Specialist" t={t}><FS value={form.specialistName} onChange={(v) => u("specialistName", v)} options={SPEC_OPTS} t={t} /></FRow>
       <G3>
-        <FRow label="Status" t={t}><FS value={form.result}           onChange={(v)=>u("result",v)}        options={RESULT_OPTS}      t={t} /></FRow>
-        <FRow label="Priority" t={t}><FS value={form.priority}       onChange={(v)=>u("priority",v)}      options={PRIORITY_OPTS}    t={t} /></FRow>
-        <FRow label="Date" t={t}><FI type="date" value={form.updatedAt} onChange={(v)=>u("updatedAt",v)} t={t} /></FRow>
+        <FRow label="Status" t={t}><FS value={form.result} onChange={(v) => u("result", v)} options={RESULT_OPTS} t={t} /></FRow>
+        <FRow label="Priority" t={t}><FS value={form.priority} onChange={(v) => u("priority", v)} options={PRIORITY_OPTS} t={t} /></FRow>
+        <FRow label="Date" t={t}><FI type="date" value={form.updatedAt} onChange={(v) => u("updatedAt", v)} t={t} /></FRow>
       </G3>
-      <FRow label="Action" t={t}><FS value={form.action}             onChange={(v)=>u("action",v)}        options={ACTION_OPTS}      t={t} /></FRow>
-      <FRow label="Notes" t={t}><FTA value={form.notes}              onChange={(v)=>u("notes",v)}         placeholder="Callback time, issue, next step…" t={t} /></FRow>
+      <FRow label="Action" t={t}><FS value={form.action} onChange={(v) => u("action", v)} options={ACTION_OPTS} t={t} /></FRow>
+      <FRow label="Notes" t={t}><FTA value={form.notes} onChange={(v) => u("notes", v)} placeholder="Callback time, issue, next step…" t={t} /></FRow>
       <PrimaryBtn onClick={onAdd}>+ Add case</PrimaryBtn>
       <ClearBtn onClick={onClear} t={t}>Clear form</ClearBtn>
     </div>
   );
 }
 
-function InboundForm({ ibDate, setIbDate, inboundRows, onSave, t, isDark }) {
+// ─────────────────────────────────────────────
+// FIX 3 & 4: INBOUND TAB — its own data only, never mixed with cases
+// ─────────────────────────────────────────────
+function InboundTab({ ibDate, setIbDate, inboundRows, onSave, onDelete, t, isDark }) {
   const [f, setF] = useState({ clientName:"", phoneNumber:"", agentName:"", specialistName:"", resolved:"No", agentInformed:"No", notes:"" });
   const u = (k, v) => setF((x) => ({ ...x, [k]: v }));
+  const [ibQ,  setIbQ]  = useState("");
+  const [ibRes, setIbRes] = useState("All");
+
+  const filtered = useMemo(() => {
+    const q = ibQ.trim().toLowerCase();
+    return inboundRows.filter((r) =>
+      (ibRes === "All" || r.resolved === ibRes) &&
+      (!q || [r.clientName, r.agentName, r.phoneNumber, r.notes, r.specialistName].join(" ").toLowerCase().includes(q))
+    );
+  }, [inboundRows, ibQ, ibRes]);
+
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-      <FRow label="Client name" t={t}><FI value={f.clientName}     onChange={(v)=>u("clientName",v)}     placeholder="Full name"      t={t} /></FRow>
-      <FRow label="Phone number" t={t}><FI type="tel" value={f.phoneNumber} onChange={(v)=>u("phoneNumber",v)} placeholder="305-555-0000" t={t} /></FRow>
+      {/* Form */}
+      <FRow label="Client name" t={t}><FI value={f.clientName} onChange={(v) => u("clientName", v)} placeholder="Full name" t={t} /></FRow>
+      <FRow label="Phone number" t={t}><FI type="tel" value={f.phoneNumber} onChange={(v) => u("phoneNumber", v)} placeholder="305-555-0000" t={t} /></FRow>
       <G2>
-        <FRow label="Agent" t={t}><FI value={f.agentName}          onChange={(v)=>u("agentName",v)}      placeholder="Agent name"     t={t} /></FRow>
-        <FRow label="Specialist" t={t}><FS value={f.specialistName} onChange={(v)=>u("specialistName",v)} options={SPEC_OPTS}          t={t} /></FRow>
+        <FRow label="Agent" t={t}><FI value={f.agentName} onChange={(v) => u("agentName", v)} placeholder="Agent name" t={t} /></FRow>
+        <FRow label="Specialist" t={t}><FS value={f.specialistName} onChange={(v) => u("specialistName", v)} options={SPEC_OPTS} t={t} /></FRow>
       </G2>
       <FRow label="Date of call" t={t}><FI type="date" value={ibDate} onChange={setIbDate} t={t} /></FRow>
       <G2>
-        <FRow label="Resolved" t={t}><FS value={f.resolved}         onChange={(v)=>u("resolved",v)}       options={["No","Yes"]}       t={t} /></FRow>
-        <FRow label="Agent informed" t={t}><FS value={f.agentInformed} onChange={(v)=>u("agentInformed",v)} options={["No","Yes"]}    t={t} /></FRow>
+        <FRow label="Resolved" t={t}><FS value={f.resolved} onChange={(v) => u("resolved", v)} options={["No","Yes"]} t={t} /></FRow>
+        <FRow label="Agent informed" t={t}><FS value={f.agentInformed} onChange={(v) => u("agentInformed", v)} options={["No","Yes"]} t={t} /></FRow>
       </G2>
-      <FRow label="Notes" t={t}><FTA value={f.notes}                onChange={(v)=>u("notes",v)}          placeholder="Cancellation details, next steps…" t={t} /></FRow>
-      <PrimaryBtn onClick={() => { onSave({ ...f, dateOfCall: ibDate }); setF({ clientName:"", phoneNumber:"", agentName:"", specialistName:"", resolved:"No", agentInformed:"No", notes:"" }); }}>
-        + Save inbound cancellation
-      </PrimaryBtn>
-      {inboundRows.length > 0 && (
-        <div style={{ borderTop:`1px solid ${t.cardBorder}`, paddingTop:11, marginTop:11 }}>
-          <div style={{ fontSize:10, fontWeight:700, color:t.dimColor, textTransform:"uppercase", letterSpacing:"0.07em", marginBottom:7 }}>Recent inbound</div>
-          {inboundRows.slice(0, 5).map((item) => (
-            <div key={item.id} style={{ background:t.inboundCardBg, border:`1px solid ${t.cardBorder}`, borderRadius:8, padding:"9px 11px", marginBottom:6 }}>
-              <div style={{ fontWeight:700, fontSize:12, color:t.color }}>{item.clientName}</div>
-              <div style={{ fontSize:11, color:t.mutedColor, marginTop:2 }}>{item.agentName} · {item.phoneNumber}</div>
-              {item.createdAt && <div style={{ fontSize:10, color:t.dimColor, marginTop:1 }}>{new Date(item.createdAt).toLocaleDateString()}</div>}
-              <div style={{ marginTop:6 }}><StatusChip status={item.resolved === "Yes" ? "RESOLVED" : "PENDING"} /></div>
+      <FRow label="Notes" t={t}><FTA value={f.notes} onChange={(v) => u("notes", v)} placeholder="Cancellation details, next steps…" t={t} /></FRow>
+      <PrimaryBtn onClick={() => {
+        onSave({ ...f, dateOfCall:ibDate });
+        setF({ clientName:"", phoneNumber:"", agentName:"", specialistName:"", resolved:"No", agentInformed:"No", notes:"" });
+      }}>+ Save inbound cancellation</PrimaryBtn>
+
+      {/* Separator */}
+      <div style={{ borderTop:`1px solid ${t.cardBorder}`, margin:"4px 0" }} />
+
+      {/* Inbound-only list */}
+      <div style={{ fontSize:11, fontWeight:700, color:t.sideTitle, textTransform:"uppercase", letterSpacing:"0.08em" }}>
+        Inbound list ({inboundRows.length})
+      </div>
+      <div style={{ display:"flex", gap:5 }}>
+        <input value={ibQ} onChange={(e) => setIbQ(e.target.value)} placeholder="Search inbound…"
+          style={{ flex:1, height:26, background:t.inputBg, border:`1px solid ${t.inputBorder}`, borderRadius:7, padding:"0 8px", fontSize:11, color:t.inputColor, outline:"none", fontFamily:"inherit" }} />
+        <select value={ibRes} onChange={(e) => setIbRes(e.target.value)}
+          style={{ height:26, background:t.inputBg, border:`1px solid ${t.inputBorder}`, borderRadius:7, padding:"0 6px", fontSize:11, color:t.inputColor, outline:"none", fontFamily:"inherit" }}>
+          <option value="All">All</option>
+          <option value="Yes">Resolved</option>
+          <option value="No">Unresolved</option>
+        </select>
+      </div>
+      <div style={{ display:"flex", flexDirection:"column", gap:5, maxHeight:300, overflowY:"auto" }}>
+        {filtered.length === 0 && <div style={{ fontSize:11, color:t.dimColor, textAlign:"center", padding:"12px 0" }}>No inbound entries yet.</div>}
+        {filtered.map((item) => (
+          <div key={item.id} style={{ background:t.inboundCardBg, border:`1px solid ${t.cardBorder}`, borderRadius:8, padding:"9px 11px" }}>
+            <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:4 }}>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontWeight:700, fontSize:12, color:t.color }}>{item.clientName}</div>
+                <div style={{ fontSize:10, color:t.mutedColor, marginTop:1 }}>
+                  {item.agentName}{item.phoneNumber ? ` · ${item.phoneNumber}` : ""}
+                  {item.dateOfCall ? ` · ${item.dateOfCall}` : ""}
+                </div>
+                <div style={{ display:"flex", gap:4, marginTop:4, flexWrap:"wrap" }}>
+                  <StatusChip status={item.resolved === "Yes" ? "RESOLVED" : "PENDING"} />
+                  {item.agentInformed === "Yes" && (
+                    <span style={{ fontSize:10, background:"#EEF7E8", color:"#4C6B2F", border:"1px solid #BDD6A6", borderRadius:5, padding:"1px 6px", fontWeight:600 }}>Agent informed</span>
+                  )}
+                </div>
+                {item.notes && <div style={{ fontSize:10, color:t.mutedColor, marginTop:3 }}>{item.notes}</div>}
+              </div>
+              <button onClick={() => onDelete(item.id)}
+                style={{ width:22, height:22, background:t.toolDelBg, border:`1px solid ${t.toolDelBorder}`, borderRadius:5, cursor:"pointer", color:t.toolDelColor, fontSize:11, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>✕</button>
             </div>
-          ))}
-        </div>
-      )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
 
-function EodForm({ onSave, t }) {
+// ─────────────────────────────────────────────
+// FIX 5: EOD TAB — its own data only, never mixed with cases
+// ─────────────────────────────────────────────
+function EodTab({ onSave, eodEntries, onDeleteEod, t, isDark }) {
   const [f, setF] = useState({ ...BLANK_EOD });
   const u = (k, v) => setF((x) => ({ ...x, [k]: v }));
+  const [eodSpec, setEodSpec] = useState("All");
+
+  const filteredEod = useMemo(() =>
+    eodEntries
+      .filter((e) => eodSpec === "All" || e.specialistName === eodSpec)
+      .sort((a, b) => (b.date || b.createdAt || "").localeCompare(a.date || a.createdAt || "")),
+    [eodEntries, eodSpec]
+  );
+
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-      <FRow label="Specialist name" t={t}><FS value={f.specialistName} onChange={(v)=>u("specialistName",v)} options={SPEC_OPTS} t={t} /></FRow>
-      <FRow label="Date" t={t}><FI type="date" value={f.date} onChange={(v)=>u("date",v)} t={t} /></FRow>
+      <FRow label="Specialist name" t={t}><FS value={f.specialistName} onChange={(v) => u("specialistName", v)} options={SPEC_OPTS} t={t} /></FRow>
+      <FRow label="Date" t={t}><FI type="date" value={f.date} onChange={(v) => u("date", v)} t={t} /></FRow>
       <G2>
-        <FRow label="Total dials for the day" t={t}><FI type="number" value={f.totalDials}    onChange={(v)=>u("totalDials",v)}    placeholder="0" t={t} /></FRow>
-        <FRow label="Total talk time (minutes)" t={t}><FI type="number" value={f.totalTalkTime} onChange={(v)=>u("totalTalkTime",v)} placeholder="0" t={t} /></FRow>
+        <FRow label="Total dials for the day" t={t}><FI type="number" value={f.totalDials} onChange={(v) => u("totalDials", v)} placeholder="0" t={t} /></FRow>
+        <FRow label="Total talk time (min)" t={t}><FI type="number" value={f.totalTalkTime} onChange={(v) => u("totalTalkTime", v)} placeholder="0" t={t} /></FRow>
       </G2>
-      <FRow label="Clients reached via call or text" t={t}><FI type="number" value={f.clientsReached}        onChange={(v)=>u("clientsReached",v)}        placeholder="0" t={t} /></FRow>
-      <FRow label="Total welcome calls completed" t={t}><FI type="number"    value={f.welcomeCallsCompleted}  onChange={(v)=>u("welcomeCallsCompleted",v)}  placeholder="0" t={t} /></FRow>
+      <FRow label="Clients reached via call or text" t={t}><FI type="number" value={f.clientsReached} onChange={(v) => u("clientsReached", v)} placeholder="0" t={t} /></FRow>
+      <FRow label="Total welcome calls completed" t={t}><FI type="number" value={f.welcomeCallsCompleted} onChange={(v) => u("welcomeCallsCompleted", v)} placeholder="0" t={t} /></FRow>
       <G2>
-        <FRow label="At risk resolved (pre-confirmation)" t={t}><FI type="number" value={f.atRiskResolvedPre}        onChange={(v)=>u("atRiskResolvedPre",v)}        placeholder="0" t={t} /></FRow>
-        <FRow label="At risk resolved (confirmed)" t={t}><FI type="number"        value={f.atRiskResolvedConfirmed}   onChange={(v)=>u("atRiskResolvedConfirmed",v)}   placeholder="0" t={t} /></FRow>
-      </G2>
-      <G2>
-        <FRow label="AP saved (pre-confirmation)" t={t}><FI type="number" value={f.apSavedPre}        onChange={(v)=>u("apSavedPre",v)}        placeholder="0" t={t} /></FRow>
-        <FRow label="AP saved (confirmed)" t={t}><FI type="number"        value={f.apSavedConfirmed}   onChange={(v)=>u("apSavedConfirmed",v)}   placeholder="0" t={t} /></FRow>
+        <FRow label="At risk resolved (pre)" t={t}><FI type="number" value={f.atRiskResolvedPre} onChange={(v) => u("atRiskResolvedPre", v)} placeholder="0" t={t} /></FRow>
+        <FRow label="At risk resolved (conf)" t={t}><FI type="number" value={f.atRiskResolvedConfirmed} onChange={(v) => u("atRiskResolvedConfirmed", v)} placeholder="0" t={t} /></FRow>
       </G2>
       <G2>
-        <FRow label="UW policies resolved today" t={t}><FI type="number" value={f.uwPoliciesResolved} onChange={(v)=>u("uwPoliciesResolved",v)} placeholder="0" t={t} /></FRow>
-        <FRow label="Policies pending resolution" t={t}><FI type="number" value={f.pendingResolution}  onChange={(v)=>u("pendingResolution",v)}  placeholder="0" t={t} /></FRow>
+        <FRow label="AP saved (pre)" t={t}><FI type="number" value={f.apSavedPre} onChange={(v) => u("apSavedPre", v)} placeholder="0" t={t} /></FRow>
+        <FRow label="AP saved (conf)" t={t}><FI type="number" value={f.apSavedConfirmed} onChange={(v) => u("apSavedConfirmed", v)} placeholder="0" t={t} /></FRow>
       </G2>
-      <FRow label="Saved — pending confirmation (Client Name & Policy #)" t={t}><FTA value={f.savedPendingConfirmation}       onChange={(v)=>u("savedPendingConfirmation",v)}       placeholder="John Smith - POLICY123"                 t={t} /></FRow>
-      <FRow label="Saved — confirmed (Client Name & Policy #)" t={t}><FTA            value={f.savedConfirmed}                onChange={(v)=>u("savedConfirmed",v)}                placeholder="Jane Doe - POLICY456"                   t={t} /></FRow>
-      <FRow label="UW resolved not yet confirmed (AP, Name, Resolution, Carrier & Policy #)" t={t}><FTA value={f.uwResolvedNotConfirmedDetails} onChange={(v)=>u("uwResolvedNotConfirmedDetails",v)} placeholder="AP, Name, Resolution, Carrier, Policy #" t={t} /></FRow>
-      <FRow label="UW confirmed resolved (AP, Name, Resolution, Carrier & Policy #)" t={t}><FTA       value={f.uwConfirmedResolvedDetails}       onChange={(v)=>u("uwConfirmedResolvedDetails",v)}   placeholder="AP, Name, Resolution, Carrier, Policy #" t={t} /></FRow>
-      <FRow label="Escalations / agent action needed" t={t}><FTA value={f.escalationsAgentActionNeeded} onChange={(v)=>u("escalationsAgentActionNeeded",v)} placeholder="Client info, policy details, agent name, action needed" t={t} /></FRow>
-      <PrimaryBtn onClick={() => onSave(f)}>💾 Save EOD</PrimaryBtn>
+      <G2>
+        <FRow label="UW policies resolved" t={t}><FI type="number" value={f.uwPoliciesResolved} onChange={(v) => u("uwPoliciesResolved", v)} placeholder="0" t={t} /></FRow>
+        <FRow label="Pending resolution" t={t}><FI type="number" value={f.pendingResolution} onChange={(v) => u("pendingResolution", v)} placeholder="0" t={t} /></FRow>
+      </G2>
+      <FRow label="Saved — pending confirmation (Client & Policy #)" t={t}><FTA value={f.savedPendingConfirmation} onChange={(v) => u("savedPendingConfirmation", v)} placeholder="John Smith - POLICY123" t={t} /></FRow>
+      <FRow label="Saved — confirmed (Client & Policy #)" t={t}><FTA value={f.savedConfirmed} onChange={(v) => u("savedConfirmed", v)} placeholder="Jane Doe - POLICY456" t={t} /></FRow>
+      <FRow label="UW resolved not yet confirmed (AP, Name, Resolution, Carrier & Policy #)" t={t}><FTA value={f.uwResolvedNotConfirmedDetails} onChange={(v) => u("uwResolvedNotConfirmedDetails", v)} placeholder="AP, Name, Resolution, Carrier, Policy #" t={t} /></FRow>
+      <FRow label="UW confirmed resolved (AP, Name, Resolution, Carrier & Policy #)" t={t}><FTA value={f.uwConfirmedResolvedDetails} onChange={(v) => u("uwConfirmedResolvedDetails", v)} placeholder="AP, Name, Resolution, Carrier, Policy #" t={t} /></FRow>
+      <FRow label="Escalations / agent action needed" t={t}><FTA value={f.escalationsAgentActionNeeded} onChange={(v) => u("escalationsAgentActionNeeded", v)} placeholder="Client info, policy details, agent name, action needed" t={t} /></FRow>
+      <PrimaryBtn onClick={() => { onSave(f); setF({ ...BLANK_EOD }); }}>💾 Save EOD</PrimaryBtn>
       <ClearBtn onClick={() => setF({ ...BLANK_EOD })} t={t}>Clear</ClearBtn>
+
+      {/* Separator */}
+      <div style={{ borderTop:`1px solid ${t.cardBorder}`, margin:"4px 0" }} />
+
+      {/* EOD-only history */}
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+        <div style={{ fontSize:11, fontWeight:700, color:t.sideTitle, textTransform:"uppercase", letterSpacing:"0.08em" }}>
+          EOD history ({filteredEod.length})
+        </div>
+        <select value={eodSpec} onChange={(e) => setEodSpec(e.target.value)}
+          style={{ height:24, background:t.inputBg, border:`1px solid ${t.inputBorder}`, borderRadius:6, padding:"0 6px", fontSize:10, color:t.inputColor, outline:"none", fontFamily:"inherit" }}>
+          <option value="All">All specialists</option>
+          {["Nisha","Rick","Chen","Fernando","Angie"].map((s) => <option key={s}>{s}</option>)}
+        </select>
+      </div>
+      <div style={{ display:"flex", flexDirection:"column", gap:5, maxHeight:320, overflowY:"auto" }}>
+        {filteredEod.length === 0 && <div style={{ fontSize:11, color:t.dimColor, textAlign:"center", padding:"12px 0" }}>No EOD entries yet.</div>}
+        {filteredEod.map((entry) => (
+          <div key={entry.id} style={{ background:t.inboundCardBg, border:`1px solid ${t.cardBorder}`, borderRadius:8, padding:"9px 11px" }}>
+            <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:4 }}>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontWeight:700, fontSize:12, color:t.color }}>{entry.specialistName} — {entry.date}</div>
+                <div style={{ fontSize:10, color:t.mutedColor, marginTop:2 }}>
+                  Dials: {entry.totalDials || 0} · Talk: {entry.totalTalkTime || 0}min · Reached: {entry.clientsReached || 0}
+                </div>
+                <div style={{ fontSize:10, color:t.mutedColor }}>
+                  AP pre: {cur(entry.apSavedPre)} · AP conf: {cur(entry.apSavedConfirmed)}
+                </div>
+                {entry.escalationsAgentActionNeeded && (
+                  <div style={{ fontSize:10, color: isDark ? "#F08060" : "#9D3F23", marginTop:3 }}>
+                    ⚠ {entry.escalationsAgentActionNeeded.slice(0, 70)}{entry.escalationsAgentActionNeeded.length > 70 ? "…" : ""}
+                  </div>
+                )}
+              </div>
+              <button onClick={() => onDeleteEod(entry.id)}
+                style={{ width:22, height:22, background:t.toolDelBg, border:`1px solid ${t.toolDelBorder}`, borderRadius:5, cursor:"pointer", color:t.toolDelColor, fontSize:11, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>✕</button>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -503,11 +812,10 @@ function EodForm({ onSave, t }) {
 async function sendCaseToSheet(data) {
   try {
     const fd = new URLSearchParams();
-    Object.entries({ ...data, recordType: "case" }).forEach(([k, v]) => fd.append(k, v ?? ""));
+    Object.entries({ ...data, recordType:"case" }).forEach(([k, v]) => fd.append(k, v ?? ""));
     await fetch(GOOGLE_SHEET_WEB_APP_URL, { method:"POST", mode:"no-cors", body:fd });
   } catch (e) { console.error("Sheet sync failed:", e); }
 }
-
 async function updateCaseOnSheet(data) {
   try {
     const fd = new URLSearchParams();
@@ -515,120 +823,132 @@ async function updateCaseOnSheet(data) {
     await fetch(GOOGLE_SHEET_WEB_APP_URL, { method:"POST", mode:"no-cors", body:fd });
   } catch (e) { console.error("Sheet update failed:", e); }
 }
-
 async function deleteCaseOnSheet(row) {
   try {
     const fd = new URLSearchParams();
     ["id","clientName","policyNumber","specialistName","agentName"].forEach((k) => fd.append(k, row[k] ?? ""));
-    fd.append("recordType", "delete");
+    fd.append("recordType","delete");
     await fetch(GOOGLE_SHEET_WEB_APP_URL, { method:"POST", mode:"no-cors", body:fd });
   } catch (e) { console.error("Sheet delete failed:", e); }
 }
-
 async function sendInboundToSheet(data) {
   try {
     const fd = new URLSearchParams();
-    fd.append("recordType",  "inboundCancellation");
-    fd.append("forceSheet",  "Inbound Cancellations");
-    fd.append("inboundOnly", "true");
+    fd.append("recordType","inboundCancellation"); fd.append("forceSheet","Inbound Cancellations"); fd.append("inboundOnly","true");
     Object.entries(data).forEach(([k, v]) => fd.append(k, v ?? ""));
     await fetch(GOOGLE_SHEET_WEB_APP_URL, { method:"POST", mode:"no-cors", body:fd });
   } catch (e) { console.error("Inbound sync failed:", e); }
 }
-
 async function sendEodToSheet(data) {
   try {
     const fd = new URLSearchParams();
-    fd.append("recordType", "eodTest");
-    fd.append("forceSheet", "EOD Test");
+    fd.append("recordType","eodTest"); fd.append("forceSheet","EOD Test");
     Object.entries(data).forEach(([k, v]) => fd.append(k, v ?? ""));
     await fetch(GOOGLE_SHEET_WEB_APP_URL, { method:"POST", mode:"no-cors", body:fd });
   } catch (e) { console.error("EOD sync failed:", e); }
 }
-
 async function loadFromSheet() {
-  const res  = await fetch(GOOGLE_SHEET_WEB_APP_URL);
-  const data = await res.json();
-  return data;
+  const res = await fetch(GOOGLE_SHEET_WEB_APP_URL);
+  return await res.json();
 }
 
 // ─────────────────────────────────────────────
 // MAIN APP
 // ─────────────────────────────────────────────
 export default function ChenTrackerApp() {
-  // ── state ──
-  const [rows,         setRows]         = useState(() => safeLoad(STORAGE_KEY,         []));
-  const [inboundRows,  setInboundRows]  = useState(() => safeLoad(INBOUND_STORAGE_KEY, []));
-  const [eodEntries,   setEodEntries]   = useState(() => safeLoad(EOD_STORAGE_KEY,      []));
-  const [isDark,       setIsDark]       = useState(() => safeLoad(DARK_MODE_KEY,        false));
-  const [activeTab,    setActiveTab]    = useState("case");
-  const [specFilter,   setSpecFilter]   = useState("All");
-  const [resultFilter, setResultFilter] = useState("All");
-  const [query,        setQuery]        = useState("");
-  const [filterStart,  setFilterStart]  = useState("");
-  const [filterEnd,    setFilterEnd]    = useState("");
-  const [form,         setForm]         = useState(BLANK_FORM);
-  const [editRow,      setEditRow]      = useState(null);
-  const [toast,        setToast]        = useState({ msg:"", color:"" });
-  const [page,         setPage]         = useState(1);
-  const [rptMode,      setRptMode]      = useState("wtd");
-  const [rptStart,     setRptStart]     = useState("");
-  const [rptEnd,       setRptEnd]       = useState("");
-  const [ibDate,       setIbDate]       = useState(TODAY);
-  const [isLoading,    setIsLoading]    = useState(false);
-  const [showSheet,    setShowSheet]    = useState(false);
+  const [rows,          setRows]          = useState(() => safeLoad(STORAGE_KEY,         []));
+  const [inboundRows,   setInboundRows]   = useState(() => safeLoad(INBOUND_STORAGE_KEY, []));
+  const [eodEntries,    setEodEntries]    = useState(() => safeLoad(EOD_STORAGE_KEY,     []));
+  const [reminders,     setReminders]     = useState(() => safeLoad(REMINDER_KEY,        []));
+  const [isDark,        setIsDark]        = useState(() => safeLoad(DARK_MODE_KEY,       false));
+  const [activeTab,     setActiveTab]     = useState("case");
+  const [specFilter,    setSpecFilter]    = useState("All");
+  const [resultFilter,  setResultFilter]  = useState("All");
+  const [query,         setQuery]         = useState("");
+  const [filterStart,   setFilterStart]   = useState("");
+  const [filterEnd,     setFilterEnd]     = useState("");
+  const [form,          setForm]          = useState(BLANK_FORM);
+  const [editRow,       setEditRow]       = useState(null);
+  const [toast,         setToast]         = useState({ msg:"", color:"" });
+  const [page,          setPage]          = useState(1);
+  const [rptMode,       setRptMode]       = useState("wtd");
+  const [rptStart,      setRptStart]      = useState("");
+  const [rptEnd,        setRptEnd]        = useState("");
+  const [ibDate,        setIbDate]        = useState(TODAY);
+  const [isLoading,     setIsLoading]     = useState(false);
+  const [showSheet,     setShowSheet]     = useState(false);
+  const [showReminders, setShowReminders] = useState(false);
   const PER = 10;
 
   const t = useTheme(isDark);
 
-  // ── persist to localStorage ──
+  // ── persist ──
   useEffect(() => { safeSave(STORAGE_KEY,         rows);        }, [rows]);
   useEffect(() => { safeSave(INBOUND_STORAGE_KEY, inboundRows); }, [inboundRows]);
-  useEffect(() => { safeSave(EOD_STORAGE_KEY,      eodEntries);  }, [eodEntries]);
-  useEffect(() => { safeSave(DARK_MODE_KEY,        isDark);       }, [isDark]);
+  useEffect(() => { safeSave(EOD_STORAGE_KEY,     eodEntries);  }, [eodEntries]);
+  useEffect(() => { safeSave(DARK_MODE_KEY,       isDark);       }, [isDark]);
 
-  // ── load from Google Sheets on mount ──
-  useEffect(() => { refreshData(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // ── reminder alarm: check every 30s ──
+  const alertedIds = useRef(new Set());
+  const toastTimer = useRef(null);
 
-  // ── toast helper ──
-  const toastTimer = React.useRef(null);
   function showToast(msg, color) {
     setToast({ msg, color: color || t.toastInfo });
     clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast({ msg:"", color:"" }), 2800);
   }
 
-  // ── Google Sheets refresh ──
+  useEffect(() => {
+    const check = () => {
+      const now = Date.now();
+      reminders.forEach((r) => {
+        if (r.done || alertedIds.current.has(r.id)) return;
+        const dt   = new Date(r.datetime).getTime();
+        const diff = dt - now;
+        if (diff <= 10 * 60 * 1000 && diff > -60 * 1000) {
+          alertedIds.current.add(r.id);
+          playAlertSound();
+          showToast(`🔔 Reminder: ${r.title}`, "#D8913D");
+          if ("Notification" in window && Notification.permission === "granted") {
+            new Notification("Eterna Reminder", { body:r.title });
+          }
+        }
+      });
+    };
+    check();
+    const tid = setInterval(check, 30000);
+    return () => clearInterval(tid);
+  }, [reminders]); // eslint-disable-line
+
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission().catch(() => {});
+    }
+    refreshData(); // eslint-disable-line
+  }, []);
+
+  // ── refresh ──
   const refreshData = useCallback(async () => {
     setIsLoading(true);
-    showToast("Refreshing data…", t.toastInfo);
     try {
       const data = await loadFromSheet();
       if (data.success && Array.isArray(data.rows)) {
         const clean = dedupeRows(data.rows.filter(isRealRow));
-        setRows(clean);
-        safeSave(STORAGE_KEY, clean);
+        setRows(clean); safeSave(STORAGE_KEY, clean);
       }
       if (Array.isArray(data.inboundCancellations)) {
         const ib = data.inboundCancellations.map((item) => ({
-          id:            item.id || crypto.randomUUID(),
-          createdAt:     item.createdAt     || "",
-          clientName:    item.clientName    || "",
-          phoneNumber:   item.phoneNumber   || "",
-          agentName:     item.agentName     || "",
-          specialistName:item.specialistName|| "",
-          resolved:      item.resolved      || "No",
-          agentInformed: item.agentInformed || "No",
-          notes:         item.notes         || "",
+          id: item.id || crypto.randomUUID(), createdAt: item.createdAt || "",
+          clientName: item.clientName || "", phoneNumber: item.phoneNumber || "",
+          agentName: item.agentName || "", specialistName: item.specialistName || "",
+          resolved: item.resolved || "No", agentInformed: item.agentInformed || "No",
+          notes: item.notes || "",
         }));
-        setInboundRows(ib);
-        safeSave(INBOUND_STORAGE_KEY, ib);
+        setInboundRows(ib); safeSave(INBOUND_STORAGE_KEY, ib);
       }
       if (Array.isArray(data.eodTestEntries)) {
-        setEodEntries((current) => {
-          const merged = [...data.eodTestEntries, ...current].filter((e, i, arr) =>
-            arr.findIndex((x) => x.id === e.id) === i
-          );
+        setEodEntries((cur) => {
+          const merged = [...data.eodTestEntries, ...cur].filter((e, i, arr) => arr.findIndex((x) => x.id === e.id) === i);
           safeSave(EOD_STORAGE_KEY, merged);
           return merged;
         });
@@ -637,30 +957,29 @@ export default function ChenTrackerApp() {
     } catch (e) {
       console.error("Refresh failed:", e);
       showToast("Refresh failed — check connection.", t.toastError);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    } finally { setIsLoading(false); }
+  }, []); // eslint-disable-line
 
-  // ── filtered rows ──
+  // ── FIX: date filter — exact match when single date, range when both ──
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return rows
-      .filter((r) =>
-        (specFilter   === "All" || r.specialistName === specFilter) &&
-        (resultFilter === "All" || r.result         === resultFilter) &&
-        (!q           || [r.clientName, r.policyNumber, r.agentName, r.notes, r.action].join(" ").toLowerCase().includes(q)) &&
-        (!filterStart || r.updatedAt >= filterStart) &&
-        (!filterEnd   || r.updatedAt <= filterEnd)
-      )
-      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    return rows.filter((r) => {
+      const ms = specFilter   === "All" || r.specialistName === specFilter;
+      const mr = resultFilter === "All" || r.result         === resultFilter;
+      const mq = !q || [r.clientName, r.policyNumber, r.agentName, r.notes, r.action].join(" ").toLowerCase().includes(q);
+      const rowDate = r.updatedAt || r.createdAt || "";
+      let md = true;
+      if (filterStart && filterEnd)   md = rowDate >= filterStart && rowDate <= filterEnd;
+      else if (filterStart)           md = rowDate === filterStart;
+      else if (filterEnd)             md = rowDate === filterEnd;
+      return ms && mr && mq && md;
+    }).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   }, [rows, specFilter, resultFilter, query, filterStart, filterEnd]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PER));
   const safePage   = Math.min(page, totalPages);
   const paged      = filtered.slice((safePage - 1) * PER, safePage * PER);
 
-  // ── KPI stats (today only, filtered by specialist) ──
   const kpi = useMemo(() => {
     const src = specFilter === "All" ? rows : rows.filter((r) => r.specialistName === specFilter);
     const td  = src.filter((r) => r.updatedAt === TODAY);
@@ -668,17 +987,14 @@ export default function ChenTrackerApp() {
     const sv  = td.filter((r) => (r.action || "").toLowerCase() === "save");
     const uwr = td.filter((r) => (r.action || "").toLowerCase() === "uw action resolved");
     return {
-      total:    src.length,
-      resolved: src.filter((r) => r.result === "RESOLVED").length,
-      pending:  src.filter((r) => r.result === "PENDING").length,
-      lost:     src.filter((r) => r.result === "LOST").length,
-      psCount:  ps.length,  psAp:  ps.reduce((s, r) => s + Number(r.ap || 0), 0),
-      svCount:  sv.length,  svAp:  sv.reduce((s, r) => s + Number(r.ap || 0), 0),
+      total: src.length, resolved: src.filter((r) => r.result === "RESOLVED").length,
+      pending: src.filter((r) => r.result === "PENDING").length, lost: src.filter((r) => r.result === "LOST").length,
+      psCount: ps.length,  psAp:  ps.reduce((s, r) => s + Number(r.ap || 0), 0),
+      svCount: sv.length,  svAp:  sv.reduce((s, r) => s + Number(r.ap || 0), 0),
       uwrCount: uwr.length,
     };
   }, [rows, specFilter]);
 
-  // ── report stats ──
   const rpt = useMemo(() => {
     const src   = specFilter === "All" ? rows : rows.filter((r) => r.specialistName === specFilter);
     const start = rptStart || (rptMode === "mtd" ? getMTD() : getWTD());
@@ -687,92 +1003,71 @@ export default function ChenTrackerApp() {
     const ps    = rr.filter((r) => (r.action || "").toLowerCase() === "pending save");
     const sv    = rr.filter((r) => (r.action || "").toLowerCase() === "save");
     return {
-      total:    rr.length,
-      resolved: rr.filter((r) => r.result === "RESOLVED").length,
-      pending:  rr.filter((r) => r.result === "PENDING").length,
-      lost:     rr.filter((r) => r.result === "LOST").length,
-      psCount:  ps.length,  psAp:  ps.reduce((s, r) => s + Number(r.ap || 0), 0),
-      svCount:  sv.length,  svAp:  sv.reduce((s, r) => s + Number(r.ap || 0), 0),
+      total: rr.length, resolved: rr.filter((r) => r.result === "RESOLVED").length,
+      pending: rr.filter((r) => r.result === "PENDING").length, lost: rr.filter((r) => r.result === "LOST").length,
+      psCount: ps.length, psAp: ps.reduce((s, r) => s + Number(r.ap || 0), 0),
+      svCount: sv.length, svAp: sv.reduce((s, r) => s + Number(r.ap || 0), 0),
       start, end,
     };
   }, [rows, specFilter, rptMode, rptStart, rptEnd]);
 
-  // ── agent load ──
   const agentMap = useMemo(() => {
     const m = {};
     rows.forEach((r) => { const k = r.agentName || "Unassigned"; m[k] = (m[k] || 0) + 1; });
     return Object.entries(m).sort((a, b) => b[1] - a[1]);
   }, [rows]);
-  const agentMax = agentMap[0]?.[1] || 1;
 
-  // ── case actions ──
+  const dueCount = useMemo(() =>
+    reminders.filter((r) => !r.done && new Date(r.datetime).getTime() <= Date.now()).length,
+    [reminders]
+  );
+
   function addCase() {
     if (!form.clientName.trim()) { showToast("Enter a client name first.", t.toastError); return; }
     const dup = form.policyNumber.trim() && rows.some((r) => String(r.policyNumber || "").trim().toLowerCase() === form.policyNumber.trim().toLowerCase());
     if (dup && !window.confirm("This policy number already exists. Continue anyway?")) return;
-    const newCase = { ...form, id: crypto.randomUUID(), ap: Number(form.ap || 0), createdAt: TODAY };
+    const newCase = { ...form, id:crypto.randomUUID(), ap:Number(form.ap||0), createdAt:TODAY };
     setRows((r) => [newCase, ...r]);
-    setForm(BLANK_FORM);
-    setPage(1);
-    showToast("Case added. Syncing to Google Sheets…", t.toastSuccess);
+    setForm(BLANK_FORM); setPage(1);
+    showToast("Case added. Syncing…", t.toastSuccess);
     sendCaseToSheet(newCase).then(() => setTimeout(refreshData, 1500));
   }
-
   function quickResolve(id) {
     const updated = rows.map((r) => r.id === id ? { ...r, result:"RESOLVED", updatedAt:TODAY } : r);
-    setRows(updated);
-    showToast("Marked as resolved.", t.toastSuccess);
+    setRows(updated); showToast("Marked as resolved.", t.toastSuccess);
     const row = updated.find((r) => r.id === id);
     if (row) updateCaseOnSheet(row);
   }
-
   function deleteRow(id) {
     const row = rows.find((r) => r.id === id);
     setRows((r) => r.filter((x) => x.id !== id));
-    showToast("Case deleted. Removing from Google Sheets…", t.toastError);
+    showToast("Case deleted.", t.toastError);
     if (row) deleteCaseOnSheet(row).then(() => setTimeout(refreshData, 1500));
   }
-
   function saveEdit(updated) {
     setRows((r) => r.map((x) => x.id === updated.id ? updated : x));
-    setEditRow(null);
-    showToast("Case updated. Syncing to Google Sheets…", t.toastSuccess);
+    setEditRow(null); showToast("Case updated.", t.toastSuccess);
     updateCaseOnSheet(updated);
   }
-
   function saveInbound(f) {
     if (!f.clientName.trim()) { showToast("Enter a client name.", t.toastError); return; }
-    if (!f.specialistName)    { showToast("Select a specialist.", t.toastError); return; }
-    const entry = { ...f, id: crypto.randomUUID(), createdAt: new Date().toISOString() };
+    const entry = { ...f, id:crypto.randomUUID(), createdAt:new Date().toISOString() };
     setInboundRows((r) => [entry, ...r]);
-    showToast("Inbound cancellation saved. Syncing…", t.toastSuccess);
+    showToast("Inbound saved. Syncing…", t.toastSuccess);
     sendInboundToSheet(entry).then(() => setTimeout(refreshData, 1500));
   }
-
   function saveEod(f) {
     if (!f.specialistName) { showToast("Please select a specialist.", t.toastError); return; }
-    if (!f.date)           { showToast("Please select a date.", t.toastError); return; }
-    const entry = { ...f, id: crypto.randomUUID(), createdAt: new Date().toISOString() };
+    if (!f.date)           { showToast("Please select a date.",        t.toastError); return; }
+    const entry = { ...f, id:crypto.randomUUID(), createdAt:new Date().toISOString() };
     setEodEntries((e) => [entry, ...e]);
-    showToast("EOD saved. Syncing to Google Sheets…", t.toastSuccess);
+    showToast("EOD saved. Syncing…", t.toastSuccess);
     sendEodToSheet(entry).then(() => setTimeout(refreshData, 2500));
   }
 
-  // ── shared input style for toolbar ──
-  const toolInp = {
-    height:33, background:t.inputBg, border:`1px solid ${t.inputBorder}`,
-    borderRadius:9, padding:"0 8px", fontSize:12, color:t.inputColor,
-    outline:"none", fontFamily:"inherit",
-  };
+  const toolInp = { height:33, background:t.inputBg, border:`1px solid ${t.inputBorder}`, borderRadius:9, padding:"0 8px", fontSize:12, color:t.inputColor, outline:"none", fontFamily:"inherit" };
+  const rptInp  = { height:26, background:t.inputBg, border:`1px solid ${t.inputBorder}`, borderRadius:6, padding:"0 6px", fontSize:11, color:t.inputColor, outline:"none", fontFamily:"inherit", flex:1, minWidth:88 };
 
-  // ── report date input style ──
-  const rptInp = {
-    height:26, background:t.inputBg, border:`1px solid ${t.inputBorder}`,
-    borderRadius:6, padding:"0 6px", fontSize:11, color:t.inputColor,
-    outline:"none", fontFamily:"inherit", flex:1, minWidth:88,
-  };
-
-  // ── report mode button ──
   function RptModeBtn({ mode, label }) {
     const on = rptMode === mode;
     return (
@@ -783,18 +1078,14 @@ export default function ChenTrackerApp() {
     );
   }
 
-  // ─────────────────────────────────────────────
-  // RENDER
-  // ─────────────────────────────────────────────
   return (
     <div style={{ minHeight:"100vh", background:t.pageBg, color:t.color, fontFamily:"system-ui,-apple-system,sans-serif", padding:20, display:"flex", flexDirection:"column", gap:14 }}>
-
       <Toast message={toast.msg} color={toast.color} />
+      {showSheet     && <SheetModal onClose={() => setShowSheet(false)} t={t} />}
+      {showReminders && <RemindersModal reminders={reminders} setReminders={setReminders} onClose={() => setShowReminders(false)} t={t} isDark={isDark} />}
+      {editRow       && <EditModal row={editRow} onClose={() => setEditRow(null)} onSave={saveEdit} t={t} />}
 
-      {showSheet  && <SheetModal onClose={() => setShowSheet(false)} t={t} />}
-      {editRow    && <EditModal  row={editRow} onClose={() => setEditRow(null)} onSave={saveEdit} t={t} />}
-
-      {/* ── TOPBAR ── */}
+      {/* TOPBAR */}
       <div style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap", background:t.topbarBg, border:`1px solid ${t.topbarBorder}`, borderRadius:14, padding:"11px 18px" }}>
         <EternaLogo />
         <div>
@@ -807,45 +1098,44 @@ export default function ChenTrackerApp() {
             <option value="All">All specialists</option>
             {["Nisha","Rick","Chen","Fernando","Angie"].map((s) => <option key={s}>{s}</option>)}
           </select>
-          <GhostBtn onClick={() => showToast("Reminders — coming soon.", t.toastInfo)} isDark={isDark}>🔔 Reminders</GhostBtn>
+          <button onClick={() => setShowReminders(true)} style={{ position:"relative", height:31, background:"transparent", border:`1px solid ${isDark ? "#2D4035" : "#CDBAA3"}`, borderRadius:8, padding:"0 13px", fontSize:12, fontWeight:600, cursor:"pointer", color: isDark ? "#C8B89A" : "#6D6256", display:"inline-flex", alignItems:"center", gap:5, fontFamily:"inherit" }}>
+            🔔 Reminders
+            {dueCount > 0 && <span style={{ position:"absolute", top:-7, right:-7, background:"#F07850", color:"#fff", borderRadius:"50%", width:18, height:18, fontSize:10, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center" }}>{dueCount}</span>}
+          </button>
           <GhostBtn onClick={() => setShowSheet(true)} isDark={isDark}>⊞ View sheet</GhostBtn>
-          <button onClick={() => setIsDark((d) => !d)}
-            style={{ background: isDark ? "#D4C8B4" : "#03071A", color: isDark ? "#1A1008" : "#fff", border:"none", borderRadius:8, padding:"0 13px", height:31, fontSize:12, fontWeight:600, cursor:"pointer", display:"inline-flex", alignItems:"center", gap:5, fontFamily:"inherit" }}>
+          <button onClick={() => setIsDark((d) => !d)} style={{ background: isDark ? "#D4C8B4" : "#03071A", color: isDark ? "#1A1008" : "#fff", border:"none", borderRadius:8, padding:"0 13px", height:31, fontSize:12, fontWeight:600, cursor:"pointer", display:"inline-flex", alignItems:"center", gap:5, fontFamily:"inherit" }}>
             {isDark ? "☀️ Light mode" : "🌙 Dark mode"}
           </button>
-          <button onClick={refreshData} disabled={isLoading}
-            style={{ background: isDark ? "#3A6E50" : "#5C7768", color:"#fff", border:"none", borderRadius:8, padding:"0 13px", height:31, fontSize:12, fontWeight:600, cursor: isLoading ? "not-allowed" : "pointer", display:"inline-flex", alignItems:"center", gap:5, fontFamily:"inherit", opacity: isLoading ? 0.7 : 1 }}>
+          <button onClick={refreshData} disabled={isLoading} style={{ background: isDark ? "#3A6E50" : "#5C7768", color:"#fff", border:"none", borderRadius:8, padding:"0 13px", height:31, fontSize:12, fontWeight:600, cursor: isLoading ? "not-allowed" : "pointer", display:"inline-flex", alignItems:"center", gap:5, fontFamily:"inherit", opacity: isLoading ? 0.7 : 1 }}>
             {isLoading ? "⟳ Refreshing…" : "↻ Refresh"}
           </button>
         </div>
       </div>
 
-      {/* ── 7 KPI CARDS ── */}
+      {/* 7 KPI CARDS */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:8 }}>
-        <KpiCard label="Total cases"        value={kpi.total}    sub={`${kpi.resolved} resolved · ${kpi.pending} pending`} colorKey="total" isDark={isDark} t={t} />
-        <KpiCard label="Pending save"       value={kpi.psCount}  sub={`${cur(kpi.psAp)} at stake`}   colorKey="ps"   isDark={isDark} t={t} />
-        <KpiCard label="Saved today"        value={kpi.svCount}  sub={`${cur(kpi.svAp)} locked in`}  colorKey="sv"   isDark={isDark} t={t} />
-        <KpiCard label="UW Action Resolved" value={kpi.uwrCount} sub="Today"                         colorKey="uwr"  isDark={isDark} t={t} />
-        <KpiCard label="Lost cases"         value={kpi.lost}     sub="All time"                      colorKey="lost" isDark={isDark} t={t} />
-        <KpiCard label="Pending Save AP"    value={cur(kpi.psAp)} sub="Action: Pending Save"         colorKey="psAp" isDark={isDark} t={t} />
-        <KpiCard label="Save AP"            value={cur(kpi.svAp)} sub="Action: Save"                 colorKey="svAp" isDark={isDark} t={t} />
+        <KpiCard label="Total cases"        value={kpi.total}     sub={`${kpi.resolved} resolved · ${kpi.pending} pending`} colorKey="total" isDark={isDark} t={t} />
+        <KpiCard label="Pending save"       value={kpi.psCount}   sub={`${cur(kpi.psAp)} at stake`}   colorKey="ps"   isDark={isDark} t={t} />
+        <KpiCard label="Saved today"        value={kpi.svCount}   sub={`${cur(kpi.svAp)} locked in`}  colorKey="sv"   isDark={isDark} t={t} />
+        <KpiCard label="UW Action Resolved" value={kpi.uwrCount}  sub="Today"                         colorKey="uwr"  isDark={isDark} t={t} />
+        <KpiCard label="Lost cases"         value={kpi.lost}      sub="All time"                      colorKey="lost" isDark={isDark} t={t} />
+        <KpiCard label="Pending Save AP"    value={cur(kpi.psAp)} sub="Action: Pending Save"          colorKey="psAp" isDark={isDark} t={t} />
+        <KpiCard label="Save AP"            value={cur(kpi.svAp)} sub="Action: Save"                  colorKey="svAp" isDark={isDark} t={t} />
       </div>
 
-      {/* ── MAIN LAYOUT ── */}
+      {/* MAIN LAYOUT */}
       <div style={{ display:"grid", gridTemplateColumns:"1fr 300px", gap:14, alignItems:"start" }}>
 
         {/* LEFT: case list */}
         <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
-
-          {/* Search + date + status filters */}
           <div style={{ display:"flex", alignItems:"center", gap:7, flexWrap:"wrap" }}>
             <div style={{ position:"relative", flex:1, minWidth:180 }}>
               <span style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", fontSize:15, color:t.mutedColor, pointerEvents:"none" }}>⌕</span>
               <input value={query} onChange={(e) => { setQuery(e.target.value); setPage(1); }} placeholder="Search client, policy, agent, notes…"
                 style={{ ...toolInp, width:"100%", paddingLeft:29 }} />
             </div>
-            <input type="date" value={filterStart} onChange={(e) => { setFilterStart(e.target.value); setPage(1); }} title="From date" style={toolInp} />
-            <input type="date" value={filterEnd}   onChange={(e) => { setFilterEnd(e.target.value);   setPage(1); }} title="To date"   style={toolInp} />
+            <input type="date" value={filterStart} title="Exact date (or start of range)" onChange={(e) => { setFilterStart(e.target.value); setPage(1); }} style={toolInp} />
+            <input type="date" value={filterEnd}   title="End of range (optional)"         onChange={(e) => { setFilterEnd(e.target.value);   setPage(1); }} style={toolInp} />
             {["All","PENDING","RESOLVED","LOST"].map((v) => {
               const m = STATUS_META[v];
               return (
@@ -860,7 +1150,6 @@ export default function ChenTrackerApp() {
             <span style={{ fontSize:11, color:t.mutedColor, marginLeft:"auto" }}>{filtered.length} case{filtered.length !== 1 ? "s" : ""}</span>
           </div>
 
-          {/* Column headers */}
           <div style={{ display:"grid", gridTemplateColumns:"1fr auto", gap:10, padding:"0 14px" }}>
             <div style={{ display:"grid", gridTemplateColumns:"170px 100px 78px 88px 1fr", gap:10 }}>
               {["Client","AP","Stage","Status","Action / notes"].map((h) => (
@@ -870,7 +1159,6 @@ export default function ChenTrackerApp() {
             <div style={{ width:95 }} />
           </div>
 
-          {/* Case cards */}
           <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
             {paged.length ? paged.map((row) => (
               <div key={row.id}
@@ -914,7 +1202,6 @@ export default function ChenTrackerApp() {
             )}
           </div>
 
-          {/* Pagination */}
           {filtered.length > PER && (
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", fontSize:11, color:t.mutedColor }}>
               <span>{(safePage - 1) * PER + 1}–{Math.min(safePage * PER, filtered.length)} of {filtered.length}</span>
@@ -929,20 +1216,34 @@ export default function ChenTrackerApp() {
 
         {/* RIGHT SIDEBAR */}
         <div style={{ display:"flex", flexDirection:"column", gap:11 }}>
-
-          {/* Entry form */}
           <SideSection title={activeTab === "case" ? "Add new case" : activeTab === "inbound" ? "Inbound cancellation" : "EOD"} t={t}>
             <div style={{ display:"flex", gap:4, marginBottom:13 }}>
               {[["case","Add new case"],["inbound","Inbound"],["eod","EOD"]].map(([id, lbl]) => (
                 <TabPill key={id} label={lbl} active={activeTab === id} onClick={() => setActiveTab(id)} t={t} />
               ))}
             </div>
-            {activeTab === "case"    && <CaseForm    form={form} setForm={setForm} onAdd={addCase} onClear={() => setForm(BLANK_FORM)} t={t} />}
-            {activeTab === "inbound" && <InboundForm ibDate={ibDate} setIbDate={setIbDate} inboundRows={inboundRows} onSave={saveInbound} t={t} isDark={isDark} />}
-            {activeTab === "eod"     && <EodForm     onSave={saveEod} t={t} />}
+            {activeTab === "case" && (
+              <CaseForm form={form} setForm={setForm} onAdd={addCase} onClear={() => setForm(BLANK_FORM)} t={t} />
+            )}
+            {activeTab === "inbound" && (
+              <InboundTab
+                ibDate={ibDate} setIbDate={setIbDate}
+                inboundRows={inboundRows}
+                onSave={saveInbound}
+                onDelete={(id) => setInboundRows((r) => r.filter((x) => x.id !== id))}
+                t={t} isDark={isDark}
+              />
+            )}
+            {activeTab === "eod" && (
+              <EodTab
+                onSave={saveEod}
+                eodEntries={eodEntries}
+                onDeleteEod={(id) => setEodEntries((e) => e.filter((x) => x.id !== id))}
+                t={t} isDark={isDark}
+              />
+            )}
           </SideSection>
 
-          {/* Report panel */}
           <SideSection title={rptMode === "mtd" ? "Month to date" : "Week to date"} t={t}>
             <div style={{ display:"flex", gap:4, marginBottom:9 }}>
               <RptModeBtn mode="wtd" label="Week to date" />
@@ -973,19 +1274,8 @@ export default function ChenTrackerApp() {
             </div>
           </SideSection>
 
-          {/* Agent load */}
           <SideSection title="Agent load" t={t}>
-            {agentMap.length ? agentMap.map(([agent, count]) => (
-              <div key={agent} style={{ marginBottom:9 }}>
-                <div style={{ display:"flex", justifyContent:"space-between", fontSize:11, fontWeight:500, color: isDark ? "#C8B89A" : "#6D6256", marginBottom:3 }}>
-                  <span style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{agent}</span>
-                  <span>{count}</span>
-                </div>
-                <div style={{ height:3, background:t.agentTrackBg, borderRadius:99, overflow:"hidden" }}>
-                  <div style={{ height:"100%", width:`${Math.round((count / agentMax) * 100)}%`, background:t.agentFillBg, borderRadius:99 }} />
-                </div>
-              </div>
-            )) : <div style={{ fontSize:12, color:t.dimColor }}>No data yet — refresh to load.</div>}
+            <AgentLoad agentMap={agentMap} isDark={isDark} t={t} />
           </SideSection>
         </div>
       </div>

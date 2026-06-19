@@ -136,7 +136,7 @@ export default function AdminEodRecap() {
   const [rewritesResolved,      setRewritesResolved]      = useState("");
   const [agentOpNotes,          setAgentOpNotes]          = useState("");
   const [generalNotes,          setGeneralNotes]          = useState("");
-  const [recipientEmail,        setRecipientEmail]        = useState("powerhouseteam.juchen@gmail.com");
+  const [recipientEmail, setRecipientEmail] = useState("powerhouseteam.juchen@gmail.com, ejay@powerhouseadmins.com");;
 
   const toastTimer = React.useRef(null);
   function showToast(msg, color = "#3A6E50") {

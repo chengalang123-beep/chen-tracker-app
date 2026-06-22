@@ -26,7 +26,7 @@ const TODAY = new Date().toISOString().slice(0, 10);
 
 const ACTION_OPTS   = ["", "Pending", "Pending Save", "Welcome Call", "Onboarding Call", "Pending Agent Assist", "Save", "UW Action Needed", "UW Action Resolved", "Lost", "Hang up"];
 const LEAD_OPTS     = ["", "NA", "NAA", "SRWT", "AS", "RTR", "CEP", "AYAR", "CWCC", "IUW", "UWAN", "UWAR", "UWSRWT"];
-const SPEC_OPTS     = ["", "Nisha", "Rick", "Chen", "Fernando", "Angie"];
+const SPEC_OPTS     = ["", "Nisha", "Rick", "Chen", "Fernando", "Claire"];
 const PRIORITY_OPTS = ["Normal", "High", "Urgent"];
 const RESULT_OPTS   = ["PENDING", "RESOLVED", "LOST"];
 
@@ -93,7 +93,7 @@ function isRealRow(row) {
   const cn = String(row?.clientName     || "").trim();
   const sn = String(row?.specialistName || "").trim();
   if (!cn || bad.includes(cn.toLowerCase())) return false;
-  if (!["Nisha","Rick","Chen","Fernando","Angie","Unassigned"].includes(sn)) return false;
+  if (!["Nisha","Rick","Chen","Fernando","Claire","Unassigned"].includes(sn)) return false;
   const ud = String(row?.updatedAt || ""), cd = String(row?.createdAt || "");
   return /^\d{4}-\d{2}-\d{2}$/.test(ud) || /^\d{4}-\d{2}-\d{2}$/.test(cd);
 }
@@ -950,7 +950,7 @@ function EodTab({ onSave, eodEntries, onDeleteEod, t, isDark }) {
         <select value={eodSpec} onChange={(e) => setEodSpec(e.target.value)}
           style={{ height:24, background:t.inputBg, border:`1px solid ${t.inputBorder}`, borderRadius:6, padding:"0 6px", fontSize:10, color:t.inputColor, outline:"none", fontFamily:"inherit" }}>
           <option value="All">All specialists</option>
-          {["Nisha","Rick","Chen","Fernando","Angie"].map((s) => <option key={s}>{s}</option>)}
+          {["Nisha","Rick","Chen","Fernando","Claire"].map((s) => <option key={s}>{s}</option>)}
         </select>
       </div>
       <div style={{ display:"flex", flexDirection:"column", gap:5, maxHeight:320, overflowY:"auto" }}>
@@ -1120,7 +1120,7 @@ function InboundMainPanel({ ibDate, setIbDate, inboundRows, onSave, onDelete, on
           <select value={ibSpec} onChange={(e) => { setIbSpec(e.target.value); setIbPage(1); }}
             style={{ ...toolInp, width:"auto" }}>
             <option value="All">All specialists</option>
-            {["Nisha","Rick","Chen","Fernando","Angie"].map((s) => <option key={s}>{s}</option>)}
+            {["Nisha","Rick","Chen","Fernando","Claire"].map((s) => <option key={s}>{s}</option>)}
           </select>
           <span style={{ fontSize:11, color:t.mutedColor, marginLeft:"auto" }}>{filtered.length} entr{filtered.length !== 1 ? "ies" : "y"}</span>
         </div>
@@ -1252,7 +1252,7 @@ function EodMainPanel({ onSave, eodEntries, onDeleteEod, t, isDark }) {
           <select value={eodSpec} onChange={(e) => { setEodSpec(e.target.value); setEodPage(1); }}
             style={{ ...toolInp, width:"auto" }}>
             <option value="All">All specialists</option>
-            {["Nisha","Rick","Chen","Fernando","Angie"].map((s) => <option key={s}>{s}</option>)}
+            {["Nisha","Rick","Chen","Fernando","Claire"].map((s) => <option key={s}>{s}</option>)}
           </select>
           <span style={{ fontSize:11, color:t.mutedColor, marginLeft:"auto" }}>{filtered.length} EOD entr{filtered.length !== 1 ? "ies" : "y"}</span>
         </div>
@@ -1608,7 +1608,7 @@ function ChenTrackerApp() {
           <select value={specFilter} onChange={(e) => { setSpecFilter(e.target.value); setPage(1); }}
             style={{ height:31, background:t.inputBg, border:`1px solid ${t.inputBorder}`, borderRadius:8, padding:"0 11px", fontSize:12, color:t.inputColor, outline:"none", cursor:"pointer", fontFamily:"inherit" }}>
             <option value="All">All specialists</option>
-            {["Nisha","Rick","Chen","Fernando","Angie"].map((s) => <option key={s}>{s}</option>)}
+            {["Nisha","Rick","Chen","Fernando","Claire"].map((s) => <option key={s}>{s}</option>)}
           </select>
           <button onClick={() => setShowReminders(true)} style={{ position:"relative", height:31, background:"transparent", border:`1px solid ${isDark ? "#2D4035" : "#CDBAA3"}`, borderRadius:8, padding:"0 13px", fontSize:12, fontWeight:600, cursor:"pointer", color: isDark ? "#C8B89A" : "#6D6256", display:"inline-flex", alignItems:"center", gap:5, fontFamily:"inherit" }}>
             🔔 Reminders

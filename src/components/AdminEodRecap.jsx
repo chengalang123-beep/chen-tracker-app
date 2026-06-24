@@ -8,9 +8,9 @@ const TRACKER_SHEET_URL =
 
 // Admin recap sheet — paste your deployed Apps Script URL here after setup
 const ADMIN_SHEET_URL =
-  "https://script.google.com/macros/s/AKfycbx5waYfM3BJCVVH9l1BoEdXekHPnt3i0CiQsIbJ4qgg3baV5_e8I8fzVH2Y1JGso8vY/exec";
+  "https://script.google.com/macros/s/REPLACE_WITH_ADMIN_SCRIPT_DEPLOYMENT_URL/exec";
 
-const SPECIALISTS = ["Nisha", "Rick", "Chen", "Fernando", "Angie"];
+const SPECIALISTS = ["Nisha", "Rick", "Chen", "Fernando", "Angie", "Claire"];
 
 const TODAY = new Date().toISOString().slice(0, 10);
 
@@ -136,7 +136,7 @@ export default function AdminEodRecap() {
   const [rewritesResolved,      setRewritesResolved]      = useState("");
   const [agentOpNotes,          setAgentOpNotes]          = useState("");
   const [generalNotes,          setGeneralNotes]          = useState("");
-  const [recipientEmail, setRecipientEmail] = useState("powerhouseteam.juchen@gmail.com, ejay@powerhouseadmins.com");;
+  const [recipientEmail,        setRecipientEmail]        = useState("powerhouseteam.juchen@gmail.com");
 
   const toastTimer = React.useRef(null);
   function showToast(msg, color = "#3A6E50") {

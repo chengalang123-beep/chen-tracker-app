@@ -89,11 +89,15 @@ function dedupeRows(sourceRows) {
 }
 
 function isRealRow(row) {
-  const bad = ["save","pending save","welcome call","onboarding call","uw action needed","uw action resolved","lost","client name","policy number","ap","lead status","agent name","result","status","action","notes","priority","updated at","specialist name","created at"];
-  const cn = String(row?.clientName     || "").trim();
-  const sn = String(row?.specialistName || "").trim();
+  // Only filter out known header/junk values — never filter by specialist name
+  // so any new specialist automatically works
+  const bad = ["save","pending save","welcome call","onboarding call","uw action needed",
+    "uw action resolved","lost","client name","policy number","ap","lead status",
+    "agent name","result","status","action","notes","priority","updated at",
+    "specialist name","created at","specialistname","clientname","policynumber"];
+  const cn = String(row?.clientName || "").trim();
   if (!cn || bad.includes(cn.toLowerCase())) return false;
-  if (!["Nisha","Rick","Chen","Fernando","Angie","Claire","Unassigned"].includes(sn)) return false;
+  // Must have a valid date
   const ud = String(row?.updatedAt || ""), cd = String(row?.createdAt || "");
   return /^\d{4}-\d{2}-\d{2}$/.test(ud) || /^\d{4}-\d{2}-\d{2}$/.test(cd);
 }
@@ -1621,9 +1625,6 @@ function ChenTrackerApp() {
           <button onClick={refreshData} disabled={isLoading} style={{ background: isDark ? "#3A6E50" : "#5C7768", color:"#fff", border:"none", borderRadius:8, padding:"0 13px", height:31, fontSize:12, fontWeight:600, cursor: isLoading ? "not-allowed" : "pointer", display:"inline-flex", alignItems:"center", gap:5, fontFamily:"inherit", opacity: isLoading ? 0.7 : 1 }}>
             {isLoading ? "⟳ Refreshing…" : "↻ Refresh"}
           </button>
-          <a href="/admin" style={{ height:31, padding:"0 13px", background: isDark ? "#2A1A10" : "#FFF1D8", color: isDark ? "#F0B84A" : "#9A5B12", border:`1px solid ${isDark ? "#7A4A28" : "#F1C27D"}`, borderRadius:8, fontSize:12, fontWeight:600, textDecoration:"none", display:"inline-flex", alignItems:"center", gap:5 }}>
-            🔐 Admin
-          </a>
         </div>
       </div>
 

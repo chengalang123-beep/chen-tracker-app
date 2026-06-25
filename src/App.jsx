@@ -71,6 +71,27 @@ function safeSave(key, value) {
   try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
 }
 
+// Normalize any date format to YYYY-MM-DD for clean display
+function normalizeEodDate(val) {
+  if (!val) return "";
+  const s = String(val).trim();
+  // Already YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  // ISO timestamp — take just the date part
+  if (/^\d{4}-\d{2}-\d{2}T/.test(s)) return s.slice(0, 10);
+  // M/D/YYYY
+  if (/^\d{1,2}\/\d{1,2}\/\d{4}/.test(s)) {
+    const [mo, dy, yr] = s.split("/");
+    return `${yr}-${mo.padStart(2,"0")}-${dy.padStart(2,"0")}`;
+  }
+  // Try JS Date parse as fallback
+  try {
+    const d = new Date(s);
+    if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+  } catch {}
+  return s;
+}
+
 function dedupeRows(sourceRows) {
   const map = new Map();
   sourceRows.forEach((row) => {
@@ -905,7 +926,11 @@ function EodTab({ onSave, eodEntries, onDeleteEod, t, isDark }) {
   const filteredEod = useMemo(() =>
     eodEntries
       .filter((e) => eodSpec === "All" || e.specialistName === eodSpec)
-      .sort((a, b) => (b.date || b.createdAt || "").localeCompare(a.date || a.createdAt || "")),
+      .sort((a, b) => {
+        const da = normalizeEodDate(a.date || a.createdAt || "");
+        const db = normalizeEodDate(b.date || b.createdAt || "");
+        return db.localeCompare(da);
+      }),
     [eodEntries, eodSpec]
   );
 
@@ -959,7 +984,7 @@ function EodTab({ onSave, eodEntries, onDeleteEod, t, isDark }) {
           <div key={entry.id} style={{ background:t.inboundCardBg, border:`1px solid ${t.cardBorder}`, borderRadius:8, padding:"9px 11px" }}>
             <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:4 }}>
               <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontWeight:700, fontSize:12, color:t.color }}>{entry.specialistName} — {entry.date}</div>
+                <div style={{ fontWeight:700, fontSize:12, color:t.color }}>{entry.specialistName} — {normalizeEodDate(entry.date || entry.createdAt)}</div>
                 <div style={{ fontSize:10, color:t.mutedColor, marginTop:2 }}>
                   Dials: {entry.totalDials || 0} · Talk: {entry.totalTalkTime || 0}min · Reached: {entry.clientsReached || 0}
                 </div>
@@ -1197,7 +1222,11 @@ function EodMainPanel({ onSave, eodEntries, onDeleteEod, t, isDark }) {
   const filtered = useMemo(() =>
     eodEntries
       .filter((e) => eodSpec === "All" || e.specialistName === eodSpec)
-      .sort((a, b) => (b.date || b.createdAt || "").localeCompare(a.date || a.createdAt || "")),
+      .sort((a, b) => {
+        const da = normalizeEodDate(a.date || a.createdAt || "");
+        const db = normalizeEodDate(b.date || b.createdAt || "");
+        return db.localeCompare(da);
+      }),
     [eodEntries, eodSpec]
   );
 
@@ -1270,7 +1299,7 @@ function EodMainPanel({ onSave, eodEntries, onDeleteEod, t, isDark }) {
             <div key={entry.id}
               style={{ background:t.cardBg, border:`1px solid ${t.cardBorder}`, borderRadius:10, padding:"10px 14px", display:"grid", gridTemplateColumns:"100px 80px 70px 80px 80px 80px 80px 1fr 32px", gap:8, alignItems:"center" }}
             >
-              <div style={{ fontSize:12, fontWeight:700, color:t.color }}>{entry.date}</div>
+              <div style={{ fontSize:12, fontWeight:700, color:t.color }}>{normalizeEodDate(entry.date || entry.createdAt)}</div>
               <div style={{ fontSize:11, color: isDark ? "#C8B89A" : "#6D6256" }}>{entry.specialistName || "—"}</div>
               <div style={{ fontSize:11, color:t.mutedColor }}>{entry.totalDials || 0}</div>
               <div style={{ fontSize:11, color:t.mutedColor }}>{entry.totalTalkTime || 0}</div>
@@ -1451,8 +1480,13 @@ function ChenTrackerApp() {
         setInboundRows(ib); safeSave(INBOUND_STORAGE_KEY, ib);
       }
       if (Array.isArray(data.eodTestEntries)) {
+        const normalized = data.eodTestEntries.map((e) => ({
+          ...e,
+          date: normalizeEodDate(e.date || e.Date || e.createdAt || e.CreatedAt || ""),
+          specialistName: e.specialistName || e.SpecialistName || e.specialist || e.Specialist || "",
+        }));
         setEodEntries((cur) => {
-          const merged = [...data.eodTestEntries, ...cur].filter((e, i, arr) => arr.findIndex((x) => x.id === e.id) === i);
+          const merged = [...normalized, ...cur].filter((e, i, arr) => arr.findIndex((x) => x.id === e.id) === i);
           safeSave(EOD_STORAGE_KEY, merged);
           return merged;
         });
@@ -1571,7 +1605,7 @@ function ChenTrackerApp() {
   function saveEod(f) {
     if (!f.specialistName) { showToast("Please select a specialist.", t.toastError); return; }
     if (!f.date)           { showToast("Please select a date.",        t.toastError); return; }
-    const entry = { ...f, id:crypto.randomUUID(), createdAt:new Date().toISOString() };
+    const entry = { ...f, id:crypto.randomUUID(), date: normalizeEodDate(f.date), createdAt:new Date().toISOString() };
     setEodEntries((e) => [entry, ...e]);
     showToast("EOD saved. Syncing…", t.toastSuccess);
     sendEodToSheet(entry).then(() => setTimeout(refreshData, 2500));

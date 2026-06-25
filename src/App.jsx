@@ -1759,45 +1759,66 @@ function ChenTrackerApp() {
                   <div style={{ width:95 }} />
                 </div>
 
-                {/* Case cards */}
+                {/* Case cards with date separators */}
                 <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
-                  {paged.length ? paged.map((row) => (
-                    <div key={row.id}
-                      style={{ background:t.cardBg, border:`1px solid ${t.cardBorder}`, borderRadius:10, padding:"11px 14px", display:"grid", gridTemplateColumns:"1fr auto", gap:10, alignItems:"center", cursor:"default", transition:"border-color .14s,background .14s" }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.borderColor = t.cardHoverBorder; e.currentTarget.querySelector(".rt").style.opacity = "1"; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = t.cardBg;    e.currentTarget.style.borderColor = t.cardBorder;      e.currentTarget.querySelector(".rt").style.opacity = "0"; }}
-                    >
-                      <div style={{ display:"grid", gridTemplateColumns:"160px 95px 72px 84px 1fr 28px", gap:10, alignItems:"center", minWidth:0 }}>
-                        <div>
-                          <div style={{ fontWeight:700, fontSize:13, color:t.color, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{row.clientName}</div>
-                          <div style={{ display:"flex", alignItems:"center", gap:5, marginTop:3 }}>
-                            <span style={{ fontSize:10, color:t.mutedColor, fontFamily:"monospace" }}>{row.policyNumber || "—"}</span>
-                            <PriorityChip priority={row.priority} />
+                  {paged.length ? (() => {
+                    let lastDate = null;
+                    return paged.map((row) => {
+                      const rowDate = row.updatedAt || row.createdAt || "";
+                      const showSep = rowDate && rowDate !== lastDate;
+                      if (showSep) lastDate = rowDate;
+                      const dateLabel = rowDate
+                        ? new Date(rowDate + "T12:00:00").toLocaleDateString("en-US", { weekday:"short", month:"long", day:"numeric", year:"numeric" })
+                        : "";
+                      return (
+                        <React.Fragment key={row.id}>
+                          {showSep && (
+                            <div style={{ display:"flex", alignItems:"center", gap:10, margin:"6px 0 2px" }}>
+                              <div style={{ flex:1, height:1, background: isDark ? "#2D4035" : "#DDD0BB" }} />
+                              <span style={{ fontSize:10, fontWeight:700, color: isDark ? "#E8B87A" : "#9A5B12", textTransform:"uppercase", letterSpacing:"0.08em", whiteSpace:"nowrap", padding:"2px 12px", borderRadius:20, border:`1px solid ${isDark ? "#3A5045" : "#DDD0BB"}`, background: isDark ? "#1A2E22" : "#FFF1D8" }}>
+                                {dateLabel}
+                              </span>
+                              <div style={{ flex:1, height:1, background: isDark ? "#2D4035" : "#DDD0BB" }} />
+                            </div>
+                          )}
+                          <div
+                            style={{ background:t.cardBg, border:`1px solid ${t.cardBorder}`, borderRadius:10, padding:"11px 14px", display:"grid", gridTemplateColumns:"1fr auto", gap:10, alignItems:"center", cursor:"default", transition:"border-color .14s,background .14s" }}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.borderColor = t.cardHoverBorder; e.currentTarget.querySelector(".rt").style.opacity = "1"; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = t.cardBg;    e.currentTarget.style.borderColor = t.cardBorder;      e.currentTarget.querySelector(".rt").style.opacity = "0"; }}
+                          >
+                            <div style={{ display:"grid", gridTemplateColumns:"160px 95px 72px 84px 1fr 28px", gap:10, alignItems:"center", minWidth:0 }}>
+                              <div>
+                                <div style={{ fontWeight:700, fontSize:13, color:t.color, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{row.clientName}</div>
+                                <div style={{ display:"flex", alignItems:"center", gap:5, marginTop:3 }}>
+                                  <span style={{ fontSize:10, color:t.mutedColor, fontFamily:"monospace" }}>{row.policyNumber || "—"}</span>
+                                  <PriorityChip priority={row.priority} />
+                                </div>
+                              </div>
+                              <div>
+                                <div style={{ fontSize:14, fontWeight:800, color: isDark ? "#E8B87A" : "#5B3320", letterSpacing:"-0.02em" }}>{cur(row.ap)}</div>
+                                <div style={{ fontSize:10, color:t.mutedColor, marginTop:1 }}>premium</div>
+                              </div>
+                              <div><StageTag s={row.leadStatus} t={t} /></div>
+                              <div><StatusChip status={row.result} /></div>
+                              <div style={{ minWidth:0 }}>
+                                <div style={{ fontSize:12, fontWeight:600, color: isDark ? "#C8B89A" : "#6D6256", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{row.action || "—"}</div>
+                              </div>
+                              <div style={{ display:"flex", alignItems:"center", justifyContent:"center" }}>
+                                <NotesBubble notes={row.notes} isDark={isDark} />
+                              </div>
+                            </div>
+                            <div className="rt" style={{ display:"flex", gap:4, opacity:0, transition:"opacity .14s" }}>
+                              {row.result !== "RESOLVED" && (
+                                <button onClick={() => quickResolve(row.id)} title="Mark resolved" style={{ width:29, height:29, background:t.toolResBg, border:`1px solid ${t.toolResBorder}`, borderRadius:7, cursor:"pointer", color:t.toolResColor, fontSize:14, display:"flex", alignItems:"center", justifyContent:"center" }}>✓</button>
+                              )}
+                              <button onClick={() => setEditRow({ ...row })} title="Edit" style={{ width:29, height:29, background:t.toolEditBg, border:`1px solid ${t.toolEditBorder}`, borderRadius:7, cursor:"pointer", color:t.toolEditColor, fontSize:13, display:"flex", alignItems:"center", justifyContent:"center" }}>✎</button>
+                              <button onClick={() => deleteRow(row.id)} title="Delete" style={{ width:29, height:29, background:t.toolDelBg, border:`1px solid ${t.toolDelBorder}`, borderRadius:7, cursor:"pointer", color:t.toolDelColor, fontSize:13, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+                            </div>
                           </div>
-                        </div>
-                        <div>
-                          <div style={{ fontSize:14, fontWeight:800, color: isDark ? "#E8B87A" : "#5B3320", letterSpacing:"-0.02em" }}>{cur(row.ap)}</div>
-                          <div style={{ fontSize:10, color:t.mutedColor, marginTop:1 }}>premium</div>
-                        </div>
-                        <div><StageTag s={row.leadStatus} t={t} /></div>
-                        <div><StatusChip status={row.result} /></div>
-                        <div style={{ minWidth:0 }}>
-                          <div style={{ fontSize:12, fontWeight:600, color: isDark ? "#C8B89A" : "#6D6256", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{row.action || "—"}</div>
-                        </div>
-                        {/* Notes icon — hover to read, click to copy */}
-                        <div style={{ display:"flex", alignItems:"center", justifyContent:"center" }}>
-                          <NotesBubble notes={row.notes} isDark={isDark} />
-                        </div>
-                      </div>
-                      <div className="rt" style={{ display:"flex", gap:4, opacity:0, transition:"opacity .14s" }}>
-                        {row.result !== "RESOLVED" && (
-                          <button onClick={() => quickResolve(row.id)} title="Mark resolved" style={{ width:29, height:29, background:t.toolResBg, border:`1px solid ${t.toolResBorder}`, borderRadius:7, cursor:"pointer", color:t.toolResColor, fontSize:14, display:"flex", alignItems:"center", justifyContent:"center" }}>✓</button>
-                        )}
-                        <button onClick={() => setEditRow({ ...row })} title="Edit" style={{ width:29, height:29, background:t.toolEditBg, border:`1px solid ${t.toolEditBorder}`, borderRadius:7, cursor:"pointer", color:t.toolEditColor, fontSize:13, display:"flex", alignItems:"center", justifyContent:"center" }}>✎</button>
-                        <button onClick={() => deleteRow(row.id)} title="Delete" style={{ width:29, height:29, background:t.toolDelBg, border:`1px solid ${t.toolDelBorder}`, borderRadius:7, cursor:"pointer", color:t.toolDelColor, fontSize:13, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
-                      </div>
-                    </div>
-                  )) : (
+                        </React.Fragment>
+                      );
+                    });
+                  })() : (
                     <div style={{ textAlign:"center", padding:"52px 20px", background:t.emptyBg, borderRadius:10 }}>
                       <div style={{ fontSize:28, marginBottom:8, opacity:0.35 }}>◈</div>
                       <div style={{ fontSize:14, fontWeight:700, color:t.mutedColor }}>No cases match your filters</div>

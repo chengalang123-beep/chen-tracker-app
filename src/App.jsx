@@ -26,7 +26,7 @@ const TODAY = new Date().toISOString().slice(0, 10);
 
 const ACTION_OPTS   = ["", "Pending", "Pending Save", "Welcome Call", "Onboarding Call", "Pending Agent Assist", "Save", "UW Action Needed", "UW Action Resolved", "Lost", "Hang up"];
 const LEAD_OPTS     = ["", "NA", "NAA", "SRWT", "AS", "RTR", "CEP", "AYAR", "CWCC", "IUW", "UWAN", "UWAR", "UWSRWT"];
-const SPEC_OPTS     = ["", "Nisha", "Rick", "Chen", "Fernando", "Angie", "Claire"];
+const SPEC_OPTS     = ["", "Nisha", "Rick", "Chen", "Fernando", "Claire"];
 const PRIORITY_OPTS = ["Normal", "High", "Urgent"];
 const RESULT_OPTS   = ["PENDING", "RESOLVED", "LOST"];
 
@@ -89,15 +89,11 @@ function dedupeRows(sourceRows) {
 }
 
 function isRealRow(row) {
-  // Only filter out known header/junk values — never filter by specialist name
-  // so any new specialist automatically works
-  const bad = ["save","pending save","welcome call","onboarding call","uw action needed",
-    "uw action resolved","lost","client name","policy number","ap","lead status",
-    "agent name","result","status","action","notes","priority","updated at",
-    "specialist name","created at","specialistname","clientname","policynumber"];
-  const cn = String(row?.clientName || "").trim();
+  const bad = ["save","pending save","welcome call","onboarding call","uw action needed","uw action resolved","lost","client name","policy number","ap","lead status","agent name","result","status","action","notes","priority","updated at","specialist name","created at"];
+  const cn = String(row?.clientName     || "").trim();
+  const sn = String(row?.specialistName || "").trim();
   if (!cn || bad.includes(cn.toLowerCase())) return false;
-  // Must have a valid date
+  if (!["Nisha","Rick","Chen","Fernando","Claire","Unassigned"].includes(sn)) return false;
   const ud = String(row?.updatedAt || ""), cd = String(row?.createdAt || "");
   return /^\d{4}-\d{2}-\d{2}$/.test(ud) || /^\d{4}-\d{2}-\d{2}$/.test(cd);
 }
@@ -954,7 +950,7 @@ function EodTab({ onSave, eodEntries, onDeleteEod, t, isDark }) {
         <select value={eodSpec} onChange={(e) => setEodSpec(e.target.value)}
           style={{ height:24, background:t.inputBg, border:`1px solid ${t.inputBorder}`, borderRadius:6, padding:"0 6px", fontSize:10, color:t.inputColor, outline:"none", fontFamily:"inherit" }}>
           <option value="All">All specialists</option>
-          {["Nisha","Rick","Chen","Fernando","Angie","Claire"].map((s) => <option key={s}>{s}</option>)}
+          {["Nisha","Rick","Chen","Fernando","Claire"].map((s) => <option key={s}>{s}</option>)}
         </select>
       </div>
       <div style={{ display:"flex", flexDirection:"column", gap:5, maxHeight:320, overflowY:"auto" }}>
@@ -1124,7 +1120,7 @@ function InboundMainPanel({ ibDate, setIbDate, inboundRows, onSave, onDelete, on
           <select value={ibSpec} onChange={(e) => { setIbSpec(e.target.value); setIbPage(1); }}
             style={{ ...toolInp, width:"auto" }}>
             <option value="All">All specialists</option>
-            {["Nisha","Rick","Chen","Fernando","Angie","Claire"].map((s) => <option key={s}>{s}</option>)}
+            {["Nisha","Rick","Chen","Fernando","Claire"].map((s) => <option key={s}>{s}</option>)}
           </select>
           <span style={{ fontSize:11, color:t.mutedColor, marginLeft:"auto" }}>{filtered.length} entr{filtered.length !== 1 ? "ies" : "y"}</span>
         </div>
@@ -1256,7 +1252,7 @@ function EodMainPanel({ onSave, eodEntries, onDeleteEod, t, isDark }) {
           <select value={eodSpec} onChange={(e) => { setEodSpec(e.target.value); setEodPage(1); }}
             style={{ ...toolInp, width:"auto" }}>
             <option value="All">All specialists</option>
-            {["Nisha","Rick","Chen","Fernando","Angie","Claire"].map((s) => <option key={s}>{s}</option>)}
+            {["Nisha","Rick","Chen","Fernando","Claire"].map((s) => <option key={s}>{s}</option>)}
           </select>
           <span style={{ fontSize:11, color:t.mutedColor, marginLeft:"auto" }}>{filtered.length} EOD entr{filtered.length !== 1 ? "ies" : "y"}</span>
         </div>
@@ -1361,7 +1357,7 @@ async function loadFromSheet() {
 }
 
 // ─────────────────────────────────────────────
-// MAIN TRACKER APP
+// MAIN APP
 // ─────────────────────────────────────────────
 function ChenTrackerApp() {
   const [rows,          setRows]          = useState(() => safeLoad(STORAGE_KEY,         []));
@@ -1440,89 +1436,30 @@ function ChenTrackerApp() {
     setIsLoading(true);
     try {
       const data = await loadFromSheet();
-
-      // ── Cases ──
       if (data.success && Array.isArray(data.rows)) {
         const clean = dedupeRows(data.rows.filter(isRealRow));
         setRows(clean); safeSave(STORAGE_KEY, clean);
       }
-
-      // ── Inbound — merge sheet + localStorage so nothing is lost ──
-      const localInbound = safeLoad(INBOUND_STORAGE_KEY, []);
-      const sheetInbound = Array.isArray(data.inboundCancellations) ? data.inboundCancellations : [];
-      const mappedSheet  = sheetInbound.map((item) => {
-        const g = (...keys) => {
-          for (const k of keys) {
-            if (item[k] !== undefined && String(item[k]).trim() !== "") return String(item[k]).trim();
-          }
-          return "";
-        };
-        return {
-          id:             g("id","Id","ID")                                                            || crypto.randomUUID(),
-          createdAt:      g("createdAt","CreatedAt","created_at","Created At","Timestamp","createdat"),
-          clientName:     g("clientName","ClientName","client_name","Client Name","Client","Name","clientname"),
-          phoneNumber:    g("phoneNumber","PhoneNumber","phone_number","Phone Number","Phone","phonenumber"),
-          agentName:      g("agentName","AgentName","agent_name","Agent Name","Agent","agentname"),
-          specialistName: g("specialistName","SpecialistName","specialist_name","Specialist Name","Specialist","specialistname"),
-          resolved:       g("resolved","Resolved","isResolved")                                        || "No",
-          agentInformed:  g("agentInformed","AgentInformed","agent_informed","Agent Informed","agentinformed") || "No",
-          notes:          g("notes","Notes","note","Note"),
-          dateOfCall:     g("dateOfCall","DateOfCall","date_of_call","Date Of Call","Date","date","createdAt","CreatedAt","createdat"),
-        };
-      }).filter(r => r.clientName); // only keep rows with a client name
-
-      // Merge: sheet rows + local rows not already in sheet
-      const sheetKeys = new Set(mappedSheet.map(r => `${r.clientName}|${r.phoneNumber}`));
-      const localOnly = localInbound.filter(r => !sheetKeys.has(`${r.clientName}|${r.phoneNumber}`));
-      const mergedInbound = [...mappedSheet, ...localOnly];
-      setInboundRows(mergedInbound); safeSave(INBOUND_STORAGE_KEY, mergedInbound);
-
-      // ── EOD ──
-      const localEod = safeLoad(EOD_STORAGE_KEY, []);
-      if (Array.isArray(data.eodTestEntries) && data.eodTestEntries.length > 0) {
-        const fixedEod = data.eodTestEntries.map((item) => {
-          const g = (...keys) => {
-            for (const k of keys) {
-              if (item[k] !== undefined && String(item[k]).trim() !== "") return String(item[k]).trim();
-            }
-            return "";
-          };
-          return {
-            id:                            g("id","Id","ID")                                                  || crypto.randomUUID(),
-            specialistName:                g("specialistName","SpecialistName","Specialist Name","Specialist","specialistname"),
-            date:                          g("date","Date","submittedDate","Submitted Date"),
-            totalDials:                    g("totalDials","TotalDials","Total Dials","totaldials"),
-            totalTalkTime:                 g("totalTalkTime","TotalTalkTime","Total Talk Time","totaltalktime"),
-            clientsReached:                g("clientsReached","ClientsReached","Clients Reached","clientsreached"),
-            welcomeCallsCompleted:         g("welcomeCallsCompleted","WelcomeCallsCompleted","Welcome Calls Completed","welcomecallscompleted"),
-            atRiskResolvedPre:             g("atRiskResolvedPre","AtRiskResolvedPre","At Risk Resolved Pre","atriskresolvedpre"),
-            atRiskResolvedConfirmed:       g("atRiskResolvedConfirmed","AtRiskResolvedConfirmed","At Risk Resolved Confirmed","atriskresolvedconfirmed"),
-            apSavedPre:                    g("apSavedPre","ApSavedPre","AP Saved Pre","apsavedpre"),
-            apSavedConfirmed:              g("apSavedConfirmed","ApSavedConfirmed","AP Saved Confirmed","apsavedconfirmed"),
-            uwPoliciesResolved:            g("uwPoliciesResolved","UwPoliciesResolved","UW Policies Resolved","uwpoliciesresolved"),
-            pendingResolution:             g("pendingResolution","PendingResolution","Pending Resolution","pendingresolution"),
-            savedPendingConfirmation:      g("savedPendingConfirmation","SavedPendingConfirmation","Saved Pending Confirmation","savedpendingconfirmation"),
-            savedConfirmed:                g("savedConfirmed","SavedConfirmed","Saved Confirmed","savedconfirmed"),
-            uwResolvedNotConfirmedDetails: g("uwResolvedNotConfirmedDetails","UW Resolved Not Confirmed Details","uwresolvednotconfirmeddetails"),
-            uwConfirmedResolvedDetails:    g("uwConfirmedResolvedDetails","UW Confirmed Resolved Details","uwconfirmedresolveddetails"),
-            escalationsAgentActionNeeded:  g("escalationsAgentActionNeeded","Escalations Agent Action Needed","Escalations","escalationsagentactionneeded"),
-            createdAt:                     g("createdAt","CreatedAt","Created At","Timestamp","createdat"),
-          };
-        });
-        const merged = [...fixedEod, ...localEod].filter((e, i, arr) => arr.findIndex((x) => x.id === e.id) === i);
-        setEodEntries(merged); safeSave(EOD_STORAGE_KEY, merged);
-      } else if (localEod.length > 0) {
-        setEodEntries(localEod);
+      if (Array.isArray(data.inboundCancellations)) {
+        const ib = data.inboundCancellations.map((item) => ({
+          id: item.id || crypto.randomUUID(), createdAt: item.createdAt || "",
+          clientName: item.clientName || "", phoneNumber: item.phoneNumber || "",
+          agentName: item.agentName || "", specialistName: item.specialistName || "",
+          resolved: item.resolved || "No", agentInformed: item.agentInformed || "No",
+          notes: item.notes || "",
+        }));
+        setInboundRows(ib); safeSave(INBOUND_STORAGE_KEY, ib);
       }
-
+      if (Array.isArray(data.eodTestEntries)) {
+        setEodEntries((cur) => {
+          const merged = [...data.eodTestEntries, ...cur].filter((e, i, arr) => arr.findIndex((x) => x.id === e.id) === i);
+          safeSave(EOD_STORAGE_KEY, merged);
+          return merged;
+        });
+      }
       showToast("Data refreshed.", t.toastSuccess);
     } catch (e) {
       console.error("Refresh failed:", e);
-      // Always fall back to localStorage on any error
-      const localInbound = safeLoad(INBOUND_STORAGE_KEY, []);
-      const localEod     = safeLoad(EOD_STORAGE_KEY,     []);
-      if (localInbound.length) setInboundRows(localInbound);
-      if (localEod.length)     setEodEntries(localEod);
       showToast("Refresh failed — check connection.", t.toastError);
     } finally { setIsLoading(false); }
   }, []); // eslint-disable-line
@@ -1671,7 +1608,7 @@ function ChenTrackerApp() {
           <select value={specFilter} onChange={(e) => { setSpecFilter(e.target.value); setPage(1); }}
             style={{ height:31, background:t.inputBg, border:`1px solid ${t.inputBorder}`, borderRadius:8, padding:"0 11px", fontSize:12, color:t.inputColor, outline:"none", cursor:"pointer", fontFamily:"inherit" }}>
             <option value="All">All specialists</option>
-            {["Nisha","Rick","Chen","Fernando","Angie","Claire"].map((s) => <option key={s}>{s}</option>)}
+            {["Nisha","Rick","Chen","Fernando","Claire"].map((s) => <option key={s}>{s}</option>)}
           </select>
           <button onClick={() => setShowReminders(true)} style={{ position:"relative", height:31, background:"transparent", border:`1px solid ${isDark ? "#2D4035" : "#CDBAA3"}`, borderRadius:8, padding:"0 13px", fontSize:12, fontWeight:600, cursor:"pointer", color: isDark ? "#C8B89A" : "#6D6256", display:"inline-flex", alignItems:"center", gap:5, fontFamily:"inherit" }}>
             🔔 Reminders
@@ -1775,119 +1712,45 @@ function ChenTrackerApp() {
                   <div style={{ width:95 }} />
                 </div>
 
-                {/* Case cards with date separators */}
+                {/* Case cards */}
                 <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
-                  {paged.length ? (() => {
-                    let lastDate = null;
-                    return paged.map((row) => {
-                      const rowDate = row.updatedAt || row.createdAt || "";
-                      const showSep = rowDate && rowDate !== lastDate;
-                      if (showSep) lastDate = rowDate;
-                      const dateLabel = rowDate
-                        ? new Date(rowDate + "T12:00:00").toLocaleDateString("en-US", { month:"long", day:"numeric", year:"numeric" })
-                        : "";
-                      return (
-                        <React.Fragment key={row.id}>
-                          {showSep && (
-                            <div style={{
-                              background: isDark ? "#2A3A1A" : "#F5E6C8",
-                              border: `1px solid ${isDark ? "#4A6A28" : "#D4A850"}`,
-                              borderRadius: 8,
-                              padding: "6px 16px",
-                              textAlign: "center",
-                              fontSize: 12,
-                              fontWeight: 700,
-                              color: isDark ? "#E8B87A" : "#7A4A10",
-                              letterSpacing: "0.04em",
-                              marginTop: 6,
-                              marginBottom: 2,
-                            }}>
-                              {dateLabel}
-                            </div>
-                          )}
-                          <div
-                            style={{ background:t.cardBg, border:`1px solid ${t.cardBorder}`, borderRadius:10, padding:"11px 14px", display:"grid", gridTemplateColumns:"1fr auto", gap:10, alignItems:"center", cursor:"default", transition:"border-color .14s,background .14s" }}
-                            onMouseEnter={(e) => { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.borderColor = t.cardHoverBorder; e.currentTarget.querySelector(".rt").style.opacity = "1"; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.background = t.cardBg;    e.currentTarget.style.borderColor = t.cardBorder;      e.currentTarget.querySelector(".rt").style.opacity = "0"; }}
-                          >
-                            <div style={{ display:"grid", gridTemplateColumns:"160px 95px 72px 84px 1fr 28px", gap:10, alignItems:"center", minWidth:0 }}>
-                              <div>
-                                <div style={{ fontWeight:700, fontSize:13, color:t.color, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{row.clientName}</div>
-                                <div style={{ display:"flex", alignItems:"center", gap:5, marginTop:3 }}>
-                                  <span style={{ fontSize:10, color:t.mutedColor, fontFamily:"monospace" }}>{row.policyNumber || "—"}</span>
-                                  <PriorityChip priority={row.priority} />
-                                </div>
-                              </div>
-                              <div>
-                                <div style={{ fontSize:14, fontWeight:800, color: isDark ? "#E8B87A" : "#5B3320", letterSpacing:"-0.02em" }}>{cur(row.ap)}</div>
-                                <div style={{ fontSize:10, color:t.mutedColor, marginTop:1 }}>premium</div>
-                              </div>
-                              <div><StageTag s={row.leadStatus} t={t} /></div>
-                              <div><StatusChip status={row.result} /></div>
-                              <div style={{ minWidth:0 }}>
-                                <div style={{ fontSize:12, fontWeight:600, color: isDark ? "#C8B89A" : "#6D6256", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{row.action || "—"}</div>
-                              </div>
-                              <div style={{ display:"flex", alignItems:"center", justifyContent:"center" }}>
-                                <NotesBubble notes={row.notes} isDark={isDark} />
-                              </div>
-                            </div>
-                            <div className="rt" style={{ display:"flex", gap:4, opacity:0, transition:"opacity .14s" }}>
-                              {row.result !== "RESOLVED" && (
-                                <button onClick={() => quickResolve(row.id)} title="Mark resolved" style={{ width:29, height:29, background:t.toolResBg, border:`1px solid ${t.toolResBorder}`, borderRadius:7, cursor:"pointer", color:t.toolResColor, fontSize:14, display:"flex", alignItems:"center", justifyContent:"center" }}>✓</button>
-                              )}
-                              <button onClick={() => setEditRow({ ...row })} title="Edit" style={{ width:29, height:29, background:t.toolEditBg, border:`1px solid ${t.toolEditBorder}`, borderRadius:7, cursor:"pointer", color:t.toolEditColor, fontSize:13, display:"flex", alignItems:"center", justifyContent:"center" }}>✎</button>
-                              <button onClick={() => deleteRow(row.id)} title="Delete" style={{ width:29, height:29, background:t.toolDelBg, border:`1px solid ${t.toolDelBorder}`, borderRadius:7, cursor:"pointer", color:t.toolDelColor, fontSize:13, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
-                            </div>
+                  {paged.length ? paged.map((row) => (
+                    <div key={row.id}
+                      style={{ background:t.cardBg, border:`1px solid ${t.cardBorder}`, borderRadius:10, padding:"11px 14px", display:"grid", gridTemplateColumns:"1fr auto", gap:10, alignItems:"center", cursor:"default", transition:"border-color .14s,background .14s" }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.borderColor = t.cardHoverBorder; e.currentTarget.querySelector(".rt").style.opacity = "1"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = t.cardBg;    e.currentTarget.style.borderColor = t.cardBorder;      e.currentTarget.querySelector(".rt").style.opacity = "0"; }}
+                    >
+                      <div style={{ display:"grid", gridTemplateColumns:"160px 95px 72px 84px 1fr 28px", gap:10, alignItems:"center", minWidth:0 }}>
+                        <div>
+                          <div style={{ fontWeight:700, fontSize:13, color:t.color, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{row.clientName}</div>
+                          <div style={{ display:"flex", alignItems:"center", gap:5, marginTop:3 }}>
+                            <span style={{ fontSize:10, color:t.mutedColor, fontFamily:"monospace" }}>{row.policyNumber || "—"}</span>
+                            <PriorityChip priority={row.priority} />
                           </div>
-                        </React.Fragment>
-                      );
-                    });
-                  })() : (
-                    <div style={{ textAlign:"center", padding:"52px 20px", background:t.emptyBg, borderRadius:10 }}>
-                      <div style={{ fontSize:28, marginBottom:8, opacity:0.35 }}>◈</div>
-                      <div style={{ fontSize:14, fontWeight:700, color:t.mutedColor }}>No cases match your filters</div>
-                      <div style={{ fontSize:12, marginTop:4, color:t.dimColor }}>Try clearing your search or filters</div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize:14, fontWeight:800, color: isDark ? "#E8B87A" : "#5B3320", letterSpacing:"-0.02em" }}>{cur(row.ap)}</div>
+                          <div style={{ fontSize:10, color:t.mutedColor, marginTop:1 }}>premium</div>
+                        </div>
+                        <div><StageTag s={row.leadStatus} t={t} /></div>
+                        <div><StatusChip status={row.result} /></div>
+                        <div style={{ minWidth:0 }}>
+                          <div style={{ fontSize:12, fontWeight:600, color: isDark ? "#C8B89A" : "#6D6256", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{row.action || "—"}</div>
+                        </div>
+                        {/* Notes icon — hover to read, click to copy */}
+                        <div style={{ display:"flex", alignItems:"center", justifyContent:"center" }}>
+                          <NotesBubble notes={row.notes} isDark={isDark} />
+                        </div>
+                      </div>
+                      <div className="rt" style={{ display:"flex", gap:4, opacity:0, transition:"opacity .14s" }}>
+                        {row.result !== "RESOLVED" && (
+                          <button onClick={() => quickResolve(row.id)} title="Mark resolved" style={{ width:29, height:29, background:t.toolResBg, border:`1px solid ${t.toolResBorder}`, borderRadius:7, cursor:"pointer", color:t.toolResColor, fontSize:14, display:"flex", alignItems:"center", justifyContent:"center" }}>✓</button>
+                        )}
+                        <button onClick={() => setEditRow({ ...row })} title="Edit" style={{ width:29, height:29, background:t.toolEditBg, border:`1px solid ${t.toolEditBorder}`, borderRadius:7, cursor:"pointer", color:t.toolEditColor, fontSize:13, display:"flex", alignItems:"center", justifyContent:"center" }}>✎</button>
+                        <button onClick={() => deleteRow(row.id)} title="Delete" style={{ width:29, height:29, background:t.toolDelBg, border:`1px solid ${t.toolDelBorder}`, borderRadius:7, cursor:"pointer", color:t.toolDelColor, fontSize:13, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+                      </div>
                     </div>
-                  )}
-                </div>
-                          <div
-                            style={{ background:t.cardBg, border:`1px solid ${t.cardBorder}`, borderRadius:10, padding:"11px 14px", display:"grid", gridTemplateColumns:"1fr auto", gap:10, alignItems:"center", cursor:"default", transition:"border-color .14s,background .14s" }}
-                            onMouseEnter={(e) => { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.borderColor = t.cardHoverBorder; e.currentTarget.querySelector(".rt").style.opacity = "1"; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.background = t.cardBg;    e.currentTarget.style.borderColor = t.cardBorder;      e.currentTarget.querySelector(".rt").style.opacity = "0"; }}
-                          >
-                            <div style={{ display:"grid", gridTemplateColumns:"160px 95px 72px 84px 1fr 28px", gap:10, alignItems:"center", minWidth:0 }}>
-                              <div>
-                                <div style={{ fontWeight:700, fontSize:13, color:t.color, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{row.clientName}</div>
-                                <div style={{ display:"flex", alignItems:"center", gap:5, marginTop:3 }}>
-                                  <span style={{ fontSize:10, color:t.mutedColor, fontFamily:"monospace" }}>{row.policyNumber || "—"}</span>
-                                  <PriorityChip priority={row.priority} />
-                                </div>
-                              </div>
-                              <div>
-                                <div style={{ fontSize:14, fontWeight:800, color: isDark ? "#E8B87A" : "#5B3320", letterSpacing:"-0.02em" }}>{cur(row.ap)}</div>
-                                <div style={{ fontSize:10, color:t.mutedColor, marginTop:1 }}>premium</div>
-                              </div>
-                              <div><StageTag s={row.leadStatus} t={t} /></div>
-                              <div><StatusChip status={row.result} /></div>
-                              <div style={{ minWidth:0 }}>
-                                <div style={{ fontSize:12, fontWeight:600, color: isDark ? "#C8B89A" : "#6D6256", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{row.action || "—"}</div>
-                              </div>
-                              <div style={{ display:"flex", alignItems:"center", justifyContent:"center" }}>
-                                <NotesBubble notes={row.notes} isDark={isDark} />
-                              </div>
-                            </div>
-                            <div className="rt" style={{ display:"flex", gap:4, opacity:0, transition:"opacity .14s" }}>
-                              {row.result !== "RESOLVED" && (
-                                <button onClick={() => quickResolve(row.id)} title="Mark resolved" style={{ width:29, height:29, background:t.toolResBg, border:`1px solid ${t.toolResBorder}`, borderRadius:7, cursor:"pointer", color:t.toolResColor, fontSize:14, display:"flex", alignItems:"center", justifyContent:"center" }}>✓</button>
-                              )}
-                              <button onClick={() => setEditRow({ ...row })} title="Edit" style={{ width:29, height:29, background:t.toolEditBg, border:`1px solid ${t.toolEditBorder}`, borderRadius:7, cursor:"pointer", color:t.toolEditColor, fontSize:13, display:"flex", alignItems:"center", justifyContent:"center" }}>✎</button>
-                              <button onClick={() => deleteRow(row.id)} title="Delete" style={{ width:29, height:29, background:t.toolDelBg, border:`1px solid ${t.toolDelBorder}`, borderRadius:7, cursor:"pointer", color:t.toolDelColor, fontSize:13, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
-                            </div>
-                          </div>
-                        </React.Fragment>
-                      );
-                    });
-                  })() : (
+                  )) : (
                     <div style={{ textAlign:"center", padding:"52px 20px", background:t.emptyBg, borderRadius:10 }}>
                       <div style={{ fontSize:28, marginBottom:8, opacity:0.35 }}>◈</div>
                       <div style={{ fontSize:14, fontWeight:700, color:t.mutedColor }}>No cases match your filters</div>
@@ -1986,7 +1849,7 @@ function ChenTrackerApp() {
 }
 
 // ─────────────────────────────────────────────
-// ROOT APP — handles / and /admin routing
+// ROOT APP — / and /admin routing
 // ─────────────────────────────────────────────
 export default function App() {
   return (

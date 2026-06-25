@@ -1445,18 +1445,61 @@ function ChenTrackerApp() {
         setRows(clean); safeSave(STORAGE_KEY, clean);
       }
       if (Array.isArray(data.inboundCancellations)) {
-        const ib = data.inboundCancellations.map((item) => ({
-          id: item.id || crypto.randomUUID(), createdAt: item.createdAt || "",
-          clientName: item.clientName || "", phoneNumber: item.phoneNumber || "",
-          agentName: item.agentName || "", specialistName: item.specialistName || "",
-          resolved: item.resolved || "No", agentInformed: item.agentInformed || "No",
-          notes: item.notes || "",
-        }));
+        const ib = data.inboundCancellations.map((item) => {
+          // Helper to get a value from multiple possible key names
+          const g = (...keys) => {
+            for (const k of keys) {
+              if (item[k] !== undefined && item[k] !== "") return String(item[k]).trim();
+            }
+            return "";
+          };
+          return {
+            id:             g("id", "Id", "ID")                                               || crypto.randomUUID(),
+            createdAt:      g("createdAt", "CreatedAt", "created_at", "Created At", "Timestamp"),
+            clientName:     g("clientName", "ClientName", "client_name", "Client Name", "Client", "Name"),
+            phoneNumber:    g("phoneNumber", "PhoneNumber", "phone_number", "Phone Number", "Phone"),
+            agentName:      g("agentName", "AgentName", "agent_name", "Agent Name", "Agent"),
+            specialistName: g("specialistName", "SpecialistName", "specialist_name", "Specialist Name", "Specialist"),
+            resolved:       g("resolved", "Resolved", "isResolved")                           || "No",
+            agentInformed:  g("agentInformed", "AgentInformed", "agent_informed", "Agent Informed") || "No",
+            notes:          g("notes", "Notes", "note", "Note"),
+            dateOfCall:     g("dateOfCall", "DateOfCall", "date_of_call", "Date Of Call", "Date", "date"),
+          };
+        });
         setInboundRows(ib); safeSave(INBOUND_STORAGE_KEY, ib);
       }
       if (Array.isArray(data.eodTestEntries)) {
+        const fixedEod = data.eodTestEntries.map((item) => {
+          const g = (...keys) => {
+            for (const k of keys) {
+              if (item[k] !== undefined && item[k] !== "") return String(item[k]).trim();
+            }
+            return "";
+          };
+          return {
+            id:                            g("id","Id","ID")                                                     || crypto.randomUUID(),
+            specialistName:                g("specialistName","SpecialistName","Specialist Name","Specialist"),
+            date:                          g("date","Date","submittedDate","Submitted Date"),
+            totalDials:                    g("totalDials","TotalDials","Total Dials","total_dials"),
+            totalTalkTime:                 g("totalTalkTime","TotalTalkTime","Total Talk Time","total_talk_time"),
+            clientsReached:                g("clientsReached","ClientsReached","Clients Reached","clients_reached"),
+            welcomeCallsCompleted:         g("welcomeCallsCompleted","WelcomeCallsCompleted","Welcome Calls Completed"),
+            atRiskResolvedPre:             g("atRiskResolvedPre","AtRiskResolvedPre","At Risk Resolved Pre"),
+            atRiskResolvedConfirmed:       g("atRiskResolvedConfirmed","AtRiskResolvedConfirmed","At Risk Resolved Confirmed"),
+            apSavedPre:                    g("apSavedPre","ApSavedPre","AP Saved Pre","ap_saved_pre"),
+            apSavedConfirmed:              g("apSavedConfirmed","ApSavedConfirmed","AP Saved Confirmed","ap_saved_confirmed"),
+            uwPoliciesResolved:            g("uwPoliciesResolved","UwPoliciesResolved","UW Policies Resolved"),
+            pendingResolution:             g("pendingResolution","PendingResolution","Pending Resolution"),
+            savedPendingConfirmation:      g("savedPendingConfirmation","SavedPendingConfirmation","Saved Pending Confirmation"),
+            savedConfirmed:                g("savedConfirmed","SavedConfirmed","Saved Confirmed"),
+            uwResolvedNotConfirmedDetails: g("uwResolvedNotConfirmedDetails","UW Resolved Not Confirmed Details"),
+            uwConfirmedResolvedDetails:    g("uwConfirmedResolvedDetails","UW Confirmed Resolved Details"),
+            escalationsAgentActionNeeded:  g("escalationsAgentActionNeeded","Escalations Agent Action Needed","Escalations"),
+            createdAt:                     g("createdAt","CreatedAt","Created At","Timestamp"),
+          };
+        });
         setEodEntries((cur) => {
-          const merged = [...data.eodTestEntries, ...cur].filter((e, i, arr) => arr.findIndex((x) => x.id === e.id) === i);
+          const merged = [...fixedEod, ...cur].filter((e, i, arr) => arr.findIndex((x) => x.id === e.id) === i);
           safeSave(EOD_STORAGE_KEY, merged);
           return merged;
         });

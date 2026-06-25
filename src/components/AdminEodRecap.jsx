@@ -8,7 +8,7 @@ const TRACKER_SHEET_URL =
 
 // Admin recap sheet — paste your deployed Apps Script URL here after setup
 const ADMIN_SHEET_URL =
-  "https://script.google.com/macros/s/REPLACE_WITH_ADMIN_SCRIPT_DEPLOYMENT_URL/exec";
+  "https://script.google.com/macros/s/AKfycbwtI6vlSXtGOJz7GhrT9-UqJ7hJqPSKewiP9Of6cgE0BtXyDYYFsnTgvS4VzOsD4-3W/exec";
 
 const SPECIALISTS = ["Nisha", "Rick", "Chen", "Fernando", "Angie", "Claire"];
 

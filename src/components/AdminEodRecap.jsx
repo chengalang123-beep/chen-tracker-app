@@ -145,18 +145,40 @@ export default function AdminEodRecap() {
     toastTimer.current = setTimeout(() => setToast({ msg:"", color:"" }), 3000);
   }
 
-  // Load data from tracker Google Sheet
+  // Load data from tracker Google Sheet + localStorage fallback
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
+      // Always load from localStorage first so locally submitted EODs show instantly
+      const localEod = safeLoad("eterna-eod-v1", []);
+      const localRows = safeLoad("eterna-tracker-rows-v1", []);
+
       const res  = await fetch(TRACKER_SHEET_URL);
       const data = await res.json();
-      if (Array.isArray(data.eodTestEntries)) setEodEntries(data.eodTestEntries);
-      if (Array.isArray(data.rows))           setAllRows(data.rows);
-      showToast("Data loaded from Google Sheets.", "#3A6E50");
+
+      // Merge sheet EODs with local EODs — deduplicate by id
+      const sheetEod = Array.isArray(data.eodTestEntries) ? data.eodTestEntries : [];
+      const merged = [...sheetEod, ...localEod].filter((e, i, arr) =>
+        arr.findIndex((x) => x.id === e.id) === i
+      );
+      setEodEntries(merged);
+
+      // Merge sheet rows with local rows
+      const sheetRows = Array.isArray(data.rows) ? data.rows : [];
+      const mergedRows = [...sheetRows, ...localRows].filter((r, i, arr) =>
+        arr.findIndex((x) => x.id === r.id) === i
+      );
+      setAllRows(mergedRows.length ? mergedRows : localRows);
+
+      showToast("Data loaded.", "#3A6E50");
     } catch (e) {
       console.error(e);
-      showToast("Failed to load — check connection.", "#9D3F23");
+      // On network failure, fall back entirely to localStorage
+      const localEod  = safeLoad("eterna-eod-v1", []);
+      const localRows = safeLoad("eterna-tracker-rows-v1", []);
+      setEodEntries(localEod);
+      setAllRows(localRows);
+      showToast("Loaded from local data (sheet unavailable).", "#C07820");
     } finally {
       setIsLoading(false);
     }
@@ -164,32 +186,62 @@ export default function AdminEodRecap() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // Filter EOD for selected date
+  // Normalize any date value to YYYY-MM-DD for reliable comparison
+  function normalizeDate(val) {
+    if (!val) return "";
+    const s = String(val).trim();
+    // Already YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+    // M/D/YYYY or MM/DD/YYYY
+    if (/^\d{1,2}\/\d{1,2}\/\d{4}/.test(s)) {
+      const [mo, dy, yr] = s.split("/");
+      return `${yr}-${mo.padStart(2,"0")}-${dy.padStart(2,"0")}`;
+    }
+    // Try JS Date parse as last resort
+    const d = new Date(s);
+    if (!isNaN(d.getTime())) return d.toISOString().slice(0,10);
+    return s;
+  }
+
+  // Filter EOD for selected date — handles any date format from the sheet
   const dayEntries = useMemo(() =>
-    eodEntries.filter((e) => e.date === selectedDate),
+    eodEntries.filter((e) => {
+      // Check all possible date fields
+      const d = e.date || e.Date || e.createdAt || e.submittedAt || "";
+      return normalizeDate(d) === selectedDate;
+    }),
     [eodEntries, selectedDate]
   );
 
-  // Map by specialist
+  // Map by specialist — handle field name variations from the sheet
   const bySpec = useMemo(() => {
     const m = {};
-    dayEntries.forEach((e) => { m[e.specialistName] = e; });
+    dayEntries.forEach((e) => {
+      const name = e.specialistName || e.SpecialistName || e.specialist || "";
+      if (name) m[name] = e;
+    });
     return m;
   }, [dayEntries]);
 
-  // Totals for the day
-  const totals = useMemo(() => ({
-    totalDials:            dayEntries.reduce((s, e) => s + num(e.totalDials),            0),
-    clientsReached:        dayEntries.reduce((s, e) => s + num(e.clientsReached),        0),
-    totalTalkTime:         dayEntries.reduce((s, e) => s + num(e.totalTalkTime),         0),
-    apSavedPre:            dayEntries.reduce((s, e) => s + num(e.apSavedPre),            0),
-    apSavedConfirmed:      dayEntries.reduce((s, e) => s + num(e.apSavedConfirmed),      0),
-    uwPoliciesResolved:    dayEntries.reduce((s, e) => s + num(e.uwPoliciesResolved),    0),
-    welcomeCallsCompleted: dayEntries.reduce((s, e) => s + num(e.welcomeCallsCompleted), 0),
-    atRiskResolvedPre:     dayEntries.reduce((s, e) => s + num(e.atRiskResolvedPre),     0),
-    atRiskResolvedConfirmed:dayEntries.reduce((s, e)=> s + num(e.atRiskResolvedConfirmed),0),
-    pendingResolution:     dayEntries.reduce((s, e) => s + num(e.pendingResolution),     0),
-  }), [dayEntries]);
+  // Totals for the day — handle both camelCase and raw sheet column names
+  const totals = useMemo(() => {
+    const g = (e, ...keys) => {
+      for (const k of keys) { if (e[k] !== undefined && e[k] !== "") return num(e[k]); }
+      return 0;
+    };
+    return {
+      totalDials:             dayEntries.reduce((s, e) => s + g(e, "totalDials",            "Total Dials",             "totaldials"),            0),
+      clientsReached:         dayEntries.reduce((s, e) => s + g(e, "clientsReached",         "Clients Reached",         "clientsreached"),         0),
+      totalTalkTime:          dayEntries.reduce((s, e) => s + g(e, "totalTalkTime",          "Total Talk Time",         "totaltalktime"),          0),
+      apSavedPre:             dayEntries.reduce((s, e) => s + g(e, "apSavedPre",             "AP Saved Pre",            "apsavedpre"),             0),
+      apSavedConfirmed:       dayEntries.reduce((s, e) => s + g(e, "apSavedConfirmed",       "AP Saved Confirmed",      "apsavedconfirmed"),       0),
+      uwPoliciesResolved:     dayEntries.reduce((s, e) => s + g(e, "uwPoliciesResolved",     "UW Policies Resolved",    "uwpoliciesresolved"),     0),
+      welcomeCallsCompleted:  dayEntries.reduce((s, e) => s + g(e, "welcomeCallsCompleted",  "Welcome Calls Completed", "welcomecallscompleted"),  0),
+      atRiskResolvedPre:      dayEntries.reduce((s, e) => s + g(e, "atRiskResolvedPre",      "At Risk Resolved Pre",    "atriskresolvedpre"),      0),
+      atRiskResolvedConfirmed:dayEntries.reduce((s, e) => s + g(e, "atRiskResolvedConfirmed","At Risk Resolved Conf",   "atriskresolvedconfirmed"),0),
+      pendingResolution:      dayEntries.reduce((s, e) => s + g(e, "pendingResolution",      "Pending Resolution",      "pendingresolution"),      0),
+    };
+  }, [dayEntries]);
 
   // AP Saved WTD and MTD from all rows (action = Save)
   const apSummary = useMemo(() => {

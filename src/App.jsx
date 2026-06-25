@@ -1440,73 +1440,89 @@ function ChenTrackerApp() {
     setIsLoading(true);
     try {
       const data = await loadFromSheet();
+
+      // ── Cases ──
       if (data.success && Array.isArray(data.rows)) {
         const clean = dedupeRows(data.rows.filter(isRealRow));
         setRows(clean); safeSave(STORAGE_KEY, clean);
       }
-      if (Array.isArray(data.inboundCancellations)) {
-        const ib = data.inboundCancellations.map((item) => {
-          // Helper to get a value from multiple possible key names
-          const g = (...keys) => {
-            for (const k of keys) {
-              if (item[k] !== undefined && item[k] !== "") return String(item[k]).trim();
-            }
-            return "";
-          };
-          return {
-            id:             g("id", "Id", "ID")                                               || crypto.randomUUID(),
-            createdAt:      g("createdAt", "CreatedAt", "created_at", "Created At", "Timestamp"),
-            clientName:     g("clientName", "ClientName", "client_name", "Client Name", "Client", "Name"),
-            phoneNumber:    g("phoneNumber", "PhoneNumber", "phone_number", "Phone Number", "Phone"),
-            agentName:      g("agentName", "AgentName", "agent_name", "Agent Name", "Agent"),
-            specialistName: g("specialistName", "SpecialistName", "specialist_name", "Specialist Name", "Specialist"),
-            resolved:       g("resolved", "Resolved", "isResolved")                           || "No",
-            agentInformed:  g("agentInformed", "AgentInformed", "agent_informed", "Agent Informed") || "No",
-            notes:          g("notes", "Notes", "note", "Note"),
-            dateOfCall:     g("dateOfCall", "DateOfCall", "date_of_call", "Date Of Call", "Date", "date"),
-          };
-        });
-        setInboundRows(ib); safeSave(INBOUND_STORAGE_KEY, ib);
-      }
-      if (Array.isArray(data.eodTestEntries)) {
+
+      // ── Inbound — merge sheet + localStorage so nothing is lost ──
+      const localInbound = safeLoad(INBOUND_STORAGE_KEY, []);
+      const sheetInbound = Array.isArray(data.inboundCancellations) ? data.inboundCancellations : [];
+      const mappedSheet  = sheetInbound.map((item) => {
+        const g = (...keys) => {
+          for (const k of keys) {
+            if (item[k] !== undefined && String(item[k]).trim() !== "") return String(item[k]).trim();
+          }
+          return "";
+        };
+        return {
+          id:             g("id","Id","ID")                                                            || crypto.randomUUID(),
+          createdAt:      g("createdAt","CreatedAt","created_at","Created At","Timestamp","createdat"),
+          clientName:     g("clientName","ClientName","client_name","Client Name","Client","Name","clientname"),
+          phoneNumber:    g("phoneNumber","PhoneNumber","phone_number","Phone Number","Phone","phonenumber"),
+          agentName:      g("agentName","AgentName","agent_name","Agent Name","Agent","agentname"),
+          specialistName: g("specialistName","SpecialistName","specialist_name","Specialist Name","Specialist","specialistname"),
+          resolved:       g("resolved","Resolved","isResolved")                                        || "No",
+          agentInformed:  g("agentInformed","AgentInformed","agent_informed","Agent Informed","agentinformed") || "No",
+          notes:          g("notes","Notes","note","Note"),
+          dateOfCall:     g("dateOfCall","DateOfCall","date_of_call","Date Of Call","Date","date","createdAt","CreatedAt","createdat"),
+        };
+      }).filter(r => r.clientName); // only keep rows with a client name
+
+      // Merge: sheet rows + local rows not already in sheet
+      const sheetKeys = new Set(mappedSheet.map(r => `${r.clientName}|${r.phoneNumber}`));
+      const localOnly = localInbound.filter(r => !sheetKeys.has(`${r.clientName}|${r.phoneNumber}`));
+      const mergedInbound = [...mappedSheet, ...localOnly];
+      setInboundRows(mergedInbound); safeSave(INBOUND_STORAGE_KEY, mergedInbound);
+
+      // ── EOD ──
+      const localEod = safeLoad(EOD_STORAGE_KEY, []);
+      if (Array.isArray(data.eodTestEntries) && data.eodTestEntries.length > 0) {
         const fixedEod = data.eodTestEntries.map((item) => {
           const g = (...keys) => {
             for (const k of keys) {
-              if (item[k] !== undefined && item[k] !== "") return String(item[k]).trim();
+              if (item[k] !== undefined && String(item[k]).trim() !== "") return String(item[k]).trim();
             }
             return "";
           };
           return {
-            id:                            g("id","Id","ID")                                                     || crypto.randomUUID(),
-            specialistName:                g("specialistName","SpecialistName","Specialist Name","Specialist"),
+            id:                            g("id","Id","ID")                                                  || crypto.randomUUID(),
+            specialistName:                g("specialistName","SpecialistName","Specialist Name","Specialist","specialistname"),
             date:                          g("date","Date","submittedDate","Submitted Date"),
-            totalDials:                    g("totalDials","TotalDials","Total Dials","total_dials"),
-            totalTalkTime:                 g("totalTalkTime","TotalTalkTime","Total Talk Time","total_talk_time"),
-            clientsReached:                g("clientsReached","ClientsReached","Clients Reached","clients_reached"),
-            welcomeCallsCompleted:         g("welcomeCallsCompleted","WelcomeCallsCompleted","Welcome Calls Completed"),
-            atRiskResolvedPre:             g("atRiskResolvedPre","AtRiskResolvedPre","At Risk Resolved Pre"),
-            atRiskResolvedConfirmed:       g("atRiskResolvedConfirmed","AtRiskResolvedConfirmed","At Risk Resolved Confirmed"),
-            apSavedPre:                    g("apSavedPre","ApSavedPre","AP Saved Pre","ap_saved_pre"),
-            apSavedConfirmed:              g("apSavedConfirmed","ApSavedConfirmed","AP Saved Confirmed","ap_saved_confirmed"),
-            uwPoliciesResolved:            g("uwPoliciesResolved","UwPoliciesResolved","UW Policies Resolved"),
-            pendingResolution:             g("pendingResolution","PendingResolution","Pending Resolution"),
-            savedPendingConfirmation:      g("savedPendingConfirmation","SavedPendingConfirmation","Saved Pending Confirmation"),
-            savedConfirmed:                g("savedConfirmed","SavedConfirmed","Saved Confirmed"),
-            uwResolvedNotConfirmedDetails: g("uwResolvedNotConfirmedDetails","UW Resolved Not Confirmed Details"),
-            uwConfirmedResolvedDetails:    g("uwConfirmedResolvedDetails","UW Confirmed Resolved Details"),
-            escalationsAgentActionNeeded:  g("escalationsAgentActionNeeded","Escalations Agent Action Needed","Escalations"),
-            createdAt:                     g("createdAt","CreatedAt","Created At","Timestamp"),
+            totalDials:                    g("totalDials","TotalDials","Total Dials","totaldials"),
+            totalTalkTime:                 g("totalTalkTime","TotalTalkTime","Total Talk Time","totaltalktime"),
+            clientsReached:                g("clientsReached","ClientsReached","Clients Reached","clientsreached"),
+            welcomeCallsCompleted:         g("welcomeCallsCompleted","WelcomeCallsCompleted","Welcome Calls Completed","welcomecallscompleted"),
+            atRiskResolvedPre:             g("atRiskResolvedPre","AtRiskResolvedPre","At Risk Resolved Pre","atriskresolvedpre"),
+            atRiskResolvedConfirmed:       g("atRiskResolvedConfirmed","AtRiskResolvedConfirmed","At Risk Resolved Confirmed","atriskresolvedconfirmed"),
+            apSavedPre:                    g("apSavedPre","ApSavedPre","AP Saved Pre","apsavedpre"),
+            apSavedConfirmed:              g("apSavedConfirmed","ApSavedConfirmed","AP Saved Confirmed","apsavedconfirmed"),
+            uwPoliciesResolved:            g("uwPoliciesResolved","UwPoliciesResolved","UW Policies Resolved","uwpoliciesresolved"),
+            pendingResolution:             g("pendingResolution","PendingResolution","Pending Resolution","pendingresolution"),
+            savedPendingConfirmation:      g("savedPendingConfirmation","SavedPendingConfirmation","Saved Pending Confirmation","savedpendingconfirmation"),
+            savedConfirmed:                g("savedConfirmed","SavedConfirmed","Saved Confirmed","savedconfirmed"),
+            uwResolvedNotConfirmedDetails: g("uwResolvedNotConfirmedDetails","UW Resolved Not Confirmed Details","uwresolvednotconfirmeddetails"),
+            uwConfirmedResolvedDetails:    g("uwConfirmedResolvedDetails","UW Confirmed Resolved Details","uwconfirmedresolveddetails"),
+            escalationsAgentActionNeeded:  g("escalationsAgentActionNeeded","Escalations Agent Action Needed","Escalations","escalationsagentactionneeded"),
+            createdAt:                     g("createdAt","CreatedAt","Created At","Timestamp","createdat"),
           };
         });
-        setEodEntries((cur) => {
-          const merged = [...fixedEod, ...cur].filter((e, i, arr) => arr.findIndex((x) => x.id === e.id) === i);
-          safeSave(EOD_STORAGE_KEY, merged);
-          return merged;
-        });
+        const merged = [...fixedEod, ...localEod].filter((e, i, arr) => arr.findIndex((x) => x.id === e.id) === i);
+        setEodEntries(merged); safeSave(EOD_STORAGE_KEY, merged);
+      } else if (localEod.length > 0) {
+        setEodEntries(localEod);
       }
+
       showToast("Data refreshed.", t.toastSuccess);
     } catch (e) {
       console.error("Refresh failed:", e);
+      // Always fall back to localStorage on any error
+      const localInbound = safeLoad(INBOUND_STORAGE_KEY, []);
+      const localEod     = safeLoad(EOD_STORAGE_KEY,     []);
+      if (localInbound.length) setInboundRows(localInbound);
+      if (localEod.length)     setEodEntries(localEod);
       showToast("Refresh failed — check connection.", t.toastError);
     } finally { setIsLoading(false); }
   }, []); // eslint-disable-line
@@ -1768,19 +1784,72 @@ function ChenTrackerApp() {
                       const showSep = rowDate && rowDate !== lastDate;
                       if (showSep) lastDate = rowDate;
                       const dateLabel = rowDate
-                        ? new Date(rowDate + "T12:00:00").toLocaleDateString("en-US", { weekday:"short", month:"long", day:"numeric", year:"numeric" })
+                        ? new Date(rowDate + "T12:00:00").toLocaleDateString("en-US", { month:"long", day:"numeric", year:"numeric" })
                         : "";
                       return (
                         <React.Fragment key={row.id}>
                           {showSep && (
-                            <div style={{ display:"flex", alignItems:"center", gap:10, margin:"6px 0 2px" }}>
-                              <div style={{ flex:1, height:1, background: isDark ? "#2D4035" : "#DDD0BB" }} />
-                              <span style={{ fontSize:10, fontWeight:700, color: isDark ? "#E8B87A" : "#9A5B12", textTransform:"uppercase", letterSpacing:"0.08em", whiteSpace:"nowrap", padding:"2px 12px", borderRadius:20, border:`1px solid ${isDark ? "#3A5045" : "#DDD0BB"}`, background: isDark ? "#1A2E22" : "#FFF1D8" }}>
-                                {dateLabel}
-                              </span>
-                              <div style={{ flex:1, height:1, background: isDark ? "#2D4035" : "#DDD0BB" }} />
+                            <div style={{
+                              background: isDark ? "#2A3A1A" : "#F5E6C8",
+                              border: `1px solid ${isDark ? "#4A6A28" : "#D4A850"}`,
+                              borderRadius: 8,
+                              padding: "6px 16px",
+                              textAlign: "center",
+                              fontSize: 12,
+                              fontWeight: 700,
+                              color: isDark ? "#E8B87A" : "#7A4A10",
+                              letterSpacing: "0.04em",
+                              marginTop: 6,
+                              marginBottom: 2,
+                            }}>
+                              {dateLabel}
                             </div>
                           )}
+                          <div
+                            style={{ background:t.cardBg, border:`1px solid ${t.cardBorder}`, borderRadius:10, padding:"11px 14px", display:"grid", gridTemplateColumns:"1fr auto", gap:10, alignItems:"center", cursor:"default", transition:"border-color .14s,background .14s" }}
+                            onMouseEnter={(e) => { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.borderColor = t.cardHoverBorder; e.currentTarget.querySelector(".rt").style.opacity = "1"; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.background = t.cardBg;    e.currentTarget.style.borderColor = t.cardBorder;      e.currentTarget.querySelector(".rt").style.opacity = "0"; }}
+                          >
+                            <div style={{ display:"grid", gridTemplateColumns:"160px 95px 72px 84px 1fr 28px", gap:10, alignItems:"center", minWidth:0 }}>
+                              <div>
+                                <div style={{ fontWeight:700, fontSize:13, color:t.color, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{row.clientName}</div>
+                                <div style={{ display:"flex", alignItems:"center", gap:5, marginTop:3 }}>
+                                  <span style={{ fontSize:10, color:t.mutedColor, fontFamily:"monospace" }}>{row.policyNumber || "—"}</span>
+                                  <PriorityChip priority={row.priority} />
+                                </div>
+                              </div>
+                              <div>
+                                <div style={{ fontSize:14, fontWeight:800, color: isDark ? "#E8B87A" : "#5B3320", letterSpacing:"-0.02em" }}>{cur(row.ap)}</div>
+                                <div style={{ fontSize:10, color:t.mutedColor, marginTop:1 }}>premium</div>
+                              </div>
+                              <div><StageTag s={row.leadStatus} t={t} /></div>
+                              <div><StatusChip status={row.result} /></div>
+                              <div style={{ minWidth:0 }}>
+                                <div style={{ fontSize:12, fontWeight:600, color: isDark ? "#C8B89A" : "#6D6256", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{row.action || "—"}</div>
+                              </div>
+                              <div style={{ display:"flex", alignItems:"center", justifyContent:"center" }}>
+                                <NotesBubble notes={row.notes} isDark={isDark} />
+                              </div>
+                            </div>
+                            <div className="rt" style={{ display:"flex", gap:4, opacity:0, transition:"opacity .14s" }}>
+                              {row.result !== "RESOLVED" && (
+                                <button onClick={() => quickResolve(row.id)} title="Mark resolved" style={{ width:29, height:29, background:t.toolResBg, border:`1px solid ${t.toolResBorder}`, borderRadius:7, cursor:"pointer", color:t.toolResColor, fontSize:14, display:"flex", alignItems:"center", justifyContent:"center" }}>✓</button>
+                              )}
+                              <button onClick={() => setEditRow({ ...row })} title="Edit" style={{ width:29, height:29, background:t.toolEditBg, border:`1px solid ${t.toolEditBorder}`, borderRadius:7, cursor:"pointer", color:t.toolEditColor, fontSize:13, display:"flex", alignItems:"center", justifyContent:"center" }}>✎</button>
+                              <button onClick={() => deleteRow(row.id)} title="Delete" style={{ width:29, height:29, background:t.toolDelBg, border:`1px solid ${t.toolDelBorder}`, borderRadius:7, cursor:"pointer", color:t.toolDelColor, fontSize:13, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+                            </div>
+                          </div>
+                        </React.Fragment>
+                      );
+                    });
+                  })() : (
+                    <div style={{ textAlign:"center", padding:"52px 20px", background:t.emptyBg, borderRadius:10 }}>
+                      <div style={{ fontSize:28, marginBottom:8, opacity:0.35 }}>◈</div>
+                      <div style={{ fontSize:14, fontWeight:700, color:t.mutedColor }}>No cases match your filters</div>
+                      <div style={{ fontSize:12, marginTop:4, color:t.dimColor }}>Try clearing your search or filters</div>
+                    </div>
+                  )}
+                </div>
                           <div
                             style={{ background:t.cardBg, border:`1px solid ${t.cardBorder}`, borderRadius:10, padding:"11px 14px", display:"grid", gridTemplateColumns:"1fr auto", gap:10, alignItems:"center", cursor:"default", transition:"border-color .14s,background .14s" }}
                             onMouseEnter={(e) => { e.currentTarget.style.background = t.cardHover; e.currentTarget.style.borderColor = t.cardHoverBorder; e.currentTarget.querySelector(".rt").style.opacity = "1"; }}

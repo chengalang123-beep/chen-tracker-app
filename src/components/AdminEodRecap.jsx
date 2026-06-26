@@ -34,6 +34,22 @@ const cur = (v) =>
 
 const num = (v) => Number(v || 0);
 
+// Normalize any date format to YYYY-MM-DD
+function normalizeDate(val) {
+  if (!val) return "";
+  const s = String(val).trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  if (/^\d{1,2}\/\d{1,2}\/\d{4}/.test(s)) {
+    const [mo, dy, yr] = s.split("/");
+    return `${yr}-${mo.padStart(2,"0")}-${dy.padStart(2,"0")}`;
+  }
+  try {
+    const d = new Date(s);
+    if (!isNaN(d.getTime())) return d.toISOString().slice(0,10);
+  } catch {}
+  return s;
+}
+
 // ─────────────────────────────────────────────
 // SMALL UI
 // ─────────────────────────────────────────────
@@ -163,8 +179,14 @@ export default function AdminEodRecap() {
       );
       setEodEntries(merged);
 
-      // Merge sheet rows with local rows
-      const sheetRows = Array.isArray(data.rows) ? data.rows : [];
+      // Merge sheet rows with local rows — normalize fields
+      const sheetRows = Array.isArray(data.rows) ? data.rows.map((r) => ({
+        ...r,
+        action:    r.action    || r.Action    || r.action    || "",
+        ap:        Number(r.ap || r.AP || r.annualPremium || 0),
+        updatedAt: normalizeDate(r.updatedAt  || r.UpdatedAt || r.createdAt || r.CreatedAt || ""),
+        createdAt: normalizeDate(r.createdAt  || r.CreatedAt || ""),
+      })) : [];
       const mergedRows = [...sheetRows, ...localRows].filter((r, i, arr) =>
         arr.findIndex((x) => x.id === r.id) === i
       );
@@ -185,23 +207,6 @@ export default function AdminEodRecap() {
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
-
-  // Normalize any date value to YYYY-MM-DD for reliable comparison
-  function normalizeDate(val) {
-    if (!val) return "";
-    const s = String(val).trim();
-    // Already YYYY-MM-DD
-    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
-    // M/D/YYYY or MM/DD/YYYY
-    if (/^\d{1,2}\/\d{1,2}\/\d{4}/.test(s)) {
-      const [mo, dy, yr] = s.split("/");
-      return `${yr}-${mo.padStart(2,"0")}-${dy.padStart(2,"0")}`;
-    }
-    // Try JS Date parse as last resort
-    const d = new Date(s);
-    if (!isNaN(d.getTime())) return d.toISOString().slice(0,10);
-    return s;
-  }
 
   // Filter EOD for selected date — handles any date format from the sheet
   const dayEntries = useMemo(() =>
@@ -243,19 +248,52 @@ export default function AdminEodRecap() {
     };
   }, [dayEntries]);
 
-  // AP Saved WTD and MTD from all rows (action = Save)
+  // AP Saved WTD and MTD — pulled from EOD confirmed AP saved totals + case rows
   const apSummary = useMemo(() => {
-    const wtdStart = getWTD(), mtdStart = getMTD();
-    const saves = allRows.filter((r) => (r.action || "").toLowerCase() === "save");
-    const wtd   = saves.filter((r) => (r.updatedAt || "") >= wtdStart);
-    const mtd   = saves.filter((r) => (r.updatedAt || "") >= mtdStart);
+    const wtdStart = getWTD();
+    const mtdStart = getMTD();
+
+    // Helper to normalize ap value from any field
+    const getAp = (r) => {
+      const v = r.ap || r.AP || r.annualPremium || r.premium || 0;
+      return num(v);
+    };
+
+    // Helper to normalize action field
+    const getAction = (r) => String(r.action || r.Action || r.result || "").trim().toLowerCase();
+
+    // Helper to normalize date
+    const getDate = (r) => normalizeDate(r.updatedAt || r.UpdatedAt || r.createdAt || r.CreatedAt || "");
+
+    // Filter allRows for saves
+    const saves = allRows.filter((r) => getAction(r) === "save");
+    const wtd   = saves.filter((r) => getDate(r) >= wtdStart);
+    const mtd   = saves.filter((r) => getDate(r) >= mtdStart);
+
+    // Also pull from EOD confirmed AP saved (apSavedConfirmed)
+    const eodWtd = eodEntries.filter((e) => {
+      const d = normalizeDate(e.date || e.Date || e.createdAt || "");
+      return d >= wtdStart;
+    });
+    const eodMtd = eodEntries.filter((e) => {
+      const d = normalizeDate(e.date || e.Date || e.createdAt || "");
+      return d >= mtdStart;
+    });
+
+    const eodWtdAp = eodWtd.reduce((s, e) => s + num(e.apSavedConfirmed || e.apSavedPre || 0), 0);
+    const eodMtdAp = eodMtd.reduce((s, e) => s + num(e.apSavedConfirmed || e.apSavedPre || 0), 0);
+
+    // Use whichever source has more data — cases AP or EOD AP
+    const caseWtdAp = wtd.reduce((s, r) => s + getAp(r), 0);
+    const caseMtdAp = mtd.reduce((s, r) => s + getAp(r), 0);
+
     return {
-      wtdAp:  wtd.reduce((s, r) => s + num(r.ap), 0),
-      mtdAp:  mtd.reduce((s, r) => s + num(r.ap), 0),
+      wtdAp:    Math.max(caseWtdAp, eodWtdAp),
+      mtdAp:    Math.max(caseMtdAp, eodMtdAp),
       wtdCount: wtd.length,
       mtdCount: mtd.length,
     };
-  }, [allRows]);
+  }, [allRows, eodEntries]);
 
   // Collect all escalations from the day
   const escalations = useMemo(() =>

@@ -248,52 +248,32 @@ export default function AdminEodRecap() {
     };
   }, [dayEntries]);
 
-  // AP Saved WTD and MTD — pulled from EOD confirmed AP saved totals + case rows
+  // AP Saved WTD and MTD — matches exactly how the tracker calculates it
+  // Uses case rows where action = "Save" (same logic as tracker KPI cards)
   const apSummary = useMemo(() => {
     const wtdStart = getWTD();
     const mtdStart = getMTD();
 
-    // Helper to normalize ap value from any field
-    const getAp = (r) => {
-      const v = r.ap || r.AP || r.annualPremium || r.premium || 0;
-      return num(v);
-    };
+    // Normalize action field — match any casing
+    const isSave = (r) => String(r.action || r.Action || "").trim().toLowerCase() === "save";
 
-    // Helper to normalize action field
-    const getAction = (r) => String(r.action || r.Action || r.result || "").trim().toLowerCase();
-
-    // Helper to normalize date
+    // Normalize date field
     const getDate = (r) => normalizeDate(r.updatedAt || r.UpdatedAt || r.createdAt || r.CreatedAt || "");
 
-    // Filter allRows for saves
-    const saves = allRows.filter((r) => getAction(r) === "save");
-    const wtd   = saves.filter((r) => getDate(r) >= wtdStart);
-    const mtd   = saves.filter((r) => getDate(r) >= mtdStart);
+    // Normalize AP value
+    const getAp = (r) => num(r.ap || r.AP || r.annualPremium || 0);
 
-    // Also pull from EOD confirmed AP saved (apSavedConfirmed)
-    const eodWtd = eodEntries.filter((e) => {
-      const d = normalizeDate(e.date || e.Date || e.createdAt || "");
-      return d >= wtdStart;
-    });
-    const eodMtd = eodEntries.filter((e) => {
-      const d = normalizeDate(e.date || e.Date || e.createdAt || "");
-      return d >= mtdStart;
-    });
-
-    const eodWtdAp = eodWtd.reduce((s, e) => s + num(e.apSavedConfirmed || e.apSavedPre || 0), 0);
-    const eodMtdAp = eodMtd.reduce((s, e) => s + num(e.apSavedConfirmed || e.apSavedPre || 0), 0);
-
-    // Use whichever source has more data — cases AP or EOD AP
-    const caseWtdAp = wtd.reduce((s, r) => s + getAp(r), 0);
-    const caseMtdAp = mtd.reduce((s, r) => s + getAp(r), 0);
+    const saves  = allRows.filter(isSave);
+    const wtd    = saves.filter((r) => getDate(r) >= wtdStart);
+    const mtd    = saves.filter((r) => getDate(r) >= mtdStart);
 
     return {
-      wtdAp:    Math.max(caseWtdAp, eodWtdAp),
-      mtdAp:    Math.max(caseMtdAp, eodMtdAp),
+      wtdAp:    wtd.reduce((s, r) => s + getAp(r), 0),
+      mtdAp:    mtd.reduce((s, r) => s + getAp(r), 0),
       wtdCount: wtd.length,
       mtdCount: mtd.length,
     };
-  }, [allRows, eodEntries]);
+  }, [allRows]);
 
   // Collect all escalations from the day
   const escalations = useMemo(() =>

@@ -28,7 +28,7 @@ const ACTION_OPTS   = ["", "Pending", "Pending Save", "Welcome Call", "Onboardin
 const LEAD_OPTS     = ["", "NA", "NAA", "SRWT", "AS", "RTR", "CEP", "AYAR", "CWCC", "IUW", "UWAN", "UWAR", "UWSRWT"];
 const SPEC_OPTS     = ["", "Nisha", "Rick", "Chen", "Fernando", "Claire"];
 const PRIORITY_OPTS = ["Normal", "High", "Urgent"];
-const RESULT_OPTS   = ["PENDING", "RESOLVED", "LOST"];
+const RESULT_OPTS   = ["PENDING", "RESOLVED", "LOST", "SERVICED"];
 
 const BLANK_FORM = {
   clientName: "", policyNumber: "", ap: "", leadStatus: "",

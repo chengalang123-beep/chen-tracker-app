@@ -955,11 +955,9 @@ function EodTab({ onSave, eodEntries, onDeleteEod, t, isDark }) {
       <G2>
         <FRow label="UW policies resolved" t={t}><FI type="number" value={f.uwPoliciesResolved} onChange={(v) => u("uwPoliciesResolved", v)} placeholder="0" t={t} /></FRow>
         <FRow label="Pending resolution" t={t}><FI type="number" value={f.pendingResolution} onChange={(v) => u("pendingResolution", v)} placeholder="0" t={t} /></FRow>
-        <FRow label="Inbound Cancellations" t={t}><FI type="number" value={f.inboundCancellations} onChange={(v) => u("inboundCancellations", v)} placeholder="0" t={t} /></FRow>
       </G2>
       <FRow label="Saved — pending confirmation (Client & Policy #)" t={t}><FTA value={f.savedPendingConfirmation} onChange={(v) => u("savedPendingConfirmation", v)} placeholder="John Smith - POLICY123" t={t} /></FRow>
       <FRow label="Saved — confirmed (Client & Policy #)" t={t}><FTA value={f.savedConfirmed} onChange={(v) => u("savedConfirmed", v)} placeholder="Jane Doe - POLICY456" t={t} /></FRow>
-      <FRow label="Inbound Cancellation Clients" t={t}><FTA value={f.inboundCancellations} onChange={(v) => u("inboundCancellations", v)} placeholder="Jane Doe - Done" t={t} /></FRow>
       <FRow label="UW resolved not yet confirmed (AP, Name, Resolution, Carrier & Policy #)" t={t}><FTA value={f.uwResolvedNotConfirmedDetails} onChange={(v) => u("uwResolvedNotConfirmedDetails", v)} placeholder="AP, Name, Resolution, Carrier, Policy #" t={t} /></FRow>
       <FRow label="UW confirmed resolved (AP, Name, Resolution, Carrier & Policy #)" t={t}><FTA value={f.uwConfirmedResolvedDetails} onChange={(v) => u("uwConfirmedResolvedDetails", v)} placeholder="AP, Name, Resolution, Carrier, Policy #" t={t} /></FRow>
       <FRow label="Escalations / agent action needed" t={t}><FTA value={f.escalationsAgentActionNeeded} onChange={(v) => u("escalationsAgentActionNeeded", v)} placeholder="Client info, policy details, agent name, action needed" t={t} /></FRow>

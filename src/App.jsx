@@ -45,6 +45,7 @@ const BLANK_EOD = {
   savedPendingConfirmation: "", savedConfirmed: "",
   uwResolvedNotConfirmedDetails: "", uwConfirmedResolvedDetails: "",
   escalationsAgentActionNeeded: "",
+  totalCancellationsDone: "",
 };
 
 // ─────────────────────────────────────────────
@@ -487,18 +488,6 @@ function SideSection({ title, children, t }) {
   );
 }
 
-function TabPill({ label, active, onClick, t }) {
-  return (
-    <button onClick={onClick} style={{
-      flex:1, height:27,
-      background: active ? t.pillOnBg : "transparent",
-      color: active ? t.pillOnColor : t.mutedColor,
-      border: `1px solid ${active ? t.pillOnBorder : t.cardBorder}`,
-      borderRadius:7, fontSize:11, fontWeight:700, cursor:"pointer", fontFamily:"inherit",
-    }}>{label}</button>
-  );
-}
-
 function EternaLogo() {
   return (
     <div style={{ width:36, height:36, background:"#5C7768", borderRadius:9, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
@@ -833,184 +822,9 @@ function CaseForm({ form, setForm, onAdd, onClear, t }) {
 }
 
 // ─────────────────────────────────────────────
-// FIX 3 & 4: INBOUND TAB — its own data only, never mixed with cases
-// ─────────────────────────────────────────────
-function InboundTab({ ibDate, setIbDate, inboundRows, onSave, onDelete, t, isDark }) {
-  const [f, setF] = useState({ clientName:"", phoneNumber:"", agentName:"", specialistName:"", resolved:"No", agentInformed:"No", notes:"" });
-  const u = (k, v) => setF((x) => ({ ...x, [k]: v }));
-  const [ibQ,  setIbQ]  = useState("");
-  const [ibRes, setIbRes] = useState("All");
-
-  const filtered = useMemo(() => {
-    const q = ibQ.trim().toLowerCase();
-    return inboundRows.filter((r) =>
-      (ibRes === "All" || r.resolved === ibRes) &&
-      (!q || [r.clientName, r.agentName, r.phoneNumber, r.notes, r.specialistName].join(" ").toLowerCase().includes(q))
-    );
-  }, [inboundRows, ibQ, ibRes]);
-
-  return (
-    <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-      {/* Form */}
-      <FRow label="Client name" t={t}><FI value={f.clientName} onChange={(v) => u("clientName", v)} placeholder="Full name" t={t} /></FRow>
-      <FRow label="Phone number" t={t}><FI type="tel" value={f.phoneNumber} onChange={(v) => u("phoneNumber", v)} placeholder="305-555-0000" t={t} /></FRow>
-      <G2>
-        <FRow label="Agent" t={t}><FI value={f.agentName} onChange={(v) => u("agentName", v)} placeholder="Agent name" t={t} /></FRow>
-        <FRow label="Specialist" t={t}><FS value={f.specialistName} onChange={(v) => u("specialistName", v)} options={SPEC_OPTS} t={t} /></FRow>
-      </G2>
-      <FRow label="Date of call" t={t}><FI type="date" value={ibDate} onChange={setIbDate} t={t} /></FRow>
-      <G2>
-        <FRow label="Resolved" t={t}><FS value={f.resolved} onChange={(v) => u("resolved", v)} options={["No","Yes"]} t={t} /></FRow>
-        <FRow label="Agent informed" t={t}><FS value={f.agentInformed} onChange={(v) => u("agentInformed", v)} options={["No","Yes"]} t={t} /></FRow>
-      </G2>
-      <FRow label="Notes" t={t}><FTA value={f.notes} onChange={(v) => u("notes", v)} placeholder="Cancellation details, next steps…" t={t} /></FRow>
-      <PrimaryBtn onClick={() => {
-        onSave({ ...f, dateOfCall:ibDate });
-        setF({ clientName:"", phoneNumber:"", agentName:"", specialistName:"", resolved:"No", agentInformed:"No", notes:"" });
-      }}>+ Save inbound cancellation</PrimaryBtn>
-
-      {/* Separator */}
-      <div style={{ borderTop:`1px solid ${t.cardBorder}`, margin:"4px 0" }} />
-
-      {/* Inbound-only list */}
-      <div style={{ fontSize:11, fontWeight:700, color:t.sideTitle, textTransform:"uppercase", letterSpacing:"0.08em" }}>
-        Inbound list ({inboundRows.length})
-      </div>
-      <div style={{ display:"flex", gap:5 }}>
-        <input value={ibQ} onChange={(e) => setIbQ(e.target.value)} placeholder="Search inbound…"
-          style={{ flex:1, height:26, background:t.inputBg, border:`1px solid ${t.inputBorder}`, borderRadius:7, padding:"0 8px", fontSize:11, color:t.inputColor, outline:"none", fontFamily:"inherit" }} />
-        <select value={ibRes} onChange={(e) => setIbRes(e.target.value)}
-          style={{ height:26, background:t.inputBg, border:`1px solid ${t.inputBorder}`, borderRadius:7, padding:"0 6px", fontSize:11, color:t.inputColor, outline:"none", fontFamily:"inherit" }}>
-          <option value="All">All</option>
-          <option value="Yes">Resolved</option>
-          <option value="No">Unresolved</option>
-        </select>
-      </div>
-      <div style={{ display:"flex", flexDirection:"column", gap:5, maxHeight:300, overflowY:"auto" }}>
-        {filtered.length === 0 && <div style={{ fontSize:11, color:t.dimColor, textAlign:"center", padding:"12px 0" }}>No inbound entries yet.</div>}
-        {filtered.map((item) => (
-          <div key={item.id} style={{ background:t.inboundCardBg, border:`1px solid ${t.cardBorder}`, borderRadius:8, padding:"9px 11px" }}>
-            <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:4 }}>
-              <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontWeight:700, fontSize:12, color:t.color }}>{item.clientName}</div>
-                <div style={{ fontSize:10, color:t.mutedColor, marginTop:1 }}>
-                  {item.agentName}{item.phoneNumber ? ` · ${item.phoneNumber}` : ""}
-                  {item.dateOfCall ? ` · ${item.dateOfCall}` : ""}
-                </div>
-                <div style={{ display:"flex", gap:4, marginTop:4, flexWrap:"wrap" }}>
-                  <StatusChip status={item.resolved === "Yes" ? "RESOLVED" : "PENDING"} />
-                  {item.agentInformed === "Yes" && (
-                    <span style={{ fontSize:10, background:"#EEF7E8", color:"#4C6B2F", border:"1px solid #BDD6A6", borderRadius:5, padding:"1px 6px", fontWeight:600 }}>Agent informed</span>
-                  )}
-                </div>
-                {item.notes && <div style={{ fontSize:10, color:t.mutedColor, marginTop:3 }}>{item.notes}</div>}
-              </div>
-              <button onClick={() => onDelete(item.id)}
-                style={{ width:22, height:22, background:t.toolDelBg, border:`1px solid ${t.toolDelBorder}`, borderRadius:5, cursor:"pointer", color:t.toolDelColor, fontSize:11, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>✕</button>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────
-// FIX 5: EOD TAB — its own data only, never mixed with cases
-// ─────────────────────────────────────────────
-function EodTab({ onSave, eodEntries, onDeleteEod, t, isDark }) {
-  const [f, setF] = useState({ ...BLANK_EOD });
-  const u = (k, v) => setF((x) => ({ ...x, [k]: v }));
-  const [eodSpec, setEodSpec] = useState("All");
-
-  const filteredEod = useMemo(() =>
-    eodEntries
-      .filter((e) => eodSpec === "All" || e.specialistName === eodSpec)
-      .sort((a, b) => {
-        const da = normalizeEodDate(a.date || a.createdAt || "");
-        const db = normalizeEodDate(b.date || b.createdAt || "");
-        return db.localeCompare(da);
-      }),
-    [eodEntries, eodSpec]
-  );
-
-  return (
-    <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-      <FRow label="Specialist name" t={t}><FS value={f.specialistName} onChange={(v) => u("specialistName", v)} options={SPEC_OPTS} t={t} /></FRow>
-      <FRow label="Date" t={t}><FI type="date" value={f.date} onChange={(v) => u("date", v)} t={t} /></FRow>
-      <G2>
-        <FRow label="Total dials for the day" t={t}><FI type="number" value={f.totalDials} onChange={(v) => u("totalDials", v)} placeholder="0" t={t} /></FRow>
-        <FRow label="Total talk time (min)" t={t}><FI type="number" value={f.totalTalkTime} onChange={(v) => u("totalTalkTime", v)} placeholder="0" t={t} /></FRow>
-      </G2>
-      <FRow label="Clients reached via call or text" t={t}><FI type="number" value={f.clientsReached} onChange={(v) => u("clientsReached", v)} placeholder="0" t={t} /></FRow>
-      <FRow label="Total welcome calls completed" t={t}><FI type="number" value={f.welcomeCallsCompleted} onChange={(v) => u("welcomeCallsCompleted", v)} placeholder="0" t={t} /></FRow>
-      <G2>
-        <FRow label="At risk resolved (pre)" t={t}><FI type="number" value={f.atRiskResolvedPre} onChange={(v) => u("atRiskResolvedPre", v)} placeholder="0" t={t} /></FRow>
-        <FRow label="At risk resolved (conf)" t={t}><FI type="number" value={f.atRiskResolvedConfirmed} onChange={(v) => u("atRiskResolvedConfirmed", v)} placeholder="0" t={t} /></FRow>
-      </G2>
-      <G2>
-        <FRow label="AP saved (pre)" t={t}><FI type="number" value={f.apSavedPre} onChange={(v) => u("apSavedPre", v)} placeholder="0" t={t} /></FRow>
-        <FRow label="AP saved (conf)" t={t}><FI type="number" value={f.apSavedConfirmed} onChange={(v) => u("apSavedConfirmed", v)} placeholder="0" t={t} /></FRow>
-      </G2>
-      <G2>
-        <FRow label="UW policies resolved" t={t}><FI type="number" value={f.uwPoliciesResolved} onChange={(v) => u("uwPoliciesResolved", v)} placeholder="0" t={t} /></FRow>
-        <FRow label="Pending resolution" t={t}><FI type="number" value={f.pendingResolution} onChange={(v) => u("pendingResolution", v)} placeholder="0" t={t} /></FRow>
-      </G2>
-      <FRow label="Saved — pending confirmation (Client & Policy #)" t={t}><FTA value={f.savedPendingConfirmation} onChange={(v) => u("savedPendingConfirmation", v)} placeholder="John Smith - POLICY123" t={t} /></FRow>
-      <FRow label="Saved — confirmed (Client & Policy #)" t={t}><FTA value={f.savedConfirmed} onChange={(v) => u("savedConfirmed", v)} placeholder="Jane Doe - POLICY456" t={t} /></FRow>
-      <FRow label="UW resolved not yet confirmed (AP, Name, Resolution, Carrier & Policy #)" t={t}><FTA value={f.uwResolvedNotConfirmedDetails} onChange={(v) => u("uwResolvedNotConfirmedDetails", v)} placeholder="AP, Name, Resolution, Carrier, Policy #" t={t} /></FRow>
-      <FRow label="UW confirmed resolved (AP, Name, Resolution, Carrier & Policy #)" t={t}><FTA value={f.uwConfirmedResolvedDetails} onChange={(v) => u("uwConfirmedResolvedDetails", v)} placeholder="AP, Name, Resolution, Carrier, Policy #" t={t} /></FRow>
-      <FRow label="Escalations / agent action needed" t={t}><FTA value={f.escalationsAgentActionNeeded} onChange={(v) => u("escalationsAgentActionNeeded", v)} placeholder="Client info, policy details, agent name, action needed" t={t} /></FRow>
-      <PrimaryBtn onClick={() => { onSave(f); setF({ ...BLANK_EOD }); }}>💾 Save EOD</PrimaryBtn>
-      <ClearBtn onClick={() => setF({ ...BLANK_EOD })} t={t}>Clear</ClearBtn>
-
-      {/* Separator */}
-      <div style={{ borderTop:`1px solid ${t.cardBorder}`, margin:"4px 0" }} />
-
-      {/* EOD-only history */}
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-        <div style={{ fontSize:11, fontWeight:700, color:t.sideTitle, textTransform:"uppercase", letterSpacing:"0.08em" }}>
-          EOD history ({filteredEod.length})
-        </div>
-        <select value={eodSpec} onChange={(e) => setEodSpec(e.target.value)}
-          style={{ height:24, background:t.inputBg, border:`1px solid ${t.inputBorder}`, borderRadius:6, padding:"0 6px", fontSize:10, color:t.inputColor, outline:"none", fontFamily:"inherit" }}>
-          <option value="All">All specialists</option>
-          {["Nisha","Rick","Chen","Fernando","Claire"].map((s) => <option key={s}>{s}</option>)}
-        </select>
-      </div>
-      <div style={{ display:"flex", flexDirection:"column", gap:5, maxHeight:320, overflowY:"auto" }}>
-        {filteredEod.length === 0 && <div style={{ fontSize:11, color:t.dimColor, textAlign:"center", padding:"12px 0" }}>No EOD entries yet.</div>}
-        {filteredEod.map((entry) => (
-          <div key={entry.id} style={{ background:t.inboundCardBg, border:`1px solid ${t.cardBorder}`, borderRadius:8, padding:"9px 11px" }}>
-            <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:4 }}>
-              <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontWeight:700, fontSize:12, color:t.color }}>{entry.specialistName} — {normalizeEodDate(entry.date || entry.createdAt)}</div>
-                <div style={{ fontSize:10, color:t.mutedColor, marginTop:2 }}>
-                  Dials: {entry.totalDials || 0} · Talk: {entry.totalTalkTime || 0}min · Reached: {entry.clientsReached || 0}
-                </div>
-                <div style={{ fontSize:10, color:t.mutedColor }}>
-                  AP pre: {cur(entry.apSavedPre)} · AP conf: {cur(entry.apSavedConfirmed)}
-                </div>
-                {entry.escalationsAgentActionNeeded && (
-                  <div style={{ fontSize:10, color: isDark ? "#F08060" : "#9D3F23", marginTop:3 }}>
-                    ⚠ {entry.escalationsAgentActionNeeded.slice(0, 70)}{entry.escalationsAgentActionNeeded.length > 70 ? "…" : ""}
-                  </div>
-                )}
-              </div>
-              <button onClick={() => onDeleteEod(entry.id)}
-                style={{ width:22, height:22, background:t.toolDelBg, border:`1px solid ${t.toolDelBorder}`, borderRadius:5, cursor:"pointer", color:t.toolDelColor, fontSize:11, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>✕</button>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────
 // INBOUND EDIT MODAL
 // ─────────────────────────────────────────────
-function InboundEditModal({ item, onClose, onSave, t, isDark }) {
+function InboundEditModal({ item, onClose, onSave, t }) {
   const [f, setF] = useState({ ...item });
   const u = (k, v) => setF((x) => ({ ...x, [k]: v }));
   return (
@@ -1028,6 +842,7 @@ function InboundEditModal({ item, onClose, onSave, t, isDark }) {
             <FRow label="Specialist" t={t}><FS value={f.specialistName} onChange={(v) => u("specialistName", v)} options={SPEC_OPTS} t={t} /></FRow>
           </G2>
           <FRow label="Date of call" t={t}><FI type="date" value={f.dateOfCall || ""} onChange={(v) => u("dateOfCall", v)} t={t} /></FRow>
+          <FRow label="Call Duration in Minutes" t={t}><FI type="number" value={f.callDuration || ""} onChange={(v) => u("callDuration", v)} placeholder="0" t={t} /></FRow>
           <G2>
             <FRow label="Resolved" t={t}><FS value={f.resolved} onChange={(v) => u("resolved", v)} options={["No","Yes"]} t={t} /></FRow>
             <FRow label="Agent informed" t={t}><FS value={f.agentInformed} onChange={(v) => u("agentInformed", v)} options={["No","Yes"]} t={t} /></FRow>
@@ -1047,7 +862,7 @@ function InboundEditModal({ item, onClose, onSave, t, isDark }) {
 // INBOUND MAIN PANEL — replaces entire left area when Inbound tab active
 // ─────────────────────────────────────────────
 function InboundMainPanel({ ibDate, setIbDate, inboundRows, onSave, onDelete, onEdit, t, isDark }) {
-  const [f, setF] = useState({ clientName:"", phoneNumber:"", agentName:"", specialistName:"", resolved:"No", agentInformed:"No", notes:"" });
+  const [f, setF] = useState({ clientName:"", phoneNumber:"", agentName:"", specialistName:"", resolved:"No", agentInformed:"No", notes:"", callDuration:"" });
   const u = (k, v) => setF((x) => ({ ...x, [k]: v }));
   const [ibQ,       setIbQ]       = useState("");
   const [ibRes,     setIbRes]     = useState("All");
@@ -1106,6 +921,7 @@ function InboundMainPanel({ ibDate, setIbDate, inboundRows, onSave, onDelete, on
             <FRow label="Specialist" t={t}><FS value={f.specialistName} onChange={(v) => u("specialistName", v)} options={SPEC_OPTS} t={t} /></FRow>
           </G2>
           <FRow label="Date of call" t={t}><FI type="date" value={ibDate} onChange={setIbDate} t={t} /></FRow>
+          <FRow label="Call Duration in Minutes" t={t}><FI type="number" value={f.callDuration} onChange={(v) => u("callDuration", v)} placeholder="0" t={t} /></FRow>
           <G2>
             <FRow label="Resolved" t={t}><FS value={f.resolved} onChange={(v) => u("resolved", v)} options={["No","Yes"]} t={t} /></FRow>
             <FRow label="Agent informed" t={t}><FS value={f.agentInformed} onChange={(v) => u("agentInformed", v)} options={["No","Yes"]} t={t} /></FRow>
@@ -1113,7 +929,7 @@ function InboundMainPanel({ ibDate, setIbDate, inboundRows, onSave, onDelete, on
           <FRow label="Notes" t={t}><FTA value={f.notes} onChange={(v) => u("notes", v)} placeholder="Cancellation details, next steps…" t={t} /></FRow>
           <PrimaryBtn onClick={() => {
             onSave({ ...f, dateOfCall:ibDate });
-            setF({ clientName:"", phoneNumber:"", agentName:"", specialistName:"", resolved:"No", agentInformed:"No", notes:"" });
+            setF({ clientName:"", phoneNumber:"", agentName:"", specialistName:"", resolved:"No", agentInformed:"No", notes:"", callDuration:"" });
           }}>+ Save inbound cancellation</PrimaryBtn>
         </div>
       </div>
@@ -1171,7 +987,7 @@ function InboundMainPanel({ ibDate, setIbDate, inboundRows, onSave, onDelete, on
               </div>
               <div style={{ fontSize:11, color: isDark ? "#C8B89A" : "#6D6256", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{item.agentName || "—"}</div>
               <div style={{ fontSize:11, color:t.mutedColor, fontFamily:"monospace" }}>{item.phoneNumber || "—"}</div>
-              <div style={{ fontSize:11, color:t.mutedColor }}>{item.dateOfCall || item.createdAt?.slice(0,10) || "—"}</div>
+              <div style={{ fontSize:11, color:t.mutedColor }}>{item.dateOfCall || item.createdAt?.slice(0,10) || "—"}{item.callDuration ? ` · ${item.callDuration} min` : ""}</div>
               <div><StatusChip status={item.resolved === "Yes" ? "RESOLVED" : "PENDING"} /></div>
               <div><NotesBubble notes={item.notes} isDark={isDark} /></div>
               {/* Edit + Delete buttons */}
@@ -1252,6 +1068,7 @@ function EodMainPanel({ onSave, eodEntries, onDeleteEod, t, isDark }) {
           </G2>
           <FRow label="Clients reached" t={t}><FI type="number" value={f.clientsReached} onChange={(v) => u("clientsReached", v)} placeholder="0" t={t} /></FRow>
           <FRow label="Welcome calls completed" t={t}><FI type="number" value={f.welcomeCallsCompleted} onChange={(v) => u("welcomeCallsCompleted", v)} placeholder="0" t={t} /></FRow>
+          <FRow label="Total cancellations done" t={t}><FI type="number" value={f.totalCancellationsDone} onChange={(v) => u("totalCancellationsDone", v)} placeholder="0" t={t} /></FRow>
           <G2>
             <FRow label="At risk resolved (pre)" t={t}><FI type="number" value={f.atRiskResolvedPre} onChange={(v) => u("atRiskResolvedPre", v)} placeholder="0" t={t} /></FRow>
             <FRow label="At risk resolved (conf)" t={t}><FI type="number" value={f.atRiskResolvedConfirmed} onChange={(v) => u("atRiskResolvedConfirmed", v)} placeholder="0" t={t} /></FRow>
@@ -1297,13 +1114,14 @@ function EodMainPanel({ onSave, eodEntries, onDeleteEod, t, isDark }) {
         <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
           {paged.length ? paged.map((entry) => (
             <div key={entry.id}
-              style={{ background:t.cardBg, border:`1px solid ${t.cardBorder}`, borderRadius:10, padding:"10px 14px", display:"grid", gridTemplateColumns:"100px 80px 70px 80px 80px 80px 80px 1fr 32px", gap:8, alignItems:"center" }}
+              style={{ background:t.cardBg, border:`1px solid ${t.cardBorder}`, borderRadius:10, padding:"10px 14px", display:"grid", gridTemplateColumns:"100px 80px 70px 80px 80px 70px 80px 80px 1fr 32px", gap:8, alignItems:"center" }}
             >
               <div style={{ fontSize:12, fontWeight:700, color:t.color }}>{normalizeEodDate(entry.date || entry.createdAt)}</div>
               <div style={{ fontSize:11, color: isDark ? "#C8B89A" : "#6D6256" }}>{entry.specialistName || "—"}</div>
               <div style={{ fontSize:11, color:t.mutedColor }}>{entry.totalDials || 0}</div>
               <div style={{ fontSize:11, color:t.mutedColor }}>{entry.totalTalkTime || 0}</div>
               <div style={{ fontSize:11, color:t.mutedColor }}>{entry.clientsReached || 0}</div>
+              <div style={{ fontSize:11, color:t.mutedColor }}>{entry.totalCancellationsDone || 0}</div>
               <div style={{ fontSize:11, color: isDark ? "#F0B84A" : "#C07820", fontWeight:600 }}>{cur(entry.apSavedPre)}</div>
               <div style={{ fontSize:11, color: isDark ? "#7DC860" : "#4C6B2F", fontWeight:600 }}>{cur(entry.apSavedConfirmed)}</div>
               <div style={{ fontSize:11, color: entry.escalationsAgentActionNeeded ? (isDark ? "#F08060" : "#9D3F23") : t.dimColor, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }} title={entry.escalationsAgentActionNeeded}>
@@ -1493,7 +1311,7 @@ function ChenTrackerApp() {
           clientName: item.clientName || "", phoneNumber: item.phoneNumber || "",
           agentName: item.agentName || "", specialistName: item.specialistName || "",
           resolved: item.resolved || "No", agentInformed: item.agentInformed || "No",
-          notes: item.notes || "",
+          notes: item.notes || "", callDuration: item.callDuration || "", dateOfCall: item.dateOfCall || "",
         }));
         setInboundRows(ib); safeSave(INBOUND_STORAGE_KEY, ib);
       }
@@ -1667,6 +1485,9 @@ function ChenTrackerApp() {
             {dueCount > 0 && <span style={{ position:"absolute", top:-7, right:-7, background:"#F07850", color:"#fff", borderRadius:"50%", width:18, height:18, fontSize:10, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center" }}>{dueCount}</span>}
           </button>
           <GhostBtn onClick={() => setShowSheet(true)} isDark={isDark}>⊞ View sheet</GhostBtn>
+          <a href="/admin" style={{ height:31, background:"transparent", border:`1px solid ${isDark ? "#2D4035" : "#CDBAA3"}`, borderRadius:8, padding:"0 13px", fontSize:12, fontWeight:600, cursor:"pointer", color: isDark ? "#C8B89A" : "#6D6256", display:"inline-flex", alignItems:"center", gap:5, textDecoration:"none", fontFamily:"inherit" }}>
+            🛠️ Admin
+          </a>
           <button onClick={() => setIsDark((d) => !d)} style={{ background: isDark ? "#D4C8B4" : "#03071A", color: isDark ? "#1A1008" : "#fff", border:"none", borderRadius:8, padding:"0 13px", height:31, fontSize:12, fontWeight:600, cursor:"pointer", display:"inline-flex", alignItems:"center", gap:5, fontFamily:"inherit" }}>
             {isDark ? "☀️ Light mode" : "🌙 Dark mode"}
           </button>

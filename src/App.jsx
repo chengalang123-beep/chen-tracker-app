@@ -1306,14 +1306,29 @@ function ChenTrackerApp() {
         setRows(clean); safeSave(STORAGE_KEY, clean);
       }
       if (Array.isArray(data.inboundCancellations)) {
-        const ib = data.inboundCancellations.map((item) => ({
-          id: item.id || crypto.randomUUID(), createdAt: item.createdAt || "",
-          clientName: item.clientName || "", phoneNumber: item.phoneNumber || "",
-          agentName: item.agentName || "", specialistName: item.specialistName || "",
-          resolved: item.resolved || "No", agentInformed: item.agentInformed || "No",
-          notes: item.notes || "", callDuration: item.callDuration || "", dateOfCall: item.dateOfCall || "",
-        }));
-        setInboundRows(ib); safeSave(INBOUND_STORAGE_KEY, ib);
+        setInboundRows((prev) => {
+          const ib = data.inboundCancellations.map((item) => {
+            const clientName  = item.clientName  || "";
+            const phoneNumber = item.phoneNumber || "";
+            const sheetDuration = item.callDuration || item.callDurationInMinutes || "";
+            const prevMatch = (prev || []).find((p) =>
+              String(p.clientName || "").trim().toLowerCase() === String(clientName).trim().toLowerCase() &&
+              String(p.phoneNumber || "").trim() === String(phoneNumber).trim()
+            );
+            return {
+              id: item.id || (prevMatch && prevMatch.id) || crypto.randomUUID(),
+              createdAt: item.createdAt || (prevMatch && prevMatch.createdAt) || "",
+              clientName, phoneNumber,
+              agentName: item.agentName || "", specialistName: item.specialistName || "",
+              resolved: item.resolved || "No", agentInformed: item.agentInformed || "No",
+              notes: item.notes || "",
+              callDuration: sheetDuration || (prevMatch && prevMatch.callDuration) || "",
+              dateOfCall: item.dateOfCall || (prevMatch && prevMatch.dateOfCall) || "",
+            };
+          });
+          safeSave(INBOUND_STORAGE_KEY, ib);
+          return ib;
+        });
       }
       if (Array.isArray(data.eodTestEntries)) {
         const normalized = data.eodTestEntries.map((e) => ({

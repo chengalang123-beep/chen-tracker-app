@@ -1306,41 +1306,31 @@ function ChenTrackerApp() {
         setRows(clean); safeSave(STORAGE_KEY, clean);
       }
       if (Array.isArray(data.inboundCancellations)) {
-        setInboundRows((prev) => {
-          const ib = data.inboundCancellations.map((item) => {
-            const clientName  = item.clientName  || "";
-            const phoneNumber = item.phoneNumber || "";
-            const sheetDuration = item.callDuration || item.callDurationInMinutes || "";
-            const prevMatch = (prev || []).find((p) =>
-              String(p.clientName || "").trim().toLowerCase() === String(clientName).trim().toLowerCase() &&
-              String(p.phoneNumber || "").trim() === String(phoneNumber).trim()
-            );
-            return {
-              id: item.id || (prevMatch && prevMatch.id) || crypto.randomUUID(),
-              createdAt: item.createdAt || (prevMatch && prevMatch.createdAt) || "",
-              clientName, phoneNumber,
-              agentName: item.agentName || "", specialistName: item.specialistName || "",
-              resolved: item.resolved || "No", agentInformed: item.agentInformed || "No",
-              notes: item.notes || "",
-              callDuration: sheetDuration || (prevMatch && prevMatch.callDuration) || "",
-              dateOfCall: item.dateOfCall || (prevMatch && prevMatch.dateOfCall) || "",
-            };
-          });
-          safeSave(INBOUND_STORAGE_KEY, ib);
-          return ib;
-        });
+        const ib = data.inboundCancellations.map((item) => ({
+          id: item.id || crypto.randomUUID(),
+          createdAt: item.createdAt || "",
+          clientName: item.clientName || "",
+          phoneNumber: item.phoneNumber || "",
+          agentName: item.agentName || "",
+          specialistName: item.specialistName || "",
+          resolved: item.resolved || "No",
+          agentInformed: item.agentInformed || "No",
+          notes: item.notes || "",
+          callDuration: item.callDuration || item.callDurationInMinutes || "",
+          dateOfCall: item.dateOfCall || item.createdAt || "",
+        }));
+        setInboundRows(ib);
+        safeSave(INBOUND_STORAGE_KEY, ib);
       }
       if (Array.isArray(data.eodTestEntries)) {
         const normalized = data.eodTestEntries.map((e) => ({
           ...e,
           date: normalizeEodDate(e.date || e.Date || e.createdAt || e.CreatedAt || ""),
           specialistName: e.specialistName || e.SpecialistName || e.specialist || e.Specialist || "",
+          totalCancellationsDone: e.totalCancellationsDone || e.TotalCancellationsDone || "",
         }));
-        setEodEntries((cur) => {
-          const merged = [...normalized, ...cur].filter((e, i, arr) => arr.findIndex((x) => x.id === e.id) === i);
-          safeSave(EOD_STORAGE_KEY, merged);
-          return merged;
-        });
+        setEodEntries(normalized);
+        safeSave(EOD_STORAGE_KEY, normalized);
       }
       showToast("Data refreshed.", t.toastSuccess);
     } catch (e) {
@@ -1433,7 +1423,7 @@ function ChenTrackerApp() {
     const updated = rows.map((r) => r.id === id ? { ...r, result:"RESOLVED", updatedAt:TODAY } : r);
     setRows(updated); showToast("Marked as resolved.", t.toastSuccess);
     const row = updated.find((r) => r.id === id);
-    if (row) updateCaseOnSheet(row);
+    if (row) updateCaseOnSheet(row).then(() => setTimeout(refreshData, 1500));
   }
   function deleteRow(id) {
     const row = rows.find((r) => r.id === id);
@@ -1443,8 +1433,8 @@ function ChenTrackerApp() {
   }
   function saveEdit(updated) {
     setRows((r) => r.map((x) => x.id === updated.id ? updated : x));
-    setEditRow(null); showToast("Case updated.", t.toastSuccess);
-    updateCaseOnSheet(updated);
+    setEditRow(null); showToast("Case updated. Syncing…", t.toastSuccess);
+    updateCaseOnSheet(updated).then(() => setTimeout(refreshData, 1500));
   }
   function saveInbound(f) {
     if (!f.clientName.trim()) { showToast("Enter a client name.", t.toastError); return; }
@@ -1673,12 +1663,12 @@ function ChenTrackerApp() {
               onDelete={(id) => {
                 const row = inboundRows.find((x) => x.id === id);
                 setInboundRows((r) => r.filter((x) => x.id !== id));
-                if (row) deleteInboundOnSheet(row);
+                if (row) deleteInboundOnSheet(row).then(() => setTimeout(refreshData, 1500));
               }}
               onEdit={(updated) => {
                 setInboundRows((r) => r.map((x) => x.id === updated.id ? updated : x));
-                showToast("Inbound entry updated.", t.toastSuccess);
-                updateInboundOnSheet(updated);
+                showToast("Inbound entry updated. Syncing…", t.toastSuccess);
+                updateInboundOnSheet(updated).then(() => setTimeout(refreshData, 2000));
               }}
               t={t} isDark={isDark}
             />
